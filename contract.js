@@ -6,6 +6,7 @@ var C = (function() {
     };
   }
 
+  // contract combinators
   return {
     flat: function(p, name) {
       return function(pos, neg) {
@@ -42,62 +43,68 @@ var C = (function() {
 })();
 
 var K = (function() {
+  // Some basic contracts
   return {
-    Number: function(x) {
+    Number: C.flat(function(x) {
       if(typeof(x) === "number")
         return true;
       else
         return false;
-    },
-    Odd: function(x) {
+    }, "Number"),
+    Odd: C.flat(function(x) {
       if( (x % 2) === 1) 
         return true;
       else
         return false;
-    },
-    Even: function(x) {
+    }, "Odd"),
+    Even: C.flat(function(x) {
       if( (x % 2) === 1) 
         return false;
       else
         return true;
-    }
+    }, "Even"),
+    Pos: C.flat(function(x) {
+      return x >= 0;
+    }, "Pos")
   };
 })();
 
 
-var T = (function () {
-
-  function id(x) {
+var M = (function () {
+  // wrapping the math library in contracts
+  function badAbs(x) {
     return x;
   }
-
-  function inc(x) {
-    return x+1;
-  }
-
   return {
-    id: C.guard(C.fun(C.flat(K.Number, "Number"), C.flat(K.Number, "Number")), id, "server", "client"),
-    inc: C.guard(C.fun(C.flat(K.Even, "Even"), C.flat(K.Odd, "Odd")), inc, "server", "client"),
+    abs: C.guard(C.fun(K.Number, C.and(K.Number, K.Pos)), Math.abs, "server", "client"),
+    badAbs: C.guard(C.fun(K.Number, C.and(K.Number, K.Pos)), badAbs, "server", "client") 
   }
-
 })();
 
 
 
 
 (function test() {
-  function assert(b) {
-    if (!b) {
-      throw {
-        name: "AssertError",
-        message: "Failed assert"
-      }
-    }
+  var i = 0;
+  var errorLog = [];
+  function log(e) {
+    errorLog.push(e);
   }
 
-  assert(T.id(4) === 4);
-  assert(T.inc(4) === 5);
+  var tests = [
+    {f: M.abs, a: [4], b: false},
+    {f: M.badAbs, a: [-4], b: true},
+    {f: M.abs, a: ["hi"], b: true}
+  ];
+  for(i = 0; i < tests.length; i++) {
+    var test = tests[i];
 
-  assert(T.inc(5) === 6);
-  return "passed all tests";
+    try {
+      test.f.apply(this, test.a)
+      if(test.b) { log("failed to blame for " + test); }
+    } catch (e) {
+      log(e);
+    }
+  }
+  return errorLog;
 })();
