@@ -28,6 +28,13 @@ var C = (function() {
         };
       };
     },
+    and: function(k1, k2) {
+      return function(pos, neg) {
+        return function(val) {
+          return k2(pos, neg)(k1(pos, neg)(val));
+        }
+      };
+    },
     guard: function(k, x, pos, neg) {
       return k(pos, neg)(x);
     }
