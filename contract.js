@@ -29,6 +29,16 @@ var C = (function() {
         };
       };
     },
+    any: function(pos, neg) {
+      return function(val) {
+        return val;
+      };
+    },
+    none: function(pos, neg) {
+      return function(val) {
+        blame(pos, "none", val);
+      };
+    },
     and: function(k1, k2) {
       return function(pos, neg) {
         return function(val) {
@@ -60,6 +70,7 @@ var K = (function() {
     Even: C.flat(function(x) {
       if( (x % 2) === 1) 
         return false;
+
       else
         return true;
     }, "Even"),
@@ -75,7 +86,10 @@ var M = (function () {
   function badAbs(x) {
     return x;
   }
+  function id(x) { return x; }
   return {
+    id: C.guard(C.fun(C.any, C.any), id, "server", "client"),
+    idNone: C.guard(C.fun(C.none, C.none), id, "server", "client"),
     abs: C.guard(C.fun(K.Number, C.and(K.Number, K.Pos)), Math.abs, "server", "client"),
     badAbs: C.guard(C.fun(K.Number, C.and(K.Number, K.Pos)), badAbs, "server", "client") 
   }
@@ -92,6 +106,8 @@ var M = (function () {
   }
 
   var tests = [
+    {f: M.id, a:[3], b: false},
+    {f: M.idNone, a:[3], b: true},
     {f: M.abs, a: [4], b: false},
     {f: M.badAbs, a: [-4], b: true},
     {f: M.abs, a: ["hi"], b: true}
