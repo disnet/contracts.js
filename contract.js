@@ -1,27 +1,35 @@
 var C = (function() {
+  function blame(toblame, k, val) {
+    throw {
+      name: "BlameError",
+      message: "I blame: " + toblame + " for violating " + k + " with value: " + val
+    };
+  }
+
   return {
-    flat: function(p) {
-      return function(x) {
-        if (!p(x)) {
-          throw {
-            name: "Failing contract: " + x,
-            message: "todo..."
-          }
-        }
-      };
-    },
-    fun: function(dom, rng) {
-      return function(f) {
+    flat: function(p, name) {
+      return function(pos, neg) {
         return function(x) {
-          dom(x);
-          var r = f(x);
-          rng(r);
-          return r;
+          if (p(x)) 
+            return x;
+          else
+            blame(pos, name, x);
         };
       };
     },
-    guard: function(k, x) {
-      return k(x);
+    fun: function(dom, rng) {
+      return function(pos, neg) {
+        return function(f) {
+          return function(x) {
+            var domp = dom(neg, pos);
+            var rngp = rng(pos, neg);
+            return rngp(f(domp(x)));
+          };
+        };
+      };
+    },
+    guard: function(k, x, pos, neg) {
+      return k(pos, neg)(x);
     }
   };
 })();
@@ -46,7 +54,6 @@ var K = (function() {
       else
         return true;
     }
-
   };
 })();
 
@@ -62,24 +69,25 @@ var T = (function () {
   }
 
   return {
-    id: C.guard(C.fun(C.flat(K.Number), C.flat(K.Number)), id),
-    inc: C.guard(C.fun(C.flat(K.Even), C.flat(K.Odd)), inc),
+    id: C.guard(C.fun(C.flat(K.Number, "Number"), C.flat(K.Number, "Number")), id, "server", "client"),
+    inc: C.guard(C.fun(C.flat(K.Even, "Even"), C.flat(K.Odd, "Odd")), inc, "server", "client"),
   }
 
 })();
 
 
-function assert(b) {
-  if (!b) {
-    throw {
-      name: "AssertError",
-      message: "Failed assert"
-    }
-  }
-}
 
 
 (function test() {
+  function assert(b) {
+    if (!b) {
+      throw {
+        name: "AssertError",
+        message: "Failed assert"
+      }
+    }
+  }
+
   assert(T.id(4) === 4);
   assert(T.inc(4) === 5);
 
