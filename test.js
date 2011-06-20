@@ -1,33 +1,21 @@
-// var T = (function () {
+$(document).ready(function() {
+  
+  test("checking id", function() {
+    ok(M.id(3));
 
-//   function id(x) {
-//     return x;
-//   }
+    raises(function() { M.idNone(3) });
+  });
 
-//   function badId(x) {
-//     return x+1;
-//   }
+  test("checking abs", function() {
+    ok(M.abs(4));
 
-//   return {
-//     id: C.wrap(id),
-//     badId: C.wrap(badId)
-//   }
+    raises(function() { M.abs("foo"); });
+    raises(function() { M.badAbs(-4); });
+  });
 
-// })();
+  test("checking object", function() {
+    ok(M.idObj.id(3));
 
-
-// function assert(b) {
-//   if (!b) {
-//     throw {
-//       name: "AssertError",
-//       message: "Failed assert"
-//     }
-//   }
-// }
-
-
-// (function test() {
-//   assert(T.id(4) === 4);
-//   assert(T.badId(4) === 4);
-//   return "passed all tests";
-// })();
+    raises(function() { M.idObj.id("hi"); });
+  });
+});

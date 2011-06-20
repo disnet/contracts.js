@@ -154,35 +154,3 @@ var M = (function () {
     badAbs: C.guard(C.fun(K.Number, C.and(K.Number, K.Pos)), badAbs, "server", "client") 
   }
 })();
-
-
-
-
-(function test() {
-  var i = 0;
-  var errorLog = [];
-  function log(e) {
-    errorLog.push(e);
-  }
-
-  var tests = [
-    {f: M.id, a:[3], b: false},
-    {f: M.idNone, a:[3], b: true},
-    {f: M.abs, a: [4], b: false},
-    {f: M.badAbs, a: [-4], b: true},
-    {f: M.abs, a: ["hi"], b: true},
-    {f: M.idObj["id"], a: [3], b: false},
-    {f: M.idObj["id"], a: ["hi"], b: true}
-  ];
-  for(i = 0; i < tests.length; i++) {
-    var test = tests[i];
-
-    try {
-      test.f.apply(this, test.a)
-      if(test.b) { log("failed to blame for " + test); }
-    } catch (e) {
-      log(e);
-    }
-  }
-  return errorLog;
-})();
