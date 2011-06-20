@@ -1,9 +1,10 @@
+/*global M: true, document:true, $:true test:true, ok:true, raises: true*/
 $(document).ready(function() {
     
     test("checking id", function() {
         ok(M.id(3));
 
-        raises(function() { M.idNone(3) });
+        raises(function() { M.idNone(3); });
     });
 
     test("checking abs", function() {

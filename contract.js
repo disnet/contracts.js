@@ -139,8 +139,6 @@ var Contracts = (function() {
         K: contracts
     };
 })();
-var C = Contracts;
-
 
 var M = (function () {
     function badAbs(x) {
@@ -148,8 +146,8 @@ var M = (function () {
     }
     function id(x) { return x; }
 
-    var C = C.C, // combinators
-        K = C.K, // builtin contracts
+    var C = Contracts.C, // combinators
+        K = Contracts.K, // builtin contracts
         o = {
             id: id
         };
