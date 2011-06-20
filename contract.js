@@ -1,4 +1,6 @@
-var C = (function() {
+/*global Proxy: true */
+/*jslint white: false */
+var Contracts = (function() {
     function blame(toblame, k, val) {
         throw {
             name: "BlameError",
@@ -7,23 +9,24 @@ var C = (function() {
     }
 
     // contract combinators
-    return {
+    var combinators = {
         flat: function(p, name) {
             return function(pos, neg) {
-                return function(x) {
-                    if (p(x)) 
+                return function (x) {
+                    if (p(x)) {
                         return x;
-                    else
+                    } else {
                         blame(pos, name, x);
+                    }
                 };
             };
         },
         fun: function(dom, rng) {
             return function(pos, neg) {
                 return function(f) {
-                    return function(x) {
-                        var domp = dom(neg, pos);
-                        var rngp = rng(pos, neg);
+                    return function (x) {
+                        var domp = dom(neg, pos),
+                            rngp = rng(pos, neg);
                         return rngp(f(domp(x)));
                     };
                 };
@@ -73,11 +76,12 @@ var C = (function() {
                             return true;
                         }, 
                         enumerate: function() {
-                            var result = [];
-                            for (name in obj) { result.push(name); };
+                            var result = [],
+                                name;
+                            for (name in obj) { result.push(name); }
                             return result;
                         },
-                        keys: function() { return Object.keys(obj) }
+                        keys: function() { return Object.keys(obj); }
                     });
                 };
             };
@@ -96,42 +100,46 @@ var C = (function() {
             return function(pos, neg) {
                 return function(val) {
                     return k2(pos, neg)(k1(pos, neg)(val));
-                }
+                };
             };
         },
         guard: function(k, x, pos, neg) {
             return k(pos, neg)(x);
         }
-    };
-})();
-
-var K = (function() {
+    },
     // Some basic contracts
-    return {
-        Number: C.flat(function(x) {
-            if(typeof(x) === "number")
+    contracts = {
+        Number: combinators.flat(function(x) {
+            if(typeof(x) === "number") {
                 return true;
-            else
+            } else {
                 return false;
+            }
         }, "Number"),
-        Odd: C.flat(function(x) {
-            if( (x % 2) === 1) 
+        Odd: combinators.flat(function(x) {
+            if( (x % 2) === 1) {
                 return true;
-            else
+            } else {
                 return false;
+            }
         }, "Odd"),
-        Even: C.flat(function(x) {
-            if( (x % 2) === 1) 
+        Even: combinators.flat(function(x) {
+            if( (x % 2) === 1) {
                 return false;
-
-            else
+            } else {
                 return true;
+            }
         }, "Even"),
-        Pos: C.flat(function(x) {
+        Pos: combinators.flat(function(x) {
             return x >= 0;
         }, "Pos")
     };
+    return {
+        C: combinators,
+        K: contracts
+    };
 })();
+var C = Contracts;
 
 
 var M = (function () {
@@ -140,9 +148,11 @@ var M = (function () {
     }
     function id(x) { return x; }
 
-    var o = {
-        id: id
-    };
+    var C = C.C, // combinators
+        K = C.K, // builtin contracts
+        o = {
+            id: id
+        };
 
     return {
         id: C.guard(C.fun(C.any, C.any), id, "server", "client"),
@@ -152,5 +162,5 @@ var M = (function () {
         }), o, "server", "client"),
         abs: C.guard(C.fun(K.Number, C.and(K.Number, K.Pos)), Math.abs, "server", "client"),
         badAbs: C.guard(C.fun(K.Number, C.and(K.Number, K.Pos)), badAbs, "server", "client") 
-    }
+    };
 })();
