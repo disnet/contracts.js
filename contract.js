@@ -125,25 +125,16 @@ var Contracts = (function() {
     // Some basic contracts
     contracts = {
         Number: combinators.flat(function(x) {
-            if(typeof(x) === "number") {
-                return true;
-            } else {
-                return false;
-            }
+            return typeof(x) === "number";
         }, "Number"),
+        String: combinators.flat(function(x) {
+            return typeof(x) === "string";
+        }, "String"),
         Odd: combinators.flat(function(x) {
-            if( (x % 2) === 1) {
-                return true;
-            } else {
-                return false;
-            }
+            return  (x % 2) === 1;
         }, "Odd"),
         Even: combinators.flat(function(x) {
-            if( (x % 2) === 1) {
-                return false;
-            } else {
-                return true;
-            }
+            return (x % 2) === 1;
         }, "Even"),
         Pos: combinators.flat(function(x) {
             return x >= 0;
