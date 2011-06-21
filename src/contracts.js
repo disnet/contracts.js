@@ -1,4 +1,4 @@
-/*global Proxy: true */
+/*global Proxy: true, */
 /*jslint white: false */
 var Contracts = (function() {
     function blame(toblame, k, val) {
@@ -68,7 +68,7 @@ var Contracts = (function() {
                         hasOwn: function(name) { return Object.prototype.hasOwnProperty.call(obj, name); },
                         get: function(receiver, name) {
                             // interesting stuff here
-                            if(oc[name]) { // maybe this is wrong...allowing anything that isn't specified
+                            if(oc.hasOwnProperty(name)) { // maybe this is wrong...allowing anything that isn't specified
                                 return oc[name](pos, neg)(obj[name]);
                             } else {
                                 return obj[name];
@@ -76,7 +76,7 @@ var Contracts = (function() {
                         },
                         set: function(receiver, name, val) {
                             // interesting stuff here
-                            if(oc[name]) { // maybe this is wrong...allowing anything that isn't specified
+                            if(oc.hasOwnProperty(name)) { // maybe this is wrong...allowing anything that isn't specified
                                 obj[name] = oc[name](pos, neg)(val);
                             } else {
                                 obj[name] = val;
@@ -92,11 +92,11 @@ var Contracts = (function() {
                         keys: function() { return Object.keys(obj); }
                     },
                                                 function(args) {
-                                                    return obj.apply(args);
+                                                    return obj.apply(this, arguments);
                                                 },
                                                 function(args) {
                                                     // todo: probably broken here...
-                                                    return obj.apply(args);
+                                                    return obj.apply(this, arguments);
                                                 });
                 };
             };
