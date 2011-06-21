@@ -35,7 +35,7 @@ var Contracts = (function() {
         object: function(oc) {
             return function(pos, neg) {
                 return function(obj) {
-                    return Proxy.create({
+                    return Proxy.createFunction({ // might not be function but createFunction is more general
                         getOwnPropertyDescriptor: function(name) {
                             var desc = Object.getOwnPropertyDescriptor(obj, name);
                             if (desc !== undefined) { desc.configurable = true; }
