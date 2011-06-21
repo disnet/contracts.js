@@ -82,7 +82,14 @@ var Contracts = (function() {
                             return result;
                         },
                         keys: function() { return Object.keys(obj); }
-                    });
+                    },
+                                                function(args) {
+                                                    return obj.apply(args);
+                                                },
+                                                function(args) {
+                                                    // todo: probably broken here...
+                                                    return obj.apply(args);
+                                                });
                 };
             };
         },
