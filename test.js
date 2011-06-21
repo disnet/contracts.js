@@ -19,4 +19,8 @@ $(document).ready(function() {
 
         raises(function() { M.idObj.id("hi"); });
     });
+
+    test("checking jquery", function() {
+        ok($.foo === 45);
+    });
 });

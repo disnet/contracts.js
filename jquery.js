@@ -931,8 +931,13 @@ function doScrollCheck() {
 }
 
 // Expose jQuery to the global object
-return jQuery;
-
+    if(Contracts) {
+        jQuery.foo = 45;
+        // return C.guard(C.object({ foo: K.Number }), jQuery, "server", "client");
+        return jQuery;
+    } else {
+        return jQuery;
+    }
 })();
 
 
