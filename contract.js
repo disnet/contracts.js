@@ -68,11 +68,19 @@ var Contracts = (function() {
                         hasOwn: function(name) { return Object.prototype.hasOwnProperty.call(obj, name); },
                         get: function(receiver, name) {
                             // interesting stuff here
-                            return oc[name](pos, neg)(obj[name]);
+                            if(oc[name]) { // maybe this is wrong...allowing anything that isn't specified
+                                return oc[name](pos, neg)(obj[name]);
+                            } else {
+                                return obj[name];
+                            }
                         },
                         set: function(receiver, name, val) {
                             // interesting stuff here
-                            obj[name] = oc[name](pos, neg)(val);
+                            if(oc[name]) { // maybe this is wrong...allowing anything that isn't specified
+                                obj[name] = oc[name](pos, neg)(val);
+                            } else {
+                                obj[name] = val;
+                            }
                             return true;
                         }, 
                         enumerate: function() {
