@@ -20,7 +20,7 @@ test("checking object", function() {
 });
 
 test("checking jquery", function() {
-    ok($.foo === 45);
+    raises(function() { jQuery.myVerySpecialProperty; });
     // Note: different than real test...jQuery.noConflict will return the original
     // non-proxied non-contracted version of the jQuery object
     notEqual( jQuery, jQuery.noConflict(), "noConflict returned the jQuery object" );
