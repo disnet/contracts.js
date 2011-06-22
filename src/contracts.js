@@ -8,6 +8,49 @@ var Contracts = (function() {
         };
     }
 
+    // creates the properties that behave as an identity for a Proxy
+    function idHandler(obj) {
+        return {
+            getOwnPropertyDescriptor: function(name) {
+                var desc = Object.getOwnPropertyDescriptor(obj, name);
+                if (desc !== undefined) { desc.configurable = true; }
+                return desc;
+            },
+            getPropertyDescriptor: function(name) {
+                var desc = Object.getPropertyDescriptor(obj, name); 
+                if (desc !== undefined) { desc.configurable = true; }
+                return desc;
+            },
+            getOwnPropertyNames: function() {
+                return Object.getOwnPropertyNames(obj);
+            },
+            getPropertyNames: function() {
+                return Object.getPropertyNames(obj);               
+            },
+            defineProperty: function(name, desc) {
+                Object.defineProperty(obj, name, desc);
+            },
+            delete: function(name) { return delete obj[name]; },   
+            fix: function() {
+                if (Object.isFrozen(obj)) {
+                    return Object.getOwnPropertyNames(obj).map(function(name) {
+                        return Object.getOwnPropertyDescriptor(obj, name);
+                    });
+                }
+                return undefined;
+            },
+            has: function(name) { return name in obj; },
+            hasOwn: function(name) { return Object.prototype.hasOwnProperty.call(obj, name); },
+            enumerate: function() {
+                var result = [],
+                name;
+                for (name in obj) { result.push(name); }
+                return result;
+            },
+            keys: function() { return Object.keys(obj); }
+        };
+    }
+
     // contract combinators
     var combinators = {
         flat: function(p, name) {
@@ -32,70 +75,40 @@ var Contracts = (function() {
                 };
             };
         },
-        object: function(oc) {
+        object: function(objContract) {
             return function(pos, neg) {
                 return function(obj) {
-                    return Proxy.createFunction({ // might not be function but createFunction is more general
-                        getOwnPropertyDescriptor: function(name) {
-                            var desc = Object.getOwnPropertyDescriptor(obj, name);
-                            if (desc !== undefined) { desc.configurable = true; }
-                            return desc;
-                        },
-                        getPropertyDescriptor: function(name) {
-                            var desc = Object.getPropertyDescriptor(obj, name); 
-                            if (desc !== undefined) { desc.configurable = true; }
-                            return desc;
-                        },
-                        getOwnPropertyNames: function() {
-                            return Object.getOwnPropertyNames(obj);
-                        },
-                        getPropertyNames: function() {
-                            return Object.getPropertyNames(obj);               
-                        },
-                        defineProperty: function(name, desc) {
-                            Object.defineProperty(obj, name, desc);
-                        },
-                        delete: function(name) { return delete obj[name]; },   
-                        fix: function() {
-                            if (Object.isFrozen(obj)) {
-                                return Object.getOwnPropertyNames(obj).map(function(name) {
-                                    return Object.getOwnPropertyDescriptor(obj, name);
-                                });
-                            }
-                            return undefined;
-                        },
-                        has: function(name) { return name in obj; },
-                        hasOwn: function(name) { return Object.prototype.hasOwnProperty.call(obj, name); },
-                        get: function(receiver, name) {
-                            // interesting stuff here
-                            if(oc.hasOwnProperty(name)) { // maybe this is wrong...allowing anything that isn't specified
-                                return oc[name](pos, neg)(obj[name]);
-                            } else {
-                                return obj[name];
-                            }
-                        },
-                        set: function(receiver, name, val) {
-                            // interesting stuff here
-                            if(oc.hasOwnProperty(name)) { // maybe this is wrong...allowing anything that isn't specified
-                                obj[name] = oc[name](pos, neg)(val);
-                            } else {
-                                obj[name] = val;
-                            }
-                            return true;
-                        }, 
-                        enumerate: function() {
-                            var result = [],
-                                name;
-                            for (name in obj) { result.push(name); }
-                            return result;
-                        },
-                        keys: function() { return Object.keys(obj); }
-                    },
+                    var missingProps,
+                        handler = idHandler(obj);
+                    handler.get = function(receiver, name) {
+                        if(objContract.hasOwnProperty(name)) { 
+                            return objContract[name](pos, neg)(obj[name]);
+                        } else {
+                            return obj[name];
+                        }
+                    };
+                    handler.set = function(receiver, name, val) {
+                        if(objContract.hasOwnProperty(name)) { 
+                            obj[name] = objContract[name](pos, neg)(val);
+                        } else {
+                            obj[name] = val;
+                        }
+                        return true;
+                    };
+                    // check that all properties on the object have a contract
+                    missingProps = Object.keys(objContract).filter(function(el) {
+                        return !obj.hasOwnProperty(el);
+                    });
+                    if(missingProps.length !== 0) {
+                        // todo: use missingProps to get more descriptive blame msg
+                        blame(pos, objContract, obj);
+                    }
+                                                           
+                    return Proxy.createFunction(handler, 
                                                 function(args) {
                                                     return obj.apply(this, arguments);
                                                 },
                                                 function(args) {
-                                                    // todo: probably broken here...
                                                     return obj.apply(this, arguments);
                                                 });
                 };
