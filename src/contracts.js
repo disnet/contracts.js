@@ -1,5 +1,5 @@
 /*global Proxy: true, */
-/*jslint white: false */
+/*jslint white: false, plusplus: false */
 var Contracts = (function() {
     function blame(toblame, k, val) {
         throw {
@@ -47,6 +47,13 @@ var Contracts = (function() {
                 for (name in obj) { result.push(name); }
                 return result;
             },
+            get: function(receiver, name) {
+                return obj[name];
+            },
+            set: function(receiver, name, val) {
+                obj[name] = val;
+                return true;
+            },
             keys: function() { return Object.keys(obj); }
         };
     }
@@ -67,11 +74,23 @@ var Contracts = (function() {
         fun: function(dom, rng) {
             return function(pos, neg) {
                 return function(f) {
-                    return function (x) {
-                        var domp = dom(neg, pos),
-                            rngp = rng(pos, neg);
-                        return rngp(f(domp(x)));
-                    };
+                    var handler = idHandler(f);
+                    return Proxy.createFunction(handler,
+                                         function(args) {
+                                             var i;
+                                             for(i = 0; i < args.length; i++) {
+                                                 dom[i](neg, pos)(args[i]);
+                                             }
+                                             return rng(pos, neg)(f.apply(this, arguments));
+                                         },
+                                         function(args) {
+                                             // todo: think through this more
+                                             var rng, i;
+                                             for(i = 0; i < args.length; i++) {
+                                                 dom[i](neg, pos)(args[i]);
+                                             }
+                                             return rng(pos, neg)(f.apply(this, arguments));
+                                         });
                 };
             };
         },
@@ -104,19 +123,30 @@ var Contracts = (function() {
                         blame(pos, objContract, obj);
                     }
                                                            
-                    return Proxy.createFunction(handler, 
-                                                function(args) {
-                                                    return obj.apply(this, arguments);
-                                                },
-                                                function(args) {
-                                                    return obj.apply(this, arguments);
-                                                });
+                    return Proxy.create(handler); // todo: what about the prototype? defaulting to null
                 };
             };
         },
         any: function(pos, neg) {
             return function(val) {
                 return val;
+            };
+        },
+        or: function(k1, k2) {
+            return function(pos, neg) {
+                return function(val) {
+                    // for now only accepting first order contracts for 'or'
+                    if (typeof val === "function") {
+                        blame(pos, "or", val);
+                    }
+                    var k1c = k1(pos, neg),
+                        k2c = k2(pos, neg);
+                    try {
+                        return k1c(val);
+                    } catch (e) {
+                        return k2c(val);
+                    }
+                };
             };
         },
         none: function(pos, neg) {
@@ -151,7 +181,12 @@ var Contracts = (function() {
         }, "Even"),
         Pos: combinators.flat(function(x) {
             return x >= 0;
-        }, "Pos")
+        }, "Pos"),
+        Array: combinators.object({
+            length: combinators.flat(function(x) {
+                return typeof(x) === "number";
+            }, "Number")
+        })
     };
     return {
         C: combinators,
