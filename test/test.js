@@ -22,6 +22,8 @@ var M = (function () {
     };
 })();
 
+module("Basic Contracts");
+
 test("checking id", function() {
     ok(M.id(3));
 
@@ -63,8 +65,10 @@ test("can contract for both function + objects properties", function() {
     raises(function() { idc.length; });
 });
 
+module("jQuery Contracts");
+
 test("checking jquery", function() {
-    ok(jQuery("div"));
+    equals(jQuery("div").selector, "div");
     ok(jQuery.apply(this, ["div"]));
     ok(jQuery([1,2,3]));
     ok(jQuery(Contracts.C.guard(Contracts.K.Array, [1,2,3], "server", "client")));
