@@ -19,9 +19,17 @@ var Contracts = (function() {
                 return desc;
             },
             getPropertyDescriptor: function(name) {
-                var desc = Object.getPropertyDescriptor(obj, name); 
-                if (desc !== undefined) { desc.configurable = true; }
-                return desc;
+                var o = obj;
+                // walk the prototype chain checking for the given property
+                do {
+                    var desc = Object.getOwnPropertyDescriptor(o, name); 
+                    if (desc !== undefined) {
+                        desc.configurable = true;
+                        return desc;
+                    }
+                    o = Object.getPrototypeOf(o);
+                } while(o !== null);
+                return undefined;
             },
             getOwnPropertyNames: function() {
                 return Object.getOwnPropertyNames(obj);
