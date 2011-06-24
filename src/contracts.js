@@ -145,7 +145,11 @@ var Contracts = (function() {
                     };
                     // check that all properties on the object have a contract
                     missingProps = Object.keys(objContract).filter(function(el) {
-                        return !obj.hasOwnProperty(el);
+                        // using `in` instead of `hasOwnProperty` to
+                        // allow property to be somewhere on the prototype chain
+                        // todo: are we sure this is what we want? need a way to specify
+                        // a prop *must* be on the object?
+                        return !(el in obj); 
                     });
                     if(missingProps.length !== 0) {
                         // todo: use missingProps to get more descriptive blame msg
