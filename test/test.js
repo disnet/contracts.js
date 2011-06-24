@@ -1,7 +1,37 @@
+// testing contracts module
+var M = (function () {
+    function badAbs(x) {
+        return x;
+    }
+    function id(x) { return x; }
+
+    var C = Contracts.C, // combinators
+        K = Contracts.K, // builtin contracts
+        o = {
+            id: id
+        };
+
+    return {
+        id: C.guard(C.fun(C.any, C.any), id, "server", "client"),
+        idNone: C.guard(C.fun(C.none, C.none), id, "server", "client"),
+        idObj: C.guard(C.object({
+            id: C.fun(K.Number, K.Number)
+        }), o, "server", "client"),
+        abs: C.guard(C.fun(K.Number, C.and(K.Number, K.Pos)), Math.abs, "server", "client"),
+        badAbs: C.guard(C.fun(K.Number, C.and(K.Number, K.Pos)), badAbs, "server", "client") 
+    };
+})();
+
 test("checking id", function() {
     ok(M.id(3));
 
     raises(function() { M.idNone(3); });
+});
+
+test("names of contracts", function() {
+    equal(Contracts.K.String("server", "client").cname, "String");
+    equal(Contracts.K.Number("server", "client").cname, "Number");
+    equal(M.idObj.id.cname, "Number -> Number");
 });
 
 test("checking abs", function() {
@@ -23,7 +53,9 @@ test("can contract for both function + objects properties", function() {
     ok(id(4) === 4);
     ok(id.length === 2);
     var idc = C.guard(
-        C.fun(K.String, K.String),
+        C.and(
+            C.fun(K.String, K.String),
+            C.object({ length: K.String })),
         id,
         "server",
         "client");
@@ -31,17 +63,9 @@ test("can contract for both function + objects properties", function() {
     raises(function() { idc.length; });
 });
 
-// test("checking jquery", function() {
-//     raises(function() { jQuery.myVerySpecialProperty; });
-//     // Note: different than real test...jQuery.noConflict will return the original
-//     // non-proxied non-contracted version of the jQuery object
-//     notEqual( jQuery, jQuery.noConflict(), "noConflict returned the jQuery object" );
-// });
-
 test("checking jquery", function() {
     ok(jQuery("div"));
     ok(jQuery.apply(this, ["div"]));
     ok(jQuery([1,2,3]));
-    // ok(jQuery(Contracts.C.guard(Contracts.K.Array, [1,2,3], "server", "client")));
-    
+    ok(jQuery(Contracts.C.guard(Contracts.K.Array, [1,2,3], "server", "client")));
 });

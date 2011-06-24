@@ -9,17 +9,16 @@
 
 jQuery = (function() {
     var C = Contracts.C,
-        K = Contracts.K;
-
-    var jQueryContract = C.object({
-        length : K.Number
-    });
+        K = Contracts.K,
+        jQueryContract = C.object({
+            length : K.String
+        });
 
     return C.guard(
-        // C.and(
-        //     jQueryContract,
-        C.fun(C.or(K.String, K.Array), jQueryContract),
-        // ),
+        C.and(
+            C.fun(C.or(K.String, K.Array), jQueryContract),
+            jQueryContract
+        ),
         jQuery,
         "server",
         "client");

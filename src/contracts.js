@@ -4,7 +4,7 @@ var Contracts = (function() {
     function blame(toblame, k, val) {
         throw {
             name: "BlameError",
-            message: "I blame: " + toblame + " for violating " + k + " with value: " + val
+            message: "I blame: " + toblame + " for violating '" + k + "' with value: " + val
         };
     }
 
@@ -31,6 +31,7 @@ var Contracts = (function() {
                 Object.defineProperty(obj, name, desc);
             },
             delete: function(name) { return delete obj[name]; },   
+
             fix: function() {
                 if (Object.isFrozen(obj)) {
                     return Object.getOwnPropertyNames(obj).map(function(name) {
@@ -42,6 +43,7 @@ var Contracts = (function() {
             has: function(name) { return name in obj; },
             hasOwn: function(name) { return Object.prototype.hasOwnProperty.call(obj, name); },
             enumerate: function() {
+
                 var result = [],
                 name;
                 for (name in obj) { result.push(name); }
@@ -62,42 +64,59 @@ var Contracts = (function() {
     var combinators = {
         flat: function(p, name) {
             return function(pos, neg) {
-                return function (x) {
+                var k = function (x) {
                     if (p(x)) {
                         return x;
                     } else {
                         blame(pos, name, x);
                     }
                 };
+                k.cname = name;
+                return k;
             };
         },
         fun: function(dom, rng) {
             return function(pos, neg) {
-                return function(f) {
+                var k = function(f) {
                     var handler = idHandler(f);
-                    return Proxy.createFunction(handler,
-                                         function(args) {
-                                             var i;
-                                             for(i = 0; i < args.length; i++) {
-                                                 dom[i](neg, pos)(args[i]);
-                                             }
-                                             return rng(pos, neg)(f.apply(this, arguments));
-                                         },
-                                         function(args) {
-                                             // todo: think through this more
-                                             var rng, i;
-                                             for(i = 0; i < args.length; i++) {
-                                                 dom[i](neg, pos)(args[i]);
-                                             }
-                                             return rng(pos, neg)(f.apply(this, arguments));
-                                         });
+                    var fp = Proxy.createFunction(handler,
+                                                function(args) {
+                                                    var i = 0;
+                                                    // single argument
+                                                    if(typeof dom === "function") {
+                                                        // todo: what about single arg contract but
+                                                        // function called with multiple arguments
+                                                        dom(neg, pos)(args);
+                                                    } else {
+                                                        // assuming multiple arguments, should fail if assumption is wrong
+                                                        // -- wish I could use some contracts here :)
+                                                        for( ; i < args.length; i++) {
+                                                            dom[i](neg, pos)(arguments[i]);
+                                                        }
+                                                    }
+                                                    return rng(pos, neg)(f.apply(this, arguments));
+                                                },
+                                                function(args) {
+                                                    // todo: think through this more, how should we deal with constructors?
+                                                    var rng, i;
+                                                    for(i = 0; i < args.length; i++) {
+                                                        dom[i](neg, pos)(args[i]);
+                                                    }
+                                                    return rng(pos, neg)(f.apply(this, arguments));
+                                                });
+                    // todo: naming here is *wrong*. cname is on the original `f` so if we apply
+                    // multiple function contracts, cname will hold the last one.
+                    fp.cname = dom(neg, pos).cname + " -> " + rng(pos, neg).cname;
+                    return fp
                 };
+                k.cname = "->";
+                return k;
             };
         },
         object: function(objContract) {
             return function(pos, neg) {
-                return function(obj) {
-                    var missingProps,
+                var k = function(obj) {
+                    var missingProps, op,
                         handler = idHandler(obj);
                     handler.get = function(receiver, name) {
                         if(objContract.hasOwnProperty(name)) { 
@@ -122,19 +141,39 @@ var Contracts = (function() {
                         // todo: use missingProps to get more descriptive blame msg
                         blame(pos, objContract, obj);
                     }
-                                                           
-                    return Proxy.create(handler); // todo: what about the prototype? defaulting to null
+                    // making this a function proxy if object is also a function to preserve
+                    // typeof checks
+                    if (typeof obj === "function") {
+                        op = Proxy.createFunction(handler,
+                                                  function(args) {
+                                                      return obj.apply(this, arguments);
+                                                  },
+                                                  function(args) {
+                                                      return obj.apply(this, arguments);
+                                                  });
+
+                    } else {
+                        op = Proxy.create(handler);// todo: what about the prototype? defaulting to null
+                    }
+                    op.cname = "object {}";
+                    return op;
                 };
+                k.cname = "object";
+                return k;
             };
         },
-        any: function(pos, neg) {
-            return function(val) {
-                return val;
+        any: (function() {
+            return function(pos, neg) {
+                var k = function(val) {
+                    return val;
+                };
+                k.cname = "any";
+                return k;
             };
-        },
+        })(),
         or: function(k1, k2) {
             return function(pos, neg) {
-                return function(val) {
+                var k = function(val) {
                     // for now only accepting first order contracts for 'or'
                     if (typeof val === "function") {
                         blame(pos, "or", val);
@@ -147,18 +186,26 @@ var Contracts = (function() {
                         return k2c(val);
                     }
                 };
+                k.cname = "or";
+                return k;
             };
         },
-        none: function(pos, neg) {
-            return function(val) {
-                blame(pos, "none", val);
+        none: (function() {
+            return function(pos, neg) {
+                var k = function(val) {
+                    blame(pos, "none", val);
+                };
+                k.cname = "none";
+                return k;
             };
-        },
+        })(),
         and: function(k1, k2) {
             return function(pos, neg) {
-                return function(val) {
+                var k = function(val) {
                     return k2(pos, neg)(k1(pos, neg)(val));
                 };
+                k.cname = "and";
+                return k;
             };
         },
         guard: function(k, x, pos, neg) {
@@ -191,28 +238,5 @@ var Contracts = (function() {
     return {
         C: combinators,
         K: contracts
-    };
-})();
-
-var M = (function () {
-    function badAbs(x) {
-        return x;
-    }
-    function id(x) { return x; }
-
-    var C = Contracts.C, // combinators
-        K = Contracts.K, // builtin contracts
-        o = {
-            id: id
-        };
-
-    return {
-        id: C.guard(C.fun(C.any, C.any), id, "server", "client"),
-        idNone: C.guard(C.fun(C.none, C.none), id, "server", "client"),
-        idObj: C.guard(C.object({
-            id: C.fun(K.Number, K.Number)
-        }), o, "server", "client"),
-        abs: C.guard(C.fun(K.Number, C.and(K.Number, K.Pos)), Math.abs, "server", "client"),
-        badAbs: C.guard(C.fun(K.Number, C.and(K.Number, K.Pos)), badAbs, "server", "client") 
     };
 })();
