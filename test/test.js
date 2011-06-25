@@ -31,9 +31,9 @@ test("checking id", function() {
 });
 
 test("names of contracts", function() {
-    equal(Contracts.K.String("server", "client").cname, "String");
-    equal(Contracts.K.Number("server", "client").cname, "Number");
-    equal(M.idObj.id.cname, "Number -> Number");
+    equal(Contracts.K.String.cname, "String");
+    equal(Contracts.K.Number.cname, "Number");
+    equal(M.idObj.id.__cname, "Number -> Number");
 });
 
 test("checking abs", function() {
