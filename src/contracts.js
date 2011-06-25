@@ -136,27 +136,27 @@ var Contracts = (function() {
             });
         },
         object: function(objContract) {
-            return new Contract("object", function(obj) {
+            var c = new Contract("object", function(obj) {
                 var missingProps, op,
                 handler = idHandler(obj);
                 var that = this;
                 handler.get = function(receiver, name) {
-                    if(objContract.hasOwnProperty(name)) { 
-                        return objContract[name].posNeg(that.pos, that.neg).check(obj[name]);
+                    if(that.oc.hasOwnProperty(name)) { 
+                        return that.oc[name].posNeg(that.pos, that.neg).check(obj[name]);
                     } else {
                         return obj[name];
                     }
                 };
                 handler.set = function(receiver, name, val) {
-                    if(objContract.hasOwnProperty(name)) { 
-                        obj[name] = objContract[name].posNeg(that.pos, that.neg).check(val);
+                    if(that.oc.hasOwnProperty(name)) { 
+                        obj[name] = that.oc[name].posNeg(that.pos, that.neg).check(val);
                     } else {
                         obj[name] = val;
                     }
                     return true;
                 };
                 // check that all properties on the object have a contract
-                missingProps = Object.keys(objContract).filter(function(el) {
+                missingProps = Object.keys(this.oc).filter(function(el) {
                     // using `in` instead of `hasOwnProperty` to
                     // allow property to be somewhere on the prototype chain
                     // todo: are we sure this is what we want? need a way to specify
@@ -165,7 +165,7 @@ var Contracts = (function() {
                 });
                 if(missingProps.length !== 0) {
                     // todo: use missingProps to get more descriptive blame msg
-                    blame(this.pos, objContract, obj);
+                    blame(this.pos, this.oc, obj);
                 }
                 // making this a function proxy if object is also a function to preserve
                 // typeof checks
@@ -181,8 +181,19 @@ var Contracts = (function() {
                 } else {
                     op = Proxy.create(handler);// todo: what about the prototype? defaulting to null
                 }
+                op.__oname = "foooo";
                 return op;
             });
+            c.oc = objContract;
+            c.addPropertyContract = function(newOc) {
+                for(name in newOc) {
+                    if(newOc.hasOwnProperty(name)) {
+                        this.oc[name] = newOc[name];
+                    }
+                }
+                return this;
+            };
+            return c;
         },
         any: (function() {
             return new Contract("any", function(val) {
@@ -211,7 +222,8 @@ var Contracts = (function() {
         })(),
         and: function(k1, k2) {
             return new Contract("and", function(val) {
-                return k2.posNeg(this.pos, this.neg).check(k1.posNeg(this.pos, this.neg).check(val));
+                var k1c = k1.posNeg(this.pos, this.neg).check(val);
+                return k2.posNeg(this.pos, this.neg).check(k1c);
             });
         },
         guard: function(k, x, pos, neg) {
