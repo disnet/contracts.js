@@ -69,9 +69,9 @@ var Contracts = (function() {
             keys: function() { return Object.keys(obj); }
         };
     }
-    function Contract(name, handler) {
+    function Contract(cname, handler) {
         this.handler = handler
-        this.cname = name;
+        this.cname = cname;
     }
     Contract.prototype = {
         // a -> (a + Blame)
@@ -83,7 +83,7 @@ var Contracts = (function() {
             this.handler = handler;
             return this;
         },
-        // String -> String -> Contract
+        // String x String -> Contract
         posNeg : function(pos, neg) {
             this.pos = pos;
             this.neg = neg;
@@ -181,7 +181,6 @@ var Contracts = (function() {
                 } else {
                     op = Proxy.create(handler);// todo: what about the prototype? defaulting to null
                 }
-                op.__oname = "foooo";
                 return op;
             });
             c.oc = objContract;
