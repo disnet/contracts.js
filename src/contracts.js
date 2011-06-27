@@ -234,6 +234,9 @@ var Contracts = (function() {
         Number: combinators.flat(function(x) {
             return typeof(x) === "number";
         }, "Number"),
+        Boolean : combinators.flat(function(x) {
+            return typeof(x) === "boolean";
+        }, "Boolean"),
         String: combinators.flat(function(x) {
             return typeof(x) === "string";
         }, "String"),
