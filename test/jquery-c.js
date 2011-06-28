@@ -66,6 +66,7 @@ jQuery = (function() {
 
             // want to say Date
             now : C.any,
+
             sub : C.any
         }),
         jq = C.object({
@@ -75,13 +76,14 @@ jQuery = (function() {
     jq.addPropertyContract({
         // addClass :: String -> jQuery
         addClass : C.fun(K.String, jq),
-        selector : C.any,
-        constructor : C.any,
-        init : C.any,
-        jquery : C.any,
-        size : C.any,
-        toArray : C.any,
-        get : C.any,
+        selector : K.String,
+        jquery : K.String,
+        size : C.fun(C.any, K.Number),
+        toArray : C.fun(C.any, K.Array),
+        // Unit -> [els]
+        // Number -> el
+        get : C.fun(C.any, C.any),
+
         pushStack : C.any,
         each : C.any,
         ready : C.any,
@@ -218,7 +220,9 @@ jQuery = (function() {
         height : C.any,
         innerWidth : C.any,
         outerWidth : C.any,
-        width : C.any
+        width : C.any,
+        constructor : C.any,
+        init : C.any
         // prevObject : C.any,  // these two only are present on jquery objects that have returned elements
         // context : C.any,
     });
