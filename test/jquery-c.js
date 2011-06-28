@@ -26,7 +26,15 @@ jQuery = (function() {
             // parseJSON : undefined -> null
             // parseJSON : null -> null
             // parseJSON : "" -> null
-            parseJSON : C.fun(C.any, C.any),
+            // parseJSON : C.fun(C.any, C.any),
+            parseJSON : C.funD(C.or([K.String, K.Undefined, K.Null]), function(args) {
+                var arg = args[0];  // only care about the first arg
+                if(arg === undefined || arg === null || arg === "") {
+                    return K.Null;
+                } else {
+                    return C.object({});
+                }
+            }),
             parseXML : C.fun(C.any, C.any),
             noop : C.fun(C.any, C.any),
             globalEval : C.fun(K.String, C.any),
