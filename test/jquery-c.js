@@ -6,41 +6,59 @@ jQuery = (function() {
         jqTopLevel = C.object({
             fn: C.object({}), // the prototype
             length : K.Number,
-            extend: C.any,
-            noConflict:  C.any,
-            isReady: K.Boolean,   // possibly some interesting dependent relation
-            readyWait : K.Number, // between these four
-            holdReady: C.any,
-            ready: C.any,
-            bindReady : C.any,
             isFunction : C.fun(C.any, K.Boolean),
             isArray: C.fun(C.any, K.Boolean),
             isWindow: C.any, // want to say C.fun(C.any, K.Boolean) but can't since it can return undefined !== boolean
             isNaN: C.fun(C.any, K.Boolean),
-            type: C.any,
+            isReady: K.Boolean,   // possibly some interesting dependent relation
+            readyWait : K.Number, // between these ready functions
+            ready: C.fun(C.any, C.any),
+            bindReady : C.fun(C.any, C.any),
+            holdReady: C.fun(K.Boolean, C.any),
             isPlainObject : C.fun(C.any, K.Boolean),
             isEmptyObject : C.fun(C.any, K.Boolean),
-            error : C.any,
-            parseJSON : C.any,
-            parseXML : C.any,
-            noop : C.any,
-            globalEval : C.any,
-            nodeName : C.any,
             // ([a] + {name:a...}) -> (a -> b) -> () -- more precise than I can get currently
             each : C.fun(C.or([K.Array, C.object({})]), C.fun(C.any,C.any), C.any),
-            trim : C.any,
-            makeArray : C.any,
-            inArray : C.any,
-            merge : C.any,
-            grep : C.any,
-            map : C.any,
+            type: C.fun(C.any, K.String),
+            error : C.fun(K.String, C.any),
+            // todo can we say more about the object?
+            // parseJSON : String -> {}
+            // parseJSON : undefined -> null
+            // parseJSON : null -> null
+            // parseJSON : "" -> null
+            parseJSON : C.fun(C.any, C.any),
+            parseXML : C.fun(C.any, C.any),
+            noop : C.fun(C.any, C.any),
+            globalEval : C.fun(K.String, C.any),
+            // nodeName : {nodeName : String} x String -> String, 
+            nodeName : C.fun([C.object({ nodeName : K.String}), K.String], K.String),
+            // undefined makes this imprecise
+            trim : C.fun(C.any, C.any),
+            // breakes qunit's "same(makeArray({length: "0"}), [])" but it does create an empty
+            // array...just not deepEqual I think
+            makeArray : C.fun(C.any, K.Array),
+            inArray : C.fun([C.any, K.Array], K.Number),
+            // has problems with qunits same() also
+            merge : C.fun([K.Array, K.Array], K.Array),
+            grep : C.fun([K.Array, C.fun([C.any, K.Number], K.Boolean), K.Boolean], K.Array),
+            map : C.fun([C.or([K.Array, C.object({})]), C.fun([C.any, K.Number], C.any)], K.Array),
             guid : K.Number,
-            proxy : C.any,
-            access : C.any,
+            // proxy : C.fun([C.fun(C.any, C.any), C.object({})], C.fun(C.any, C.any)),
+            proxy : C.fun(C.any, C.any),
+            // no documentation on this method
+            access : C.fun(C.any, C.any),
+            uaMatch : C.fun(K.String, C.object({browser: K.String, version: K.String})),
+
+            // {...} x {name1: val1 ...} x {nameN: valN} -> { /* props from first obj merged with 1..N */ }
+            // also modifies first object
+            extend: C.any,
+            noConflict:  C.any,
+            // also has browser dependent property (eg mozilla)
+            browser : C.object({version: K.String}),
+
+            // want to say Date
             now : C.any,
-            uaMatch : C.any,
-            sub : C.any,
-            browser : C.any
+            sub : C.any
         }),
         jq = C.object({
             length: K.Number
@@ -49,8 +67,6 @@ jQuery = (function() {
     jq.addPropertyContract({
         // addClass :: String -> jQuery
         addClass : C.fun(K.String, jq),
-        // prevObject : C.any,  // these two only are present on jquery objects that have returned elements
-        // context : C.any,
         selector : C.any,
         constructor : C.any,
         init : C.any,
@@ -195,6 +211,8 @@ jQuery = (function() {
         innerWidth : C.any,
         outerWidth : C.any,
         width : C.any
+        // prevObject : C.any,  // these two only are present on jquery objects that have returned elements
+        // context : C.any,
     });
 
     return C.guard(
