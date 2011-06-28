@@ -103,13 +103,16 @@ var Contracts = (function() {
                 }
             });
         },
-        fun: function(dom, rng) {
+        // rng : [args] -> Contract
+        funD: function(dom, rng) {
             return new Contract(dom.cname + " -> " + rng.cname, function(f) {
+                // todo: check that f is actually a function
                 var handler = idHandler(f);
                 var that = this; // right this?
                 var fp = Proxy.createFunction(handler,
                                               function() {
-                                                  var i = 0;
+                                                  var i = 0,
+                                                      rngc;
                                                   if(!Array.isArray(dom)) {
                                                       // todo commenting out strict checking for now...might want a way
                                                       // to chose to be super strict about # of arguments matching the
@@ -129,7 +132,8 @@ var Contracts = (function() {
                                                           dom[i].posNeg(that.neg, that.pos).check(arguments[i]);
                                                       }
                                                   }
-                                                  return rng.posNeg(that.pos, that.neg).check(f.apply(this, arguments));
+                                                  rngc = rng(arguments);
+                                                  return rngc.posNeg(that.pos, that.neg).check(f.apply(this, arguments));
                                               },
                                               function() {
                                                   // todo: think through this more, how should we deal with constructors?
@@ -144,8 +148,12 @@ var Contracts = (function() {
                 return fp;
             });
         },
+        fun: function(dom, rng) {
+            return this.funD(dom, function() { return rng; });
+        },
         object: function(objContract) {
             var c = new Contract("object", function(obj) {
+                // todo check that obj is actually an object
                 var missingProps, op,
                 handler = idHandler(obj);
                 var that = this;
