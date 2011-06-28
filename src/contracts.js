@@ -103,6 +103,9 @@ var Contracts = (function() {
                 }
             });
         },
+        // dependent functions, rng is a function that takes
+        // the arguments originally passed to the called function
+        // and returns a contract.
         // rng : [args] -> Contract
         funD: function(dom, rng) {
             return new Contract(dom.cname + " -> " + rng.cname, function(f) {

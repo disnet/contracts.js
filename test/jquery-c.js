@@ -8,25 +8,20 @@ jQuery = (function() {
             length : K.Number,
             isFunction : C.fun(C.any, K.Boolean),
             isArray: C.fun(C.any, K.Boolean),
-            isWindow: C.any, // want to say C.fun(C.any, K.Boolean) but can't since it can return undefined !== boolean
+            isWindow: C.fun(C.any, K.Boolean), // will fail since isWindows(null/undefined) -> null/undefined -- truthiness fail
             isNaN: C.fun(C.any, K.Boolean),
             isReady: K.Boolean,   // possibly some interesting dependent relation
             readyWait : K.Number, // between these ready functions
             ready: C.fun(C.any, C.any),
             bindReady : C.fun(C.any, C.any),
             holdReady: C.fun(K.Boolean, C.any),
+
             isPlainObject : C.fun(C.any, K.Boolean),
             isEmptyObject : C.fun(C.any, K.Boolean),
             // ([a] + {name:a...}) -> (a -> b) -> () -- more precise than I can get currently
             each : C.fun(C.or([K.Array, C.object({})]), C.fun(C.any,C.any), C.any),
             type: C.fun(C.any, K.String),
             error : C.fun(K.String, C.any),
-            // todo can we say more about the object?
-            // parseJSON : String -> {}
-            // parseJSON : undefined -> null
-            // parseJSON : null -> null
-            // parseJSON : "" -> null
-            // parseJSON : C.fun(C.any, C.any),
             parseJSON : C.funD(C.or([K.String, K.Undefined, K.Null]), function(args) {
                 var arg = args[0];  // only care about the first arg
                 if(arg === undefined || arg === null || arg === "") {
@@ -36,12 +31,11 @@ jQuery = (function() {
                 }
             }),
             parseXML : C.fun(C.any, C.any),
-            noop : C.fun(C.any, C.any),
+            noop : C.fun(K.Undefined, C.Undefined),
             globalEval : C.fun(K.String, C.any),
             // nodeName : {nodeName : String} x String -> String, 
             nodeName : C.fun([C.object({ nodeName : K.String}), K.String], K.String),
-            // undefined makes this imprecise
-            trim : C.fun(C.any, C.any),
+            trim : C.fun(K.String, K.String), // causes jquery tests to fail since the trim function is liberal
             // breakes qunit's "same(makeArray({length: "0"}), [])" but it does create an empty
             // array...just not deepEqual I think
             makeArray : C.fun(C.any, K.Array),

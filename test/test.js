@@ -103,4 +103,5 @@ test("checking jquery", function() {
     ok(jQuery.apply(this, ["div"]));
     ok(jQuery([1,2,3]));
     ok(jQuery(Contracts.C.guard(Contracts.K.Array, [1,2,3], "server", "client")));
+    // want to test grep
 });
