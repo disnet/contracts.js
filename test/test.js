@@ -49,6 +49,36 @@ test("checking object", function() {
     raises(function() { M.idObj.id("hi"); });
 });
 
+test("multiple args for function contracts", function() {
+    var f1 = function(a, b, c) { return a + 1; };
+    var f2 = function(a, b, c) { return b + "foo"; };
+    var f3 = function(a, b, c) { return c; };
+    var f1c = Contracts.C.guard(Contracts.C.fun(
+        [Contracts.K.Number, Contracts.K.String, Contracts.K.Boolean],
+        Contracts.K.Number),
+                      f1,
+                      "server",
+                      "client");
+    var f2c = Contracts.C.guard(Contracts.C.fun(
+        [Contracts.K.Number, Contracts.K.String, Contracts.K.Boolean],
+        Contracts.K.String),
+                      f2,
+                      "server",
+                      "client");
+    var f3c = Contracts.C.guard(Contracts.C.fun(
+        [Contracts.K.Number, Contracts.K.String, Contracts.K.Boolean],
+        Contracts.K.String),
+                      f3,
+                      "server",
+                      "client");
+
+    equal(f1c(1, "foo", false), 2);
+    equal(f2c(1, "foo", false), "foofoo");
+    raises(function() { f1c("foo", 1, false); }, "bad client");
+    raises(function() { f2c("foo", 1, false); }, "bad client");
+    raises(function() { f3c(1, "foo", false); }, "bad server");
+});
+
 test("can contract for both function + objects properties", function() {
     var id = function(x, y) { return x; }
     var C = Contracts.C, K = Contracts.K;

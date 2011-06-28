@@ -15,7 +15,7 @@ jQuery = (function() {
             bindReady : C.any,
             isFunction : C.fun(C.any, K.Boolean),
             isArray: C.fun(C.any, K.Boolean),
-            isWindow: C.any, // C.fun(C.any, K.Boolean), can't do this since can return undefined
+            isWindow: C.any, // want to say C.fun(C.any, K.Boolean) but can't since it can return undefined !== boolean
             isNaN: C.fun(C.any, K.Boolean),
             type: C.any,
             isPlainObject : C.fun(C.any, K.Boolean),
@@ -26,8 +26,8 @@ jQuery = (function() {
             noop : C.any,
             globalEval : C.any,
             nodeName : C.any,
-            // ([a] + {name:a...}) -> (a -> b) -> ([b] + {name:b...})
-            each : C.fun(C.any, C.fun(C.any,C.any), C.any),
+            // ([a] + {name:a...}) -> (a -> b) -> () -- more precise than I can get currently
+            each : C.fun(C.or([K.Array, C.object({})]), C.fun(C.any,C.any), C.any),
             trim : C.any,
             makeArray : C.any,
             inArray : C.any,
