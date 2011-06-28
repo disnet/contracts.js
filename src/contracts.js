@@ -107,29 +107,37 @@ var Contracts = (function() {
                 var handler = idHandler(f);
                 var that = this; // right this?
                 var fp = Proxy.createFunction(handler,
-                                              function(args) {
+                                              function() {
                                                   var i = 0;
-                                                  // todo: needs better handling of multi args
-                                                  if(dom.posNeg !== undefined) {
-                                                      // todo: what about single arg contract but
-                                                      // function called with multiple arguments
-                                                      dom.posNeg(that.neg, that.pos).check(args);
+                                                  if(!Array.isArray(dom)) {
+                                                      // todo commenting out strict checking for now...might want a way
+                                                      // to chose to be super strict about # of arguments matching the
+                                                      // # of contracts
+
+                                                      // if(arguments.length > 1) { // not doing === 1 since contract could be any and accept undefined
+                                                      //     // todo: better messaging that was called with too many arguments
+                                                      //     blame(that.pos, dom, arguments); 
+                                                      // }
+                                                      dom.posNeg(that.neg, that.pos).check(arguments[0]);
                                                   } else {
-                                                      // assuming multiple arguments, should fail if assumption is wrong
-                                                      // -- wish I could use some contracts here :)
-                                                      for( ; i < args.length; i++) {
+                                                      // if(arguments.length !== dom.length) {
+                                                      //     // todo: better messaging that was called with too many arguments
+                                                      //     blame(that.pos, dom, arguments); 
+                                                      // }
+                                                      for( ; i < arguments.length; i++) {
                                                           dom[i].posNeg(that.neg, that.pos).check(arguments[i]);
                                                       }
                                                   }
                                                   return rng.posNeg(that.pos, that.neg).check(f.apply(this, arguments));
                                               },
-                                              function(args) {
+                                              function() {
                                                   // todo: think through this more, how should we deal with constructors?
-                                                  var rng, i;
-                                                  for(i = 0; i < args.length; i++) {
-                                                      dom[i].posNeg(that.neg, that.pos).check(args[i]);
-                                                  }
-                                                  return rng.posNeg(that.pos, that.neg).check(f.apply(this, arguments));
+                                                  // var rng, i;
+                                                  // for(i = 0; i < args.length; i++) {
+                                                  //     dom[i].posNeg(that.neg, that.pos).check(args[i]);
+                                                  // }
+                                                  // return rng.posNeg(that.pos, that.neg).check(f.apply(this, arguments));
+                                                  return f.apply(this, arguments);
                                               });
                 fp.__cname = this.cname;
                 return fp;
