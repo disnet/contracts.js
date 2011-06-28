@@ -262,6 +262,12 @@ var Contracts = (function() {
     },
     // Some basic contracts
     contracts = {
+        Undefined: combinators.flat(function(x) {
+            return undefined === x;
+        }, "Undefined"),
+        Null : combinators.flat(function(x) {
+            return null === x;
+        }, "Null"),
         Number: combinators.flat(function(x) {
             return typeof(x) === "number";
         }, "Number"),
