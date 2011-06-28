@@ -80,7 +80,7 @@ test("multiple args for function contracts", function() {
 });
 
 test("can contract for both function + objects properties", function() {
-    var id = function(x, y) { return x; }
+    var id = function(x, y) { return x; };
     var C = Contracts.C, K = Contracts.K;
     ok(id(4) === 4);
     ok(id.length === 2);

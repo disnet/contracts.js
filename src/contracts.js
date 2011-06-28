@@ -1,6 +1,7 @@
 /*global Proxy: true, */
 /*jslint white: false, plusplus: false */
 
+
 var Contracts = (function() {
     "use strict";
     function blame(toblame, k, val) {
@@ -70,7 +71,7 @@ var Contracts = (function() {
         };
     }
     function Contract(cname, handler) {
-        this.handler = handler
+        this.handler = handler;
         this.cname = cname;
     }
     Contract.prototype = {
@@ -196,6 +197,7 @@ var Contracts = (function() {
             // contract after initialization. Useful for
             // recursive contracts.
             c.addPropertyContract = function(newOc) {
+                var name;
                 for(name in newOc) {
                     if(newOc.hasOwnProperty(name)) {
                         this.oc[name] = newOc[name];
