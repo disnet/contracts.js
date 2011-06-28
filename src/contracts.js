@@ -207,19 +207,29 @@ var Contracts = (function() {
                 return val;
             });
         })(),
-        or: function(k1, k2) {
+        or: function(ks) {
+            // todo: could be nicer here and use arguments to accept varargs
+            if(!Array.isArray(ks)) {
+                throw {
+                    name: "BadContract",
+                    message: "Must create the 'or' contract with an array of contracts"
+                };
+            }
             return new Contract("or", function(val) {
+                var i = 0, lastBlame;
                 // for now only accepting first order contracts for 'or'
                 if (typeof val === "function") {
                     blame(this.pos, "or", val);
                 }
-                var k1c = k1.posNeg(this.pos, this.neg),
-                    k2c = k2.posNeg(this.pos, this.neg);
-                try {
-                    return k1c.check(val);
-                } catch (e) {
-                    return k2c.check(val);
+                for(; i < ks.length; i++) {
+                    try {
+                        return ks[i].posNeg(this.pos, this.neg).check(val);
+                    } catch (e) {
+                        lastBlame = e;
+                        continue;
+                    }
                 }
+                throw lastBlame; // the last contract in the array still assigned blame so surface it
             });
         },
         none: (function() {
