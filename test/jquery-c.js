@@ -49,10 +49,9 @@ jQuery = (function() {
     jq.addPropertyContract({
         // addClass :: String -> jQuery
         addClass : C.fun(K.String, jq),
-        length : C.any,
-        prevObject : C.any,
-        context : C.any,
-        selecto : C.anyr,
+        // prevObject : C.any,  // these two only are present on jquery objects that have returned elements
+        // context : C.any,
+        selector : C.any,
         constructor : C.any,
         init : C.any,
         jquery : C.any,
@@ -83,7 +82,6 @@ jQuery = (function() {
         removeAttr : C.any,
         prop : C.any,
         removeProp : C.any,
-        addClass : C.any,
         removeClass : C.any,
         toggleClass : C.any,
         hasClass : C.any,
