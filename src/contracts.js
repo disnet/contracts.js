@@ -192,6 +192,9 @@ var Contracts = (function() {
                 return op;
             });
             c.oc = objContract;
+            // Allows us to add property's to the object
+            // contract after initialization. Useful for
+            // recursive contracts.
             c.addPropertyContract = function(newOc) {
                 for(name in newOc) {
                     if(newOc.hasOwnProperty(name)) {
