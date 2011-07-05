@@ -97,17 +97,44 @@ test("can contract for both function + objects properties", function() {
 });
 
 test("checking arrays", function() {
+
+    raises(function() { Contracts.C.guard(Contracts.K.List, {length: 3}, "server", "client"); },
+           "not a list but looks like it");
+
+    var jsarr = Contracts.C.guard(Contracts.K.JsArray, [1,2,3], "server", "client");
+    ok(jsarr[0] = 4, "js arrays are mutable");
+    ok(delete jsarr[1], "js arrays can have holes");
+
     var l = [1,2,3];
-    var hole_l = [1,2,3];
-    var undef_l = [1,undefined, 3];
-    delete hole_l[1];
-
     var lc = Contracts.C.guard(Contracts.K.List, l, "server", "client");
-
     ok(lc[0]);
-    raises(function() { lc[0] = 4; }, "lists are immutable");
-    raises(function() { Contracts.C.guard(Contracts.K.List, hole_l, "server", "client");  }, "lists have no holes");
-    ok(Contracts.C.guard(Contracts.K.List, undef_l, "server", "client"), "lists can have undefined");
+
+    raises(function() { lc[0] = 4; },
+           "lists are immutable");
+
+    raises(function() { delete lc[0]; },
+           "cannot delete list elements");
+
+    var hole_l = [1,2,3];
+    delete hole_l[1];
+    raises(function() { Contracts.C.guard(Contracts.K.List, hole_l, "server", "client");  },
+           "lists have no holes");
+
+    var undef_l = [1,undefined, 3];
+    ok(Contracts.C.guard(Contracts.K.List, undef_l, "server", "client"),
+       "lists can have undefined");
+
+    var sl = [1,2,3];
+    delete sl[2];
+    raises(function() { Contracts.C.guard(Contracts.K.SaneArray, sl, "server", "client"); },
+           "can't contract a sane array with holes");
+
+    var saneArr = Contracts.C.guard(Contracts.K.SaneArray, [1,2,3], "server", "client");
+    ok(saneArr[1] = 44,
+       "sane arrays are mutable");
+    raises(function() { delete saneArr[1]; },
+           "sane arrays can't have holes");
+
 });
 
 module("jQuery Contracts");

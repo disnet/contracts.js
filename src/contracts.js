@@ -1,14 +1,41 @@
 /*global Proxy: true, */
+
 /*jslint white: false, plusplus: false */
 
 
 var Contracts = (function() {
     "use strict";
+
+    if(!Array.isArray){ // needed for cross browser...not that it matters with proxies atm
+        Array.isArray = (function(){
+            var builtInToString = Object.prototype.toString; // save a reference built-in Object.prototype.toString
+            var builtInToCall = Function.prototype.call; // save a reference to built-in Function.prototype.call
+            var callWithArgs = builtInToCall.bind(builtInToCall); // requires a built-in bind function, not a shim
+            
+            var argToString = function(o){
+                return callWithArgs(builtInToString, o);
+            };
+            
+            return function(o) { 
+                return argToString(o) === '[object Array]';
+            };
+        })();
+    }
+
     function blame(toblame, k, val) {
         throw {
             name: "BlameError",
             message: "I blame: " + toblame + " for violating '" + k + "' with value: " + val
         };
+    }
+
+    function hasNoHoles(obj) {
+        var i = 0;
+        for( ; i < obj.length; i++) {
+            if(!(i in obj))
+                return false;
+        }
+        return true;
     }
 
     // creates the properties that behave as an identity for a Proxy
@@ -157,7 +184,7 @@ var Contracts = (function() {
         object: function(objContract, options) {
             var c = new Contract("object", function(obj) {
                 // todo check that obj is actually an object
-                var missingProps, op,
+                var missingProps, op, i, 
                 handler = idHandler(obj);
                 var that = this;
                 handler.get = function(receiver, name) {
@@ -170,7 +197,7 @@ var Contracts = (function() {
                 handler.set = function(receiver, name, val) {
                     // todo: how should this interact with frozen objects?
                     if(options && options.immutable) { // fail if attempting to set an immutable object
-                        blame(that.pos, this.oc, obj);
+                        blame(that.pos, that.oc, obj);
                     }
                     if(that.oc.hasOwnProperty(name)) { 
                         obj[name] = that.oc[name].posNeg(that.pos, that.neg).check(val);
@@ -179,6 +206,11 @@ var Contracts = (function() {
                     }
                     return true;
                 };
+                if(options && options.noDelete) {
+                    handler.delete = function(name) {
+                        blame(that.pos, that.oc, obj);
+                    };
+                }
                 // check that all properties on the object have a contract
                 missingProps = Object.keys(this.oc).filter(function(el) {
                     // using `in` instead of `hasOwnProperty` to
@@ -192,8 +224,17 @@ var Contracts = (function() {
                     blame(this.pos, this.oc, obj);
                 }
 
-                if(options && options.initPredicate && !options.initPredicate(obj)) {
-                    blame(this.pos, this.oc, obj);
+                if(options && options.initPredicate) {
+                    // check each predicate if we have more than one
+                    if(Array.isArray(options.initPredicate)) {
+                        for( i = 0; i < options.initPredicate.length; i++) {
+                            if(!options.initPredicate[i](obj))
+                                blame(this.pos, this.oc, obj);
+                        }
+                    } else {
+                        if(!options.initPredicate(obj))
+                            blame(this.pos, this.oc, obj);
+                    }
                 }
 
                 // making this a function proxy if object is also a function to preserve
@@ -303,22 +344,21 @@ var Contracts = (function() {
                 return typeof(x) === "number";
             }, "Number")
         }),
-        List: combinators.object({
-            length: combinators.flat(function(x) {
-                return typeof(x) === "number";
-            }, "Number")
-        }, {
+        List: combinators.object({}, {
             immutable: true,
-            initPredicate: function(obj) {
-                var i = 0;
-                for( ; i < obj.length; i++) {
-                    if(!(i in obj))
-                        return false;
-                }
-                return true;
-            }
-            })
-
+            noDelete: true,
+            initPredicate: [Array.isArray, hasNoHoles]
+        }),
+        SaneArray: combinators.object({}, {
+            immutable: false,
+            noDelete: true,
+            initPredicate: [Array.isArray, hasNoHoles]
+        }),
+        JsArray: combinators.object({}, {
+            immutable: false,
+            noDelete: false,
+            initPredicate: Array.isArray
+        })
     };
     return {
         C: combinators,
