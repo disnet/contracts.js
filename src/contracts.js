@@ -312,7 +312,7 @@ var Contracts = (function() {
             initPredicate: function(obj) {
                 var i = 0;
                 for( ; i < obj.length; i++) {
-                    if(obj[i] === undefined)
+                    if(!(i in obj))
                         return false;
                 }
                 return true;

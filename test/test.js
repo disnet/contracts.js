@@ -99,6 +99,7 @@ test("can contract for both function + objects properties", function() {
 test("checking arrays", function() {
     var l = [1,2,3];
     var hole_l = [1,2,3];
+    var undef_l = [1,undefined, 3];
     delete hole_l[1];
 
     var lc = Contracts.C.guard(Contracts.K.List, l, "server", "client");
@@ -106,6 +107,7 @@ test("checking arrays", function() {
     ok(lc[0]);
     raises(function() { lc[0] = 4; }, "lists are immutable");
     raises(function() { Contracts.C.guard(Contracts.K.List, hole_l, "server", "client");  }, "lists have no holes");
+    ok(Contracts.C.guard(Contracts.K.List, undef_l, "server", "client"), "lists can have undefined");
 });
 
 module("jQuery Contracts");
