@@ -369,7 +369,8 @@ var Contracts = (function() {
             immutable: false,
             noDelete: false,
             initPredicate: Array.isArray
-        })
+        }),
+        ImmutableObject: combinators.object({}, {immutable: true})
     };
     return {
         C: combinators,
