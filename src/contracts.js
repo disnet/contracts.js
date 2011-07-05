@@ -154,7 +154,7 @@ var Contracts = (function() {
         fun: function(dom, rng) {
             return this.funD(dom, function() { return rng; });
         },
-        object: function(objContract) {
+        object: function(objContract, options) {
             var c = new Contract("object", function(obj) {
                 // todo check that obj is actually an object
                 var missingProps, op,
@@ -168,6 +168,10 @@ var Contracts = (function() {
                     }
                 };
                 handler.set = function(receiver, name, val) {
+                    // todo: how should this interact with frozen objects?
+                    if(options && options.immutable) { // fail if attempting to set an immutable object
+                        blame(that.pos, this.oc, obj);
+                    }
                     if(that.oc.hasOwnProperty(name)) { 
                         obj[name] = that.oc[name].posNeg(that.pos, that.neg).check(val);
                     } else {
@@ -187,6 +191,11 @@ var Contracts = (function() {
                     // todo: use missingProps to get more descriptive blame msg
                     blame(this.pos, this.oc, obj);
                 }
+
+                if(options && options.initPredicate && !options.initPredicate(obj)) {
+                    blame(this.pos, this.oc, obj);
+                }
+
                 // making this a function proxy if object is also a function to preserve
                 // typeof checks
                 if (typeof obj === "function") {
@@ -293,7 +302,23 @@ var Contracts = (function() {
             length: combinators.flat(function(x) {
                 return typeof(x) === "number";
             }, "Number")
-        })
+        }),
+        List: combinators.object({
+            length: combinators.flat(function(x) {
+                return typeof(x) === "number";
+            }, "Number")
+        }, {
+            immutable: true,
+            initPredicate: function(obj) {
+                var i = 0;
+                for( ; i < obj.length; i++) {
+                    if(obj[i] === undefined)
+                        return false;
+                }
+                return true;
+            }
+            })
+
     };
     return {
         C: combinators,
