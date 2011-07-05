@@ -134,7 +134,7 @@ var Contracts = (function() {
         // the arguments originally passed to the called function
         // and returns a contract.
         // rng : [args] -> Contract
-        funD: function(dom, rng) {
+        funD: function(dom, rng, options) {
             return new Contract(dom.cname + " -> " + rng.cname, function(f) {
                 // todo: check that f is actually a function
                 var handler = idHandler(f);
@@ -142,7 +142,12 @@ var Contracts = (function() {
                 var fp = Proxy.createFunction(handler,
                                               function() {
                                                   var i = 0,
-                                                      rngc;
+                                                      rngc, res;
+                                                  if(options && typeof options.pre === "function") {
+                                                      if(!options.pre(this)) {
+                                                          blame(that.pos, "fun", "precond"); // todo: fix up blame message
+                                                      }
+                                                  }
                                                   if(!Array.isArray(dom)) {
                                                       // todo commenting out strict checking for now...might want a way
                                                       // to chose to be super strict about # of arguments matching the
@@ -163,7 +168,13 @@ var Contracts = (function() {
                                                       }
                                                   }
                                                   rngc = rng(arguments);
-                                                  return rngc.posNeg(that.pos, that.neg).check(f.apply(this, arguments));
+                                                  res = rngc.posNeg(that.pos, that.neg).check(f.apply(this, arguments));
+                                                  if(options && typeof options.post === "function") {
+                                                      if(!options.post(this)) {
+                                                          blame(that.pos, "fun", "postcond"); // todo: fix up blame message
+                                                      }
+                                                  }
+                                                  return res;
                                               },
                                               function() {
                                                   // todo: think through this more, how should we deal with constructors?
@@ -178,8 +189,8 @@ var Contracts = (function() {
                 return fp;
             });
         },
-        fun: function(dom, rng) {
-            return this.funD(dom, function() { return rng; });
+        fun: function(dom, rng, options) {
+            return this.funD(dom, function() { return rng; }, options);
         },
         object: function(objContract, options) {
             var c = new Contract("object", function(obj) {

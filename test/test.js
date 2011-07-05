@@ -137,6 +137,40 @@ test("checking arrays", function() {
 
 });
 
+test("checking simple objects", function() {
+    var imm = Contracts.C.guard(
+        Contracts.C.object({ x: Contracts.K.Number }, {immutable: true}),
+        {x: 3},
+        "server", "client");
+    raises(function() { imm.x = 55;}, "object is immutable");
+    raises(function() { imm.z = 55;}, "object is immutable");
+
+    var imm2 = Contracts.C.guard(Contracts.K.ImmutableObject, {x: 44}, "server", "client");
+    raises(function() { imm2.x = 55;}, "object is immutable");
+    raises(function() { imm2.z = 55;}, "object is immutable");
+
+    var withPre = {x: 0, dec: function() { return --this.x; }};
+    ok(withPre.dec() === -1, "works before contract");
+    var withPreC = Contracts.C.guard(
+        Contracts.C.object({
+            x: Contracts.K.Number,
+            dec: Contracts.C.fun(Contracts.C.any, Contracts.K.Number, {
+                pre: function(obj) {
+                    return obj.x > 0;
+                },
+                post: function(obj) {
+                    return obj.x > 0;
+                }
+            })
+        }),
+        withPre,
+        "server", "client");
+    raises(function() { withPreC.dec(); }, "doesn't pass precondition");
+    withPreC.x = 1;
+    raises(function() { withPreC.dec(); }, "doesn't pass postcondition");
+});
+
+
 module("jQuery Contracts");
 
 test("checking jquery", function() {
