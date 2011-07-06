@@ -134,41 +134,54 @@ var Contracts = (function() {
         // the arguments originally passed to the called function
         // and returns a contract.
         // rng : [args] -> Contract
-        funD: function(dom, rng, options) {
+        funD: function() {
+            var dom, rng, options, rngIndex, i,
+                optionsOrRng = arguments[arguments.length - 1];
+            if(typeof optionsOrRng === "function") { // case when there is no options argument
+                rng = optionsOrRng;
+                options = undefined;
+                rngIndex = arguments.length - 1;
+            } else {
+                optionsOrRng = arguments[arguments.length - 2]; // option argument so have to go back two for the real contract
+                if(typeof optionsOrRng === "function") {
+                    rng = optionsOrRng;
+                    options = arguments[arguments.length - 1];
+                    rngIndex = arguments.length - 2;
+                } else {
+                    throw "Neither of the last two arguments to function combinator was a range contact";
+                }
+            }
+            dom = [];
+            for(i = 0; i < rngIndex; i++) {
+                dom.push(arguments[i]);
+            }
+            // ...all this to make calling with an unknown number of domain contracts clean
+
             return new Contract(dom.cname + " -> " + rng.cname, function(f) {
                 // todo: check that f is actually a function
+                if(typeof f !== "function") {
+                    blame(this.pos, f, "not a function"); // todo fix blame message
+                }
                 var handler = idHandler(f);
-                var that = this; // right this?
+                var that = this; 
                 var fp = Proxy.createFunction(handler,
                                               function() {
-                                                  var i = 0,
-                                                      rngc, res;
+                                                  var i, rngc, res;
+                                                  // check pre condition
                                                   if(options && typeof options.pre === "function") {
                                                       if(!options.pre(this)) {
                                                           blame(that.pos, "fun", "precond"); // todo: fix up blame message
                                                       }
                                                   }
-                                                  if(!Array.isArray(dom)) {
-                                                      // todo commenting out strict checking for now...might want a way
-                                                      // to chose to be super strict about # of arguments matching the
-                                                      // # of contracts
-
-                                                      // if(arguments.length > 1) { // not doing === 1 since contract could be any and accept undefined
-                                                      //     // todo: better messaging that was called with too many arguments
-                                                      //     blame(that.pos, dom, arguments); 
-                                                      // }
-                                                      dom.posNeg(that.neg, that.pos).check(arguments[0]);
-                                                  } else {
-                                                      // if(arguments.length !== dom.length) {
-                                                      //     // todo: better messaging that was called with too many arguments
-                                                      //     blame(that.pos, dom, arguments); 
-                                                      // }
-                                                      for( ; i < arguments.length; i++) {
-                                                          dom[i].posNeg(that.neg, that.pos).check(arguments[i]);
-                                                      }
+                                                  // check each of the arguments that we have a domain contract for
+                                                  for( i = 0 ; i < dom.length; i++) { 
+                                                      dom[i].posNeg(that.neg, that.pos).check(arguments[i]);
                                                   }
+                                                  // send the arguments to the dependent range
                                                   rngc = rng(arguments);
+                                                  // apply function and check range
                                                   res = rngc.posNeg(that.pos, that.neg).check(f.apply(this, arguments));
+                                                  // check post condition
                                                   if(options && typeof options.post === "function") {
                                                       if(!options.post(this)) {
                                                           blame(that.pos, "fun", "postcond"); // todo: fix up blame message
@@ -190,7 +203,21 @@ var Contracts = (function() {
             });
         },
         fun: function(dom, rng, options) {
-            return this.funD(dom, function() { return rng; }, options);
+            var optionsOrRng = arguments[arguments.length - 1];
+            if(optionsOrRng instanceof Contract) { // case when there is no options argument
+                // wrapping in empty function for dependent combinator
+                arguments[arguments.length - 1] = function() { return optionsOrRng; };
+            } else {
+                optionsOrRng = arguments[arguments.length - 2]; // option argument so have to go back two for the real contract
+                if(optionsOrRng instanceof Contract) {
+                    // wrapping in empty function for dependent combinator
+                    arguments[arguments.length - 2] = function() { return optionsOrRng; };
+                } else {
+                    throw "Neither of the last two arguments to function combinator was a range contact";
+                }
+            }
+
+            return this.funD.apply(this, arguments);
         },
         object: function(objContract, options) {
             var c = new Contract("object", function(obj) {

@@ -17,6 +17,7 @@ jQuery = (function() {
             holdReady: C.fun(K.Boolean, C.any),
 
             isPlainObject : C.fun(C.any, K.Boolean),
+            // isPlainObject : C.fun(C.any, K.Boolean, {pre: function(obj) { obj.bar === 34 }}),
             isEmptyObject : C.fun(C.any, K.Boolean),
             // ([a] + {name:a...}) -> (a -> b) -> () -- more precise than I can get currently
             each : C.fun(C.or([K.Array, C.object({})]), C.fun(C.any,C.any), C.any),
@@ -34,16 +35,15 @@ jQuery = (function() {
             noop : C.fun(K.Undefined, C.Undefined),
             globalEval : C.fun(K.String, C.any),
             // nodeName : {nodeName : String} x String -> String, 
-            nodeName : C.fun([C.object({ nodeName : K.String}), K.String], K.String),
+            nodeName : C.fun(C.object({ nodeName : K.String}), K.String, K.String),
             trim : C.fun(K.String, K.String), // causes jquery tests to fail since the trim function is liberal
             // breakes qunit's "same(makeArray({length: "0"}), [])" but it does create an empty
             // array...just not deepEqual I think
             makeArray : C.fun(C.any, K.Array),
-            inArray : C.fun([C.any, K.Array], K.Number),
-            // has problems with qunits same() also
-            merge : C.fun([K.Array, K.Array], K.Array),
-            grep : C.fun([K.Array, C.fun([C.any, K.Number], K.Boolean), K.Boolean], K.Array),
-            map : C.fun([C.or([K.Array, C.object({})]), C.fun([C.any, K.Number], C.any)], K.Array),
+            inArray : C.fun(C.any, K.Array, K.Number),
+            merge : C.fun(K.Array, K.Array, K.Array), // sameness fail
+            grep : C.fun(K.Array, C.fun(C.any, K.Number, K.Boolean), K.Boolean, K.Array),
+            map : C.fun(C.or([K.Array, C.object({})]), C.fun(C.any, K.Number, C.any), K.Array),
             guid : K.Number,
             // proxy : C.fun([C.fun(C.any, C.any), C.object({})], C.fun(C.any, C.any)),
             proxy : C.fun(C.any, C.any),
@@ -73,10 +73,10 @@ jQuery = (function() {
         selector : K.String,
         jquery : K.String,
         size : C.fun(C.any, K.Number),
-        toArray : C.fun(C.any, K.Array),
+        toArray : C.fun(C.any, K.Array), // sameness fail
         // Unit -> [els]
         // Number -> el
-        get : C.fun(C.any, C.any),
+        get : C.fun(C.any, C.any), // sameness fail
 
         pushStack : C.any,
         each : C.any,
@@ -230,3 +230,4 @@ jQuery = (function() {
         "server",
         "client");
 })();
+

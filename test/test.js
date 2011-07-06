@@ -55,19 +55,19 @@ test("multiple args for function contracts", function() {
     var f2 = function(a, b, c) { return b + "foo"; };
     var f3 = function(a, b, c) { return c; };
     var f1c = Contracts.C.guard(Contracts.C.fun(
-        [Contracts.K.Number, Contracts.K.String, Contracts.K.Boolean],
+        Contracts.K.Number, Contracts.K.String, Contracts.K.Boolean,
         Contracts.K.Number),
                       f1,
                       "server",
                       "client");
     var f2c = Contracts.C.guard(Contracts.C.fun(
-        [Contracts.K.Number, Contracts.K.String, Contracts.K.Boolean],
+        Contracts.K.Number, Contracts.K.String, Contracts.K.Boolean,
         Contracts.K.String),
                       f2,
                       "server",
                       "client");
     var f3c = Contracts.C.guard(Contracts.C.fun(
-        [Contracts.K.Number, Contracts.K.String, Contracts.K.Boolean],
+        Contracts.K.Number, Contracts.K.String, Contracts.K.Boolean,
         Contracts.K.String),
                       f3,
                       "server",
