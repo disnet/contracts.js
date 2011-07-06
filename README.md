@@ -1,6 +1,6 @@
 Contracts for JS (more to come)
 
-# Usage # 
+# Usage
 
 Basic usage...API still very much in flux
 
