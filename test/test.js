@@ -1,3 +1,6 @@
+var C = Contracts.C, // combinators
+    K = Contracts.K; // builtin contracts
+
 // testing contracts module
 var M = (function () {
     function badAbs(x) {
@@ -5,9 +8,7 @@ var M = (function () {
     }
     function id(x) { return x; }
 
-    var C = Contracts.C, // combinators
-        K = Contracts.K, // builtin contracts
-        o = {
+        var o = {
             id: id
         };
 
@@ -168,6 +169,49 @@ test("checking simple objects", function() {
     raises(function() { withPreC.dec(); }, "doesn't pass precondition");
     withPreC.x = 1;
     raises(function() { withPreC.dec(); }, "doesn't pass postcondition");
+});
+
+test("checking prototypes", function() {
+    var A = {
+        a: function() { return "foo"; },
+        b: 42
+    };
+    equals(A.a(), "foo");
+    equals(A.b, 42);
+
+    var AC = C.guard(C.object({a: C.fun(C.any, K.String), b: K.Number}), A, "server", "client");
+    equals(AC.a(), "foo");
+    equals(AC.b, 42);
+    raises(function() { AC.b = "42"; }, "contract doesn't allow a string to flow to b");
+    equals(AC.b, 42, "b was not changed in previous test");
+
+    var ABadC = C.guard(C.object({a: C.fun(C.any, K.Number), b: K.String}), A, "server", "client");
+    raises(function() { ABadC.a(); }, "contract says number but function give string");
+    raises(function() { ABadC.b; }, "contract doesn't match value stored in b");
+
+    var B = Object.create(A);
+    equals(B.a(), "foo");
+    equals(B.b, 42);
+
+    var BC = Object.create(AC);
+    equals(BC.a(), "foo");
+    equals(BC.b, 42);
+    ok(BC.b = "foo", "since b is assigned to BC not proto there is not contract to stop it");
+    equals(BC.b, "foo");
+
+    var BBadC = Object.create(ABadC);
+    raises(function() { BBadC.a(); }, "contract on prototype says number but gives string");
+    raises(function() { BBadC.b; }, "contract on proto still doesn't match value stored in b");
+
+    var BGoodAttemptC = C.guard(C.object({a: C.fun(C.any, K.String), b: K.Number}), BBadC, "server", "client");
+    raises(function() { BGoodAttemptC.a(); }, "contract on prototype still says there is a problem");
+    BBadC.a = function() { return "bar"; };
+    equals(BBadC.a(), "bar", "ok now we are shawdowning bad contract");
+
+    var B_has_C_not_A = C.guard(C.object({a: C.fun(C.any, K.String), b: K.String}),
+                                Object.create(A),
+                                "server", "client");
+    raises(function() { B_has_C_not_A.b; }, "blame even though contract is on object but prop is on proto");
 });
 
 
