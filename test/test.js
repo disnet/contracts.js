@@ -206,7 +206,7 @@ test("checking prototypes", function() {
     var BGoodAttemptC = C.guard(C.object({a: C.fun(C.any, K.String), b: K.Number}), BBadC, "server", "client");
     raises(function() { BGoodAttemptC.a(); }, "contract on prototype still says there is a problem");
     BBadC.a = function() { return "bar"; };
-    equals(BBadC.a(), "bar", "ok now we are shawdowning bad contract");
+    equals(BBadC.a(), "bar", "ok now we are shadowning bad contract");
 
     var B_has_C_not_A = C.guard(C.object({a: C.fun(C.any, K.String), b: K.String}),
                                 Object.create(A),

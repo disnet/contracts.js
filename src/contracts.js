@@ -261,6 +261,7 @@ var Contracts = (function() {
                     // todo: use missingProps to get more descriptive blame msg
                     blame(this.pos, this.oc, obj);
                 }
+                // todo eagerly check the properties?
 
                 if(options && options.initPredicate) {
                     // check each predicate if we have more than one
