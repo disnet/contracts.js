@@ -214,6 +214,56 @@ test("checking prototypes", function() {
     raises(function() { B_has_C_not_A.b; }, "blame even though contract is on object but prop is on proto");
 });
 
+test("functions and constructors", function() {
+    var id = function(x) { return x; };
+    var idc = C.guard(C.fun(K.Number, K.Number), id, "server", "client");
+    same(idc(4), 4,
+         "id obeys contract");
+    raises(function() { idc("foo"); },
+           "id breaks contract");
+
+    same(new idc(4), 4,
+         "id obeys contract and allows being called by new");
+    raises(function() { new idc("foo"); },
+           "id breaks contract and allows being called by new");
+
+    var id_nonew = C.guard(C.fun(K.Number, K.Number, {only_call: true} ), id, "server", "client");
+    same(id_nonew(4), 4,
+         "nonew obeys contract");
+    raises(function() { new id_nonew(4); },
+           "nonew obeys contract but called by new");
+
+    raises(function() { id_nonew("foo"); },
+           "nonew breaks contract");
+    raises(function() { new id_nonew("foo"); },
+           "no newbreaks contract and called by new"); // todo: distinguish in blame message
+
+    var id_onlynew = C.guard(C.fun(K.Number, K.Number, {only_new: true} ), id, "server", "client");
+    raises(function() { id_onlynew(4); },
+           "onlynew obeys contract but not called with new");
+    same(new id_onlynew(4), 4,
+         "onlynew obeys contract and called by new");
+
+    raises(function() { id_onlynew("foo"); },
+           "onlynew breaks contract and not called with new");
+    raises(function() { new id_onlynew("foo"); },
+           "onlynew breaks contract and called by new"); // todo: distinguish in blame message
+
+    var id_new_with_contract = C.guard(
+        C.fun(K.Number, K.Number,
+              {constructor_contract: [K.String, K.String]} ),
+        id, "server", "client");
+    same(id_new_with_contract(4), 4,
+         "new_with_contract obeys contract");
+    same(new id_new_with_contract("foo"), "foo",
+         "new_with_contract obeys contract when called by new");
+
+    raises(function() { id_new_with_contract("foo"); },
+           "new_with_contract breaks contract");
+    raises(function() { new id_new_with_contract(4); },
+           "new_with_contract breaks contract when called by new"); // todo: distinguish in blame message
+});
+
 
 module("jQuery Contracts");
 
