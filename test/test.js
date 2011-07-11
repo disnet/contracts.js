@@ -58,6 +58,22 @@ test("multiple args for function contracts", function() {
     raises(function() { f3c(1, "foo", false); }, "bad server");
 });
 
+test("optional args for functions", function() {
+    var f = guard(
+        fun([Num, opt(Str)], Num),
+        function(x, y) { return x; },
+        server, client);
+    ok(f(42), "the one arg works");
+    ok(f(42, "hello"), "can use the optional arg");
+    raises(function() { f(42, 42); }, "broken contract on optional arg");
+
+    raises(function() {
+        guard(fun([Num, opt(Str), Bool], Num),
+              function(x) { return x; },
+              server, client);
+    }, "cannot guard with a required arg after an optional arg");
+});
+
 test("can contract for both function + objects properties", function() {
     var id = function(x, y) { return x; };
     ok(id(4) === 4);

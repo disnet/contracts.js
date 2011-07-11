@@ -147,6 +147,18 @@ var Contracts = (function() {
         if (dom instanceof Contract) { 
             dom = [dom];
         }
+        dom.reduce(function(prevWasOpt, curr) {
+            if(curr.cname === "opt") {
+                return true;
+            } else {
+                if(prevWasOpt) {
+                    throw "Illagal arguments: required argument following an optional argument.";
+                } else {
+                    return false;
+                }
+
+            }
+        }, false);
 
         return new Contract(dom.cname + " -> " + rng.cname, function(f) {
             // todo: check that f is actually a function
@@ -170,11 +182,11 @@ var Contracts = (function() {
                                                       blame(that.pos, "fun", "precond"); // todo: fix up blame message
                                                   }
                                               }
-                                              // check each of the arguments that we have a domain contract for
-                                              // todo: deal with optional arguments
-                                              for( i = 0 ; i < dom.length; i++) { 
+
+                                              for( i = 0; i < dom.length; i++) { 
                                                   dom[i].posNeg(that.neg, that.pos).check(arguments[i]);
                                               }
+
                                               if(typeof rng === "function") {
                                                   // send the arguments to the dependent range
                                                   rngc = rng(arguments);
@@ -363,6 +375,17 @@ var Contracts = (function() {
         });
     };
 
+    // Contract
+    var opt = function(k) {
+        return new Contract("opt", function(val) {
+            if(val === undefined) {
+                return val;
+            } else {
+                return k.posNeg(this.pos, this.neg).check(val);
+            }
+        });
+    };
+
     var guard = function(k, x, pos, neg) {
         return k.posNeg(pos, neg).check(x);
     };
@@ -375,6 +398,7 @@ var Contracts = (function() {
         or: or,
         none: none,
         and: and,
+        opt: opt,
         guard: guard
     };
 
