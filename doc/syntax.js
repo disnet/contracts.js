@@ -14,19 +14,13 @@ return guard(
 
 // optional args 
 return guard(
-     fun([Str, Opt(Bool), Opt(Str)], Bool),
+     fun([Str, opt(Bool), opt(Str)], Bool),
      function(s, b) { /* ... */ },
      server, client)
 
 // optional args, bad form
 return guard(
-     fun([Str, Opt(Bool), Opt(Str), Num], Bool), // fail, can't have non-optional after optional
-     function(s, b) { /* ... */ },
-     server, client)
-
-// optional args, if one optional is provided all required
-return guard(
-     fun([Str, Opt([Bool, Str])], Bool), 
+     fun([Str, opt(Bool), opt(Str), Num], Bool), // fail, can't have non-optional after optional
      function(s, b) { /* ... */ },
      server, client)
 
@@ -134,7 +128,7 @@ return guard(
 // optional properties
 return guard(
     object({
-        a: Opt(Str),
+        a: opt(Str),
         b: Num
     }),
     { b: 42 },
