@@ -131,6 +131,15 @@ return guard(
      {a: "foo", b: 42},
      server, client)     
 
+// optional properties
+return guard(
+    object({
+        a: Opt(Str),
+        b: Num
+    }),
+    { b: 42 },
+    server, client);
+
 // immutable properties
 return guard(
      object({

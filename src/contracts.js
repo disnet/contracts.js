@@ -22,34 +22,6 @@ var Contracts = (function() {
         })();
     }
 
-    // takes the arguments object to a function combinator which can have variable number of
-    // domain arguments along with an optional "options" object. 
-    // @returns [dom :: [contract], rng :: contract, options :: object]
-    function parseArguments(args) {
-        var dom, rng, options, rngIndex, i,
-            optionsOrRng = args[args.length - 1];
-        if(typeof optionsOrRng === "function") { // case when there is no options argument
-            rng = optionsOrRng;
-            options = undefined;
-            rngIndex = args.length - 1;
-        } else {
-            optionsOrRng = args[args.length - 2]; // option argument so have to go back two for the real contract
-            if(typeof optionsOrRng === "function") {
-                rng = optionsOrRng;
-                options = args[args.length - 1];
-                rngIndex = args.length - 2;
-            } else {
-                throw "Neither of the last two arguments to function combinator was a range contact";
-            }
-        }
-        dom = [];
-        for(i = 0; i < rngIndex; i++) {
-            dom.push(args[i]);
-        }
-        // ...all this to make calling with an unknown number of domain contracts clean
-        return [dom, rng, options];
-    }
-
     function blame(toblame, k, val) {
         throw {
             name: "BlameError",
@@ -147,268 +119,280 @@ var Contracts = (function() {
         }
     };
 
-    // contract combinators
-    var combinators = {
-        flat: function(p, name) {
-            return new Contract(name, function(val) {
-                if (p(val)) {
-                    return val;
-                } else {
-                    blame(this.pos, this.cname, val);
-                }
-            });
-        },
-        // dependent functions, rng is a function that takes
-        // the arguments originally passed to the called function
-        // and returns a contract.
-        // rng : [args] -> Contract
-        funD: function() {
-            var dom, rng, options, raw_args;
-            raw_args = parseArguments(arguments);
-            dom = raw_args[0];
-            rng = raw_args[1];
-            options = raw_args[2];
+    // (any -> Bool), [Str] -> Contract
+    var flat = function(p, name) {
+        return new Contract(name, function(val) {
+            if (p(val)) {
+                return val;
+            } else {
+                blame(this.pos, this.cname, val);
+            }
+        });
+    };
 
-            return new Contract(dom.cname + " -> " + rng.cname, function(f) {
-                // todo: check that f is actually a function
-                if(typeof f !== "function") {
-                    blame(this.pos, f, "not a function"); // todo fix blame message
-                }
-                var only_call = options && options.only_call;
-                var only_new = options && options.only_new;
-                var constructor_contract = options && options.constructor_contract;
-                var handler = idHandler(f);
-                var that = this; 
-                var fp = Proxy.createFunction(handler,
-                                              function() {
-                                                  var i, rngc, res;
-                                                  if(only_new) {
-                                                      blame(that.pos, "fun", "only_call");
+    // (Contract or arr(Contract)),     -- The domain contract - use array for multiple arguments
+    // ((any -> Contract) or Contract), -- The range contract - function if dependent 
+    // Opt({                            -- Options object
+    //   callOnly: Bool
+    //   newOnly: Bool
+    //   pre: (any -> Bool)
+    //   post: (any -> Bool)
+    // })                     
+    // -> Contract                      -- Resulting contract
+    // OR
+    // {call: Contract, new: Contract}
+    // -> Contract
+    var fun = function(dom, rng, options) {
+        // wrap the domain in array so we can be consistent
+        if (dom instanceof Contract) { 
+            dom = [dom];
+        }
+
+        return new Contract(dom.cname + " -> " + rng.cname, function(f) {
+            // todo: check that f is actually a function
+            if(typeof f !== "function") {
+                blame(this.pos, f, "not a function"); // todo fix blame message
+            }
+            var callOnly = options && options.callOnly;
+            var newOnly = options && options.newOnly;
+            var handler = idHandler(f);
+            var that = this; 
+            var fp = Proxy.createFunction(handler,
+                                          function() {
+                                              var i, rngc = rng, res;
+                                              if(newOnly) {
+                                                  blame(that.pos, "fun", "callOnly");
+                                              }
+
+                                              // check pre condition
+                                              if(options && typeof options.pre === "function") {
+                                                  if(!options.pre(this)) {
+                                                      blame(that.pos, "fun", "precond"); // todo: fix up blame message
                                                   }
-                                                  // check pre condition
-                                                  if(options && typeof options.pre === "function") {
-                                                      if(!options.pre(this)) {
-                                                          blame(that.pos, "fun", "precond"); // todo: fix up blame message
-                                                      }
-                                                  }
-                                                  // check each of the arguments that we have a domain contract for
-                                                  for( i = 0 ; i < dom.length; i++) { 
-                                                      dom[i].posNeg(that.neg, that.pos).check(arguments[i]);
-                                                  }
+                                              }
+                                              // check each of the arguments that we have a domain contract for
+                                              // todo: deal with optional arguments
+                                              for( i = 0 ; i < dom.length; i++) { 
+                                                  dom[i].posNeg(that.neg, that.pos).check(arguments[i]);
+                                              }
+                                              if(typeof rng === "function") {
                                                   // send the arguments to the dependent range
                                                   rngc = rng(arguments);
-                                                  // apply function and check range
-                                                  res = rngc.posNeg(that.pos, that.neg).check(f.apply(this, arguments));
-                                                  // check post condition
-                                                  if(options && typeof options.post === "function") {
-                                                      if(!options.post(this)) {
-                                                          blame(that.pos, "fun", "postcond"); // todo: fix up blame message
-                                                      }
+                                              }
+                                              // apply function and check range
+                                              res = rngc.posNeg(that.pos, that.neg).check(f.apply(this, arguments));
+                                              // check post condition
+                                              if(options && typeof options.post === "function") {
+                                                  if(!options.post(this)) {
+                                                      blame(that.pos, "fun", "postcond"); // todo: fix up blame message
                                                   }
-                                                  return res;
-                                              },
-                                              function() {
-                                                  // todo...some ugly copy/paste to fix here
-                                                  var dom_const = dom, rng_const = rng, i, rngc, res;
-                                                  if(only_call) {
-                                                      blame(that.pos, "fun", "only_call");
-                                                  } else if(constructor_contract !== undefined) {
-                                                      // var raw_args = parseArguments(constructor_contract);
-                                                      // dom_const = raw_args[0];
-                                                      // rng_const = raw_args[1];
-                                                  }
+                                              }
+                                              return res;
+                                          },
+                                          function() {
+                                              // todo...some ugly copy/paste to fix here
+                                              var dom_const = dom, rng_const = rng, i, rngc = rng, res;
+                                              if(callOnly) {
+                                                  blame(that.pos, "fun", "callOnly");
+                                              } else if(options && options.constructor_contract !== undefined) {
+                                                  // var raw_args = parseArguments(constructor_contract);
+                                                  // dom_const = raw_args[0];
+                                                  // rng_const = raw_args[1];
+                                              }
 
-                                                  // check pre condition
-                                                  if(options && typeof options.pre === "function") {
-                                                      if(!options.pre(this)) {
-                                                          blame(that.pos, "fun", "precond"); // todo: fix up blame message
-                                                      }
+                                              // check pre condition
+                                              if(options && typeof options.pre === "function") {
+                                                  if(!options.pre(this)) {
+                                                      blame(that.pos, "fun", "precond"); // todo: fix up blame message
                                                   }
-                                                  // check each of the arguments that we have a domain contract for
-                                                  for( i = 0 ; i < dom_const.length; i++) { 
-                                                      dom_const[i].posNeg(that.neg, that.pos).check(arguments[i]);
-                                                  }
-                                                  // send the arguments to the dependent range
+                                              }
+                                              // check each of the arguments that we have a domain contract for
+                                              for( i = 0 ; i < dom_const.length; i++) { 
+                                                  dom_const[i].posNeg(that.neg, that.pos).check(arguments[i]);
+                                              }
+                                              // send the arguments to the dependent range
+                                              if(typeof rng === "function") {
                                                   rngc = rng_const(arguments);
-                                                  // apply function and check range
-                                                  res = rngc.posNeg(that.pos, that.neg).check(f.apply(this, arguments));
-                                                  // check post condition
-                                                  if(options && typeof options.post === "function") {
-                                                      if(!options.post(this)) {
-                                                          blame(that.pos, "fun", "postcond"); // todo: fix up blame message
-                                                      }
+                                              }
+                                              // apply function and check range
+                                              res = rngc.posNeg(that.pos, that.neg).check(f.apply(this, arguments));
+                                              // check post condition
+                                              if(options && typeof options.post === "function") {
+                                                  if(!options.post(this)) {
+                                                      blame(that.pos, "fun", "postcond"); // todo: fix up blame message
                                                   }
-                                                  return res;
-                                              });
-                fp.__cname = this.cname;
-                return fp;
-            });
-        },
-        fun: function(dom, rng, options) {
-            var optionsOrRng = arguments[arguments.length - 1];
-            if(optionsOrRng instanceof Contract) { // case when there is no options argument
-                // wrapping in empty function for dependent combinator
-                arguments[arguments.length - 1] = function() { return optionsOrRng; };
-            } else {
-                optionsOrRng = arguments[arguments.length - 2]; // option argument so have to go back two for the real contract
-                if(optionsOrRng instanceof Contract) {
-                    // wrapping in empty function for dependent combinator
-                    arguments[arguments.length - 2] = function() { return optionsOrRng; };
-                } else {
-                    throw "Neither of the last two arguments to function combinator was a range contact";
-                }
-            }
+                                              }
+                                              return res;
+                                          });
+            fp.__cname = this.cname;
+            return fp;
+        });
+    };
 
-            return this.funD.apply(this, arguments);
-        },
-        object: function(objContract, options) {
-            var c = new Contract("object", function(obj) {
-                // todo check that obj is actually an object
-                var missingProps, op, i, 
+    var object = function(objContract, options) {
+        var c = new Contract("object", function(obj) {
+            // todo check that obj is actually an object
+            var missingProps, op, i, 
                 handler = idHandler(obj);
-                var that = this;
-                handler.get = function(receiver, name) {
-                    if(that.oc.hasOwnProperty(name)) { 
-                        return that.oc[name].posNeg(that.pos, that.neg).check(obj[name]);
-                    } else {
-                        return obj[name];
-                    }
-                };
-                handler.set = function(receiver, name, val) {
-                    // todo: how should this interact with frozen objects?
-                    if(options && options.immutable) { // fail if attempting to set an immutable object
-                        blame(that.pos, that.oc, obj);
-                    }
-                    if(that.oc.hasOwnProperty(name)) { 
-                        obj[name] = that.oc[name].posNeg(that.pos, that.neg).check(val);
-                    } else {
-                        obj[name] = val;
-                    }
-                    return true;
-                };
-                if(options && options.noDelete) {
-                    handler.delete = function(name) {
-                        blame(that.pos, that.oc, obj);
-                    };
+            var that = this;
+            handler.get = function(receiver, name) {
+                if(that.oc.hasOwnProperty(name)) { 
+                    return that.oc[name].posNeg(that.pos, that.neg).check(obj[name]);
+                } else {
+                    return obj[name];
                 }
-                // check that all properties on the object have a contract
-                missingProps = Object.keys(this.oc).filter(function(el) {
-                    // using `in` instead of `hasOwnProperty` to
-                    // allow property to be somewhere on the prototype chain
-                    // todo: are we sure this is what we want? need a way to specify
-                    // a prop *must* be on the object?
-                    return !(el in obj); 
-                });
-                if(missingProps.length !== 0) {
-                    // todo: use missingProps to get more descriptive blame msg
-                    blame(this.pos, this.oc, obj);
+            };
+            handler.set = function(receiver, name, val) {
+                // todo: how should this interact with frozen objects?
+                if(options && options.immutable) { // fail if attempting to set an immutable object
+                    blame(that.pos, that.oc, obj);
                 }
-                // todo eagerly check the properties?
+                if(that.oc.hasOwnProperty(name)) { 
+                    obj[name] = that.oc[name].posNeg(that.pos, that.neg).check(val);
+                } else {
+                    obj[name] = val;
+                }
+                return true;
+            };
+            if(options && options.noDelete) {
+                handler.delete = function(name) {
+                    blame(that.pos, that.oc, obj);
+                };
+            }
+            // check that all properties on the object have a contract
+            missingProps = Object.keys(this.oc).filter(function(el) {
+                // using `in` instead of `hasOwnProperty` to
+                // allow property to be somewhere on the prototype chain
+                // todo: are we sure this is what we want? need a way to specify
+                // a prop *must* be on the object?
+                return !(el in obj); 
+            });
+            if(missingProps.length !== 0) {
+                // todo: use missingProps to get more descriptive blame msg
+                blame(this.pos, this.oc, obj);
+            }
+            // todo eagerly check the properties?
 
-                if(options && options.initPredicate) {
-                    // check each predicate if we have more than one
-                    if(Array.isArray(options.initPredicate)) {
-                        for( i = 0; i < options.initPredicate.length; i++) {
-                            if(!options.initPredicate[i](obj))
-                                blame(this.pos, this.oc, obj);
-                        }
-                    } else {
-                        if(!options.initPredicate(obj))
+            if(options && options.initPredicate) {
+                // check each predicate if we have more than one
+                if(Array.isArray(options.initPredicate)) {
+                    for( i = 0; i < options.initPredicate.length; i++) {
+                        if(!options.initPredicate[i](obj))
                             blame(this.pos, this.oc, obj);
                     }
-                }
-
-                // making this a function proxy if object is also a function to preserve
-                // typeof checks
-                if (typeof obj === "function") {
-                    op = Proxy.createFunction(handler,
-                                              function(args) {
-                                                  return obj.apply(this, arguments);
-                                              },
-                                              function(args) {
-                                                  return obj.apply(this, arguments);
-                                              });
-
                 } else {
-                    op = Proxy.create(handler);// todo: what about the prototype? defaulting to null
+                    if(!options.initPredicate(obj))
+                        blame(this.pos, this.oc, obj);
                 }
-                return op;
-            });
-            c.oc = objContract;
-            // Allows us to add property's to the object
-            // contract after initialization. Useful for
-            // recursive contracts.
-            c.addPropertyContract = function(newOc) {
-                var name;
-                for(name in newOc) {
-                    if(newOc.hasOwnProperty(name)) {
-                        this.oc[name] = newOc[name];
-                    }
-                }
-                return this;
-            };
-            return c;
-        },
-        any: (function() {
-            return new Contract("any", function(val) {
-                return val;
-            });
-        })(),
-        or: function(ks) {
-            // todo: could be nicer here and use arguments to accept varargs
-            if(!Array.isArray(ks)) {
-                throw {
-                    name: "BadContract",
-                    message: "Must create the 'or' contract with an array of contracts"
-                };
             }
-            return new Contract("or", function(val) {
-                var i = 0, lastBlame;
-                // for now only accepting first order contracts for 'or'
-                if (typeof val === "function") {
-                    blame(this.pos, "or", val);
+
+            // making this a function proxy if object is also a function to preserve
+            // typeof checks
+            if (typeof obj === "function") {
+                op = Proxy.createFunction(handler,
+                                          function(args) {
+                                              return obj.apply(this, arguments);
+                                          },
+                                          function(args) {
+                                              return obj.apply(this, arguments);
+                                          });
+
+            } else {
+                op = Proxy.create(handler);// todo: what about the prototype? defaulting to null
+            }
+            return op;
+        });
+        c.oc = objContract;
+        // Allows us to add property's to the object
+        // contract after initialization. Useful for
+        // recursive contracts.
+        c.addPropertyContract = function(newOc) {
+            var name;
+            for(name in newOc) {
+                if(newOc.hasOwnProperty(name)) {
+                    this.oc[name] = newOc[name];
                 }
-                for(; i < ks.length; i++) {
-                    try {
-                        return ks[i].posNeg(this.pos, this.neg).check(val);
-                    } catch (e) {
-                        lastBlame = e;
-                        continue;
-                    }
-                }
-                throw lastBlame; // the last contract in the array still assigned blame so surface it
-            });
-        },
-        none: (function() {
-            return new Contract("none", function(val) {
-                blame(this.pos, "none", val);
-            });
-        })(),
-        and: function(k1, k2) {
-            return new Contract("and", function(val) {
-                var k1c = k1.posNeg(this.pos, this.neg).check(val);
-                return k2.posNeg(this.pos, this.neg).check(k1c);
-            });
-        },
-        guard: function(k, x, pos, neg) {
-            return k.posNeg(pos, neg).check(x);
+            }
+            return this;
+        };
+        return c;
+    };
+
+    var any = (function() {
+        return new Contract("any", function(val) {
+            return val;
+        });
+    })();
+
+    var or = function(ks) {
+        // todo: could be nicer here and use arguments to accept varargs
+        if(!Array.isArray(ks)) {
+            throw {
+                name: "BadContract",
+                message: "Must create the 'or' contract with an array of contracts"
+            };
         }
-    },
+        return new Contract("or", function(val) {
+            var i = 0, lastBlame;
+            // for now only accepting first order contracts for 'or'
+            if (typeof val === "function") {
+                blame(this.pos, "or", val);
+            }
+            for(; i < ks.length; i++) {
+                try {
+                    return ks[i].posNeg(this.pos, this.neg).check(val);
+                } catch (e) {
+                    lastBlame = e;
+                    continue;
+                }
+            }
+            throw lastBlame; // the last contract in the array still assigned blame so surface it
+        });
+    };
+    
+    var none = (function() {
+        return new Contract("none", function(val) {
+            blame(this.pos, "none", val);
+        });
+    })();
+
+    var and = function(k1, k2) {
+        return new Contract("and", function(val) {
+            var k1c = k1.posNeg(this.pos, this.neg).check(val);
+            return k2.posNeg(this.pos, this.neg).check(k1c);
+        });
+    };
+
+    var guard = function(k, x, pos, neg) {
+        return k.posNeg(pos, neg).check(x);
+    };
+
+    var combinators = {
+        flat: flat,
+        fun: fun,
+        object: object,
+        any: any,
+        or: or,
+        none: none,
+        and: and,
+        guard: guard
+    };
+
     // Some basic contracts
-    contracts = {
-        Undefined: combinators.flat(function(x) {
+    var contracts = {
+        Undef: combinators.flat(function(x) {
             return undefined === x;
         }, "Undefined"),
         Null : combinators.flat(function(x) {
             return null === x;
         }, "Null"),
-        Number: combinators.flat(function(x) {
+        Num: combinators.flat(function(x) {
             return typeof(x) === "number";
         }, "Number"),
-        Boolean : combinators.flat(function(x) {
+        Bool: combinators.flat(function(x) {
             return typeof(x) === "boolean";
         }, "Boolean"),
-        String: combinators.flat(function(x) {
+        Str: combinators.flat(function(x) {
             return typeof(x) === "string";
         }, "String"),
         Odd: combinators.flat(function(x) {
@@ -420,7 +404,7 @@ var Contracts = (function() {
         Pos: combinators.flat(function(x) {
             return x >= 0;
         }, "Pos"),
-        Array: combinators.object({
+        Arr: combinators.object({
             length: combinators.flat(function(x) {
                 return typeof(x) === "number";
             }, "Number")
@@ -443,7 +427,7 @@ var Contracts = (function() {
         ImmutableObject: combinators.object({}, {immutable: true})
     };
     return {
-        C: combinators,
-        K: contracts
+        combinators: combinators,
+        contracts: contracts
     };
 })();
