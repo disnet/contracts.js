@@ -162,18 +162,19 @@ test("functions and constructors", function() {
     ok(safe_ctor("foo"), "can call without new");
 
     var ctor_call = guard(
-        ctor({
-            call: fun(Num, object({a: Str, b: Num})),
-            new: fun(Str, object({a: Str, b: Num}))
+        fun({
+            call: [Num, object({a: Str, b: Num})],
+            new: [Str, object({a: Str, b: Num})]
         }),
         function(x) {
-            if(typeof(x) === "Number") {
+            if(typeof(x) === "number") {
                 this.a = "foo";
                 this.b = x;
             } else {
                 this.a = x;
                 this.b = 42;
             }
+            return this;
         },
         server, client);
     same(ctor_call(222).b, 222, "calling works for combined ctor/call");

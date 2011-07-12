@@ -155,122 +155,143 @@ var Contracts = (function() {
     // })                     
     // -> Contract                      -- Resulting contract
     // OR
-    // {call: Contract, new: Contract}
+    // {
+    //   call: arr(Contract or arr(Contract), Contract),
+    //   new: arr(Contract or arr(Contract), Contract)
+    // }
     // -> Contract
     var fun = function(dom, rng, options) {
-        // wrap the domain in array so we can be consistent
-        if (dom instanceof Contract) { 
-            dom = [dom];
-        }
-        // don't allow required argument contracts to follow optional
-        dom.reduce(function(prevWasOpt, curr) {
-            if(curr.cname === "opt") {
-                return true;
-            } else {
-                if(prevWasOpt) {
-                    throw "Illagal arguments: required argument following an optional argument.";
-                } else {
-                    return false;
-                }
+        var callOnly, newOnly, cleanDom,
+            newdom, newrng, calldom, callrng;
 
+        cleanDom = function(dom) {
+            // wrap the domain in array so we can be consistent
+            if (dom instanceof Contract) { 
+                dom = [dom];
             }
-        }, false);
+            // don't allow required argument contracts to follow optional
+            dom.reduce(function(prevWasOpt, curr) {
+                if(curr.cname === "opt") {
+                    return true;
+                } else {
+                    if(prevWasOpt) {
+                        throw "Illagal arguments: required argument following an optional argument.";
+                    } else {
+                        return false;
+                    }
+                }
+            }, false);
+            return dom;
+        };
 
-        if(options && options.newOnly && options.newSafe) {
+        // dom is overloaded so check if was called as
+        // an object with the contracts for call/new
+        if(dom && dom.call && dom.new) {
+            // different rng/dom for call/new
+            calldom = cleanDom(dom.call[0]);
+            callrng = dom.call[1];
+            newdom = cleanDom(dom.new[0]);
+            newrng = dom.new[1];
+            options = rng || {};
+        } else {
+            // rng/dom for call/new are the same
+            calldom = cleanDom(dom);
+            callrng = rng;
+            newdom = calldom;
+            newrng = callrng;
+            options = options || {};
+        }
+
+        callOnly = options && options.callOnly;
+        newOnly = options && options.newOnly;
+
+        // todo: turn this into an example contract
+        if(callOnly && newOnly) {
             throw "Cannot have a function be both newOnly and newSafe";
         }
 
-        return new Contract(dom.cname + " -> " + rng.cname, function(f) {
+        // todo: think about better name
+        return new Contract(calldom.cname + " -> " + callrng.cname, function(f) {
             // todo: check that f is actually a function
             if(typeof f !== "function") {
                 blame(this.pos, f, "not a function"); // todo fix blame message
             }
-            var callOnly = options && options.callOnly;
-            var newOnly = options && options.newOnly;
             var handler = idHandler(f);
             var that = this; 
-            var fp = Proxy.createFunction(handler,
-                                          // todo: bunch of copypasta between call and new
-                                          function() {
-                                              var i, rngc = rng, res, args = [], boundArgs, bf;
-                                              if(newOnly) {
-                                                  blame(that.pos, "fun", "callOnly");
-                                              }
+            var callHandler, newHandler;
 
-                                              // check pre condition
-                                              if(options && typeof options.pre === "function") {
-                                                  if(!options.pre(this)) {
-                                                      blame(that.pos, "fun", "precond"); // todo: fix up blame message
-                                                  }
-                                              }
+            // options:
+            // { isNew: Bool   - make a constructor handler (to be called with new)
+            //   newSafe: Bool - make call handler that adds a call to new
+            //   pre: ({} -> Bool) - function to check preconditions
+            //   post: ({} -> Bool) - function to check postconditions
+            // }
+            var makeHandler = function(dom, rng, options) {
+                return function() {
+                    var i, res, args = [], boundArgs, bf;
 
-                                              for( i = 0; i < dom.length; i++) { 
-                                                  // might pass through undefined which is fine (opt will take
-                                                  // care of it if the argument is actually optional
-                                                  args[i] = dom[i].posNeg(that.neg, that.pos).check(arguments[i]);
-                                              }
+                    // check pre condition
+                    if(typeof options.pre === "function") {
+                        if(!options.pre(this)) {
+                            blame(that.pos, "fun", "precond"); // todo: fix up blame message
+                        }
+                    }
 
-                                              if(typeof rng === "function") {
-                                                  // send the arguments to the dependent range
-                                                  rngc = rng.apply(this, args);
-                                              }
+                    // check all the arguments
+                    for( i = 0; i < dom.length; i++) { 
+                        // might pass through undefined which is fine (opt will take
+                        // care of it if the argument is actually optional)
+                        //
+                        // blame is reversed
+                        args[i] = dom[i].posNeg(that.neg, that.pos).check(arguments[i]);
+                        // assigning back to args since we might be wrapping functions/objects
+                        // in delayed contracts
+                    }
 
-                                              if(options && options.newSafe) {
-                                                  // apply new all by myself
-                                                  boundArgs = [].concat.apply([null], args);
-                                                  bf = f.bind.apply(f, boundArgs);
-                                                  res = new bf();
-                                                  res = rngc.posNeg(that.pos, that.neg).check(res);
-                                              } else {
-                                                  // apply function and check range
-                                                  res = rngc.posNeg(that.pos, that.neg).check(f.apply(this, args));
-                                              }
-                                              // check post condition
-                                              if(options && typeof options.post === "function") {
-                                                  if(!options.post(this)) {
-                                                      blame(that.pos, "fun", "postcond"); // todo: fix up blame message
-                                                  }
-                                              }
-                                              return res;
-                                          },
-                                          function() {
-                                              // todo: bunch of copypasta between call and new
-                                              var dom_const = dom, rng_const = rng, i, rngc = rng, res, args = [], boundArgs, bf;
-                                              if(callOnly) {
-                                                  blame(that.pos, "fun", "callOnly");
-                                              } else if(options && options.constructor_contract !== undefined) {
-                                                  // var raw_args = parseArguments(constructor_contract);
-                                                  // dom_const = raw_args[0];
-                                                  // rng_const = raw_args[1];
-                                              }
+                    if(typeof rng === "function") {
+                        // send the arguments to the dependent range
+                        rng = rng.apply(this, args);
+                    }
 
-                                              // check pre condition
-                                              if(options && typeof options.pre === "function") {
-                                                  if(!options.pre(this)) {
-                                                      blame(that.pos, "fun", "precond"); // todo: fix up blame message
-                                                  }
-                                              }
-                                              // check each of the arguments that we have a domain contract for
-                                              for( i = 0 ; i < dom_const.length; i++) { 
-                                                  args[i] = dom_const[i].posNeg(that.neg, that.pos).check(arguments[i]);
-                                              }
-                                              // send the arguments to the dependent range
-                                              if(typeof rng === "function") {
-                                                  rngc = rng_const.apply(this, args);
-                                              }
-                                              // apply function and check range
-                                              boundArgs = [].concat.apply([null], args);
-                                              bf = f.bind.apply(f, boundArgs);
-                                              res = new bf();
-                                              res = rngc.posNeg(that.pos, that.neg).check(res);
-                                              // check post condition
-                                              if(options && typeof options.post === "function") {
-                                                  if(!options.post(this)) {
-                                                      blame(that.pos, "fun", "postcond"); // todo: fix up blame message
-                                                  }
-                                              }
-                                              return res;
-                                          });
+                    // apply the function and check its result
+                    if(options.isNew || options.newSafe) {
+                        // null is in the 'this' argument position for bind...
+                        // bind will ignore the supplied 'this' when we call it with new 
+                        boundArgs = [].concat.apply([null], args);
+                        bf = f.bind.apply(f, boundArgs);
+                        res = new bf();
+                        res = rng.posNeg(that.pos, that.neg).check(res);
+                    } else {
+                        res = rng.posNeg(that.pos, that.neg).check(f.apply(this, args));
+                    }
+
+                    // check post condition
+                    if(typeof options.post === "function") {
+                        if(!options.post(this)) {
+                            blame(that.pos, "fun", "postcond"); // todo: fix up blame message
+                        }
+                    }
+                    return res;
+                };
+            };
+
+            if(newOnly) {
+                options.isNew = true;
+                callHandler = function() {
+                    blame(that.pos, "fun", "new only");
+                };
+                newHandler = makeHandler(newdom, newrng, options);
+            } else if(callOnly) {
+                options.isNew = false;
+                newHandler = function() {
+                    blame(that.pos, "fun", "call only");
+                };
+                callHandler = makeHandler(calldom, callrng, options);
+            } else { // both false...both true is a contract construction-time error and handled earlier
+                callHandler = makeHandler(calldom, callrng, options);
+                newHandler = makeHandler(newdom, newrng, options);
+            }
+            var fp = Proxy.createFunction(handler, callHandler, newHandler);
             fp.__cname = this.cname;
             return fp;
         });
