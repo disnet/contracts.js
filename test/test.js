@@ -214,59 +214,124 @@ test("can contract for both function + objects properties", function() {
     raises(function() { idc.length; });
 });
 
-test("checking arrays", function() {
+test("checking Lists", function() {
 
-    raises(function() { guard(List, {length: 3}, server, client); },
-           "not a list but looks like it");
+    // raises(function() { guard(List, {length: 3}, server, client); },
+    //        "not a list but looks like it");
 
-    var jsarr = guard(JsArray, [1,2,3], server, client);
-    ok(jsarr[0] = 4, "js arrays are mutable");
-    ok(delete jsarr[1], "js arrays can have holes");
+    // var jsarr = guard(JsArray, [1,2,3], server, client);
+    // ok(jsarr[0] = 4, "js arrays are mutable");
+    // ok(delete jsarr[1], "js arrays can have holes");
 
-    var l = [1,2,3];
-    var lc = guard(List, l, server, client);
-    ok(lc[0]);
+    // var l = Object.freeze([1,2,3]);
+    // var lc = guard(List, l, server, client);
+    // ok(lc[0]);
 
-    raises(function() { lc[0] = 4; },
-           "lists are immutable");
+    // raises(function() { lc[0] = 4; },
+    //        "lists are immutable");
 
-    raises(function() { delete lc[0]; },
-           "cannot delete list elements");
+    // raises(function() { delete lc[0]; },
+    //        "cannot delete list elements");
 
-    var hole_l = [1,2,3];
-    delete hole_l[1];
-    raises(function() { guard(List, hole_l, server, client);  },
-           "lists have no holes");
+    // var hole_l = [1,2,3];
+    // delete hole_l[1];
+    // hole_l = Object.freeze(hole_l);
+    // raises(function() { guard(List, hole_l, server, client);  },
+    //        "lists have no holes");
 
-    var undef_l = [1,undefined, 3];
-    ok(guard(List, undef_l, server, client),
-       "lists can have undefined");
+    // var undef_l = Object.freeze([1,undefined, 3]);
+    // ok(guard(List, undef_l, server, client),
+    //    "lists can have undefined");
 
-    var sl = [1,2,3];
-    delete sl[2];
-    raises(function() { guard(SaneArray, sl, server, client); },
-           "can't contract a sane array with holes");
+    // var sl = [1,2,3];
+    // delete sl[2];
+    // sl = Object.freeze(sl);
+    // raises(function() { guard(SaneArray, sl, server, client); },
+    //        "can't contract a sane array with holes");
 
-    var saneArr = guard(SaneArray, [1,2,3], server, client);
-    ok(saneArr[1] = 44,
-       "sane arrays are mutable");
-    raises(function() { delete saneArr[1]; },
-           "sane arrays can't have holes");
+    // var saneArr = guard(SaneArray, [1,2,3], server, client);
+    // ok(saneArr[1] = 44,
+    //    "sane arrays are mutable");
+    // raises(function() { delete saneArr[1]; },
+    //        "sane arrays can't have holes");
 
 });
 
-test("checking simple objects", function() {
-    var imm = guard(
-        object({ x: Num }, {immutable: true}),
-        {x: 3},
+test("checking sealed/frozen objects", function() {
+    var o = Object.seal({x:3});
+    ok(guard(
+        object({ x: Num }, {sealed: true}),
+        o,
+        server, client),
+       "can contract sealed object");
+
+    raises(function() { guard(
+        object({ x: Num }, {sealed: true}),
+        {x:3},
+        server, client); },
+       "object is not sealed");
+
+    ok(guard(
+        object({ x: Num }, {sealed: false}),
+        {x:3},
+        server, client),
+       "object is not sealed");
+
+    raises(function() { guard(
+        object({ x: Num }, {sealed: false}),
+        o,
+        server, client); },
+       "object is sealed");
+
+    o = Object.freeze({x:3});
+    ok(guard(
+        object({ x: Num }, {frozen: true}),
+        o,
+        server, client),
+       "can contract frozen object");
+
+    raises(function() { guard(
+        object({ x: Num }, {frozen: true}),
+        {x:3},
+        server, client); },
+       "object is not frozen");
+
+    ok(guard(
+        object({ x: Num }, {frozen: false}),
+        {x:3},
+        server, client),
+       "object is not frozen");
+
+    raises(function() { guard(
+        object({ x: Num }, {frozen: false}),
+        o,
+        server, client); },
+       "object is frozen");
+
+    var fr = guard(
+        object({ x: Num }, {frozen: true}),
+        o,
         server, client);
-    raises(function() { imm.x = 55;}, "object is immutable");
-    raises(function() { imm.z = 55;}, "object is immutable");
+        
+    same(fr.x, 3, "can read frozen object");
+    raises(function() { Object.defineProperty(fr, "y", {value: 42}); }, "adding property to frozen obj");
+    raises(function() { fr.x = 55;}, "writing to frozen object");
+    raises(function() { delete fr.x;}, "deleting from frozen object");
 
-    var imm2 = guard(ImmutableObject, {x: 44}, server, client);
-    raises(function() { imm2.x = 55;}, "object is immutable");
-    raises(function() { imm2.z = 55;}, "object is immutable");
+    raises(function() { guard(
+        object({ x: Num }, {extesible: false}),
+        {},
+        server, client); },
+           "object is not extensible");
+    var noex = guard(
+        object({ x: Num }, {extesible: false}),
+        Object.preventExtensions(o),
+        server, client);
+    raises(function() { noex.foo = 42; }, "can't set new property on non-extensible object");
 
+});
+
+test("objects with pre/post conditions", function() {
     var withPre = {x: 0, dec: function() { return --this.x; }};
     ok(withPre.dec() === -1, "works before contract");
     var withPreC = guard(

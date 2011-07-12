@@ -215,7 +215,7 @@ var Contracts = (function() {
             throw "Illegal arguments: cannot have both newOnly and a contract on 'this'";
         }
 
-        // todo: think about better name
+        // todo: better name for case when we have both call and new contracts
         return new Contract(calldom.cname + " -> " + callrng.cname, function(f) {
             // todo: check that f is actually a function
             if(typeof f !== "function") {
@@ -324,10 +324,42 @@ var Contracts = (function() {
             var missingProps, op, i, 
                 handler = idHandler(obj);
             var that = this;
+            options = options || {};
+
             if(!(obj instanceof Object)) {
-                blame(this.pos, "object", obj);
+                blame(this.pos, "object", "not an object");
+            }
+            if(options.extensible === true && !Object.isExtensible(obj)) {
+                blame(this.pos, "object", "not a extensible object");
+            }
+            if(options.extensible === false && Object.isExtensible(obj)) {
+                blame(this.pos, "object", "extensible object");
+            }
+            if(options.sealed === true && !Object.isSealed(obj)) {
+                blame(this.pos, "object", "not a sealed object");
+            }
+            if(options.sealed === false && Object.isSealed(obj)) {
+                blame(this.pos, "object", "sealed object");
+            }
+            if(options.frozen === true && !Object.isFrozen(obj)) {
+                blame(this.pos, "object", "not a frozen object");
+            }
+            if(options.frozen === false && Object.isFrozen(obj)) {
+                blame(this.pos, "object", "frozen object");
             }
 
+            handler.defineProperty = function(name, desc) {
+                if(!options.extensible || options.sealed || options.frozen) {
+                    blame(that.pos, obj, "object is non-extensible");
+                }
+                Object.defineProperty(obj, name, desc);
+            };
+            handler.delete = function(name) {
+                if(options.sealed || options.frozen) {
+                    blame(that.pos, obj, "object is " + (options.sealed ? "sealed" : "frozen"));
+                }
+                return delete obj[name]; 
+            };
             handler.get = function(receiver, name) {
                 if(that.oc.hasOwnProperty(name)) { 
                     return that.oc[name].posNeg(that.pos, that.neg).check(obj[name]);
@@ -336,9 +368,13 @@ var Contracts = (function() {
                 }
             };
             handler.set = function(receiver, name, val) {
-                // todo: how should this interact with frozen objects?
-                if(options && options.immutable) { // fail if attempting to set an immutable object
-                    blame(that.pos, that.oc, obj);
+                if(!options.extensible && Object.getOwnPropertyDescriptor(obj, name) === undefined) {
+                    blame(that.pos, obj, "non-extensible object");
+                }
+                if(options.frozen) {
+                    // normally would silengtly fail or throw a type error (strict mode)
+                    // but now we throw blame for better messaging
+                    blame(that.pos, obj, "frozen object");
                 }
                 if(that.oc.hasOwnProperty(name)) { 
                     obj[name] = that.oc[name].posNeg(that.pos, that.neg).check(val);
@@ -515,23 +551,26 @@ var Contracts = (function() {
             length: combinators.check(function(x) {
                 return typeof(x) === "number";
             }, "Number")
-        }),
-        List: combinators.object({}, {
-            immutable: true,
-            noDelete: true,
-            initPredicate: [Array.isArray, hasNoHoles]
-        }),
-        SaneArray: combinators.object({}, {
-            immutable: false,
-            noDelete: true,
-            initPredicate: [Array.isArray, hasNoHoles]
-        }),
-        JsArray: combinators.object({}, {
-            immutable: false,
-            noDelete: false,
-            initPredicate: Array.isArray
-        }),
-        ImmutableObject: combinators.object({}, {immutable: true})
+        })
+        // come back to these later...sort of want
+        // to actively freeze the objects coming in
+        // not just check that they have been frozen (maybe)
+
+        // List: combinators.object({}, {
+        //     frozen: true,
+        //     noDelete: true,
+        //     initPredicate: [Array.isArray, hasNoHoles]
+        // }),
+        // SaneArray: combinators.object({}, {
+        //     frozen: false,
+        //     noDelete: true,
+        //     initPredicate: [Array.isArray, hasNoHoles]
+        // }),
+        // JsArray: combinators.object({}, {
+        //     frozen: false,
+        //     noDelete: false,
+        //     initPredicate: Array.isArray
+        // })
     };
     return {
         combinators: combinators,
