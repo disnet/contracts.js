@@ -211,6 +211,10 @@ var Contracts = (function() {
             throw "Cannot have a function be both newOnly and newSafe";
         }
 
+        if(newOnly && options.this) {
+            throw "Illegal arguments: cannot have both newOnly and a contract on 'this'";
+        }
+
         // todo: think about better name
         return new Contract(calldom.cname + " -> " + callrng.cname, function(f) {
             // todo: check that f is actually a function
