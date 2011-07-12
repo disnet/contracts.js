@@ -148,10 +148,11 @@ var Contracts = (function() {
     // (Contract or arr(Contract)),     -- The domain contract - use array for multiple arguments
     // ((any -> Contract) or Contract), -- The range contract - function if dependent 
     // Opt({                            -- Options object
-    //   callOnly: Bool
-    //   newOnly: Bool
-    //   pre: (any -> Bool)
-    //   post: (any -> Bool)
+    //   callOnly: Bool                 -- only allowed to call without new (this and newOnly cannot both be true)
+    //   newOnly: Bool                  -- only allowed to call with new (this and callOnly cannot both be true)
+    //   pre: (any -> Bool)             -- pre condition predicate
+    //   post: (any -> Bool)            -- post condition predicate
+    //   this: object{...})             -- object contract to check 'this'
     // })                     
     // -> Contract                      -- Resulting contract
     // OR
@@ -225,10 +226,11 @@ var Contracts = (function() {
             //   newSafe: Bool - make call handler that adds a call to new
             //   pre: ({} -> Bool) - function to check preconditions
             //   post: ({} -> Bool) - function to check postconditions
+            //   this: {...} - object contract to check 'this'
             // }
             var makeHandler = function(dom, rng, options) {
                 return function() {
-                    var i, res, args = [], boundArgs, bf;
+                    var i, res, args = [], boundArgs, bf, thisc;
 
                     // check pre condition
                     if(typeof options.pre === "function") {
@@ -262,7 +264,12 @@ var Contracts = (function() {
                         res = new bf();
                         res = rng.posNeg(that.pos, that.neg).check(res);
                     } else {
-                        res = rng.posNeg(that.pos, that.neg).check(f.apply(this, args));
+                        if(options.this) {
+                            thisc = options.this.posNeg(that.pos, that.neg).check(this);
+                        } else {
+                            thisc = this;
+                        }
+                        res = rng.posNeg(that.pos, that.neg).check(f.apply(thisc, args));
                     }
 
                     // check post condition

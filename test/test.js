@@ -155,7 +155,6 @@ test("constructor contracts", function() {
         function(s) { this.a = 42; this.b = s; },
         server, client);
     raises(function() { new bad_ctor("foo"); } );
-
     var safe_ctor = guard(
         ctorSafe(Str, object({a: Str, b:Num})),
         function(s) { this.a = s; this.b = 42; },
@@ -186,6 +185,18 @@ test("call/new have different contracts", function() {
     raises(function() { ctor_call("hello"); }, "broken contract for calling in combined ctor/call");
     same(new ctor_call("hello").a, "hello", "new works for combined ctor/call");
     raises(function() { new ctor_call(42); }, "broken contract for new in combined ctor/call");
+});
+
+test("this contract on functions", function() {
+    var f = guard(
+        fun(Str, Str,
+            { this: object({ a: Str, b: Num })}),
+        function(s) { return this.a + this.b; },
+        server, client);
+
+    o = {a: "foo", b: 42, fun: f};
+    same(o.fun("foo"), "foo42", "obeys contract");
+    raises(function() { f("foo"); }, "fails contract");
 });
 
 
