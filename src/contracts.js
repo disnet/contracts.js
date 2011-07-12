@@ -29,6 +29,21 @@ var Contracts = (function() {
         };
     }
 
+    // merges props of o2 into o1 return o1
+    function merge(o1, o2) {
+        var o3 = {};
+        var f = function(o) {
+            for(var name in o) {
+                if(o.hasOwnProperty(name)) {
+                    o3[name] = o[name];
+                }
+            }
+        };
+        f(o1);
+        f(o2);
+        return o3;
+    };
+
     function hasNoHoles(obj) {
         var i = 0;
         for( ; i < obj.length; i++) {
@@ -120,7 +135,7 @@ var Contracts = (function() {
     };
 
     // (any -> Bool), [Str] -> Contract
-    var flat = function(p, name) {
+    var check = function(p, name) {
         return new Contract(name, function(val) {
             if (p(val)) {
                 return val;
@@ -147,6 +162,7 @@ var Contracts = (function() {
         if (dom instanceof Contract) { 
             dom = [dom];
         }
+        // don't allow required argument contracts to follow optional
         dom.reduce(function(prevWasOpt, curr) {
             if(curr.cname === "opt") {
                 return true;
@@ -160,6 +176,10 @@ var Contracts = (function() {
             }
         }, false);
 
+        if(options && options.newOnly && options.newSafe) {
+            throw "Cannot have a function be both newOnly and newSafe";
+        }
+
         return new Contract(dom.cname + " -> " + rng.cname, function(f) {
             // todo: check that f is actually a function
             if(typeof f !== "function") {
@@ -170,8 +190,9 @@ var Contracts = (function() {
             var handler = idHandler(f);
             var that = this; 
             var fp = Proxy.createFunction(handler,
+                                          // todo: bunch of copypasta between call and new
                                           function() {
-                                              var i, rngc = rng, res;
+                                              var i, rngc = rng, res, args = [], boundArgs, bf;
                                               if(newOnly) {
                                                   blame(that.pos, "fun", "callOnly");
                                               }
@@ -184,15 +205,26 @@ var Contracts = (function() {
                                               }
 
                                               for( i = 0; i < dom.length; i++) { 
-                                                  dom[i].posNeg(that.neg, that.pos).check(arguments[i]);
+                                                  // might pass through undefined which is fine (opt will take
+                                                  // care of it if the argument is actually optional
+                                                  args[i] = dom[i].posNeg(that.neg, that.pos).check(arguments[i]);
                                               }
 
                                               if(typeof rng === "function") {
                                                   // send the arguments to the dependent range
-                                                  rngc = rng(arguments);
+                                                  rngc = rng.apply(this, args);
                                               }
-                                              // apply function and check range
-                                              res = rngc.posNeg(that.pos, that.neg).check(f.apply(this, arguments));
+
+                                              if(options && options.newSafe) {
+                                                  // apply new all by myself
+                                                  boundArgs = [].concat.apply([null], args);
+                                                  bf = f.bind.apply(f, boundArgs);
+                                                  res = new bf();
+                                                  res = rngc.posNeg(that.pos, that.neg).check(res);
+                                              } else {
+                                                  // apply function and check range
+                                                  res = rngc.posNeg(that.pos, that.neg).check(f.apply(this, args));
+                                              }
                                               // check post condition
                                               if(options && typeof options.post === "function") {
                                                   if(!options.post(this)) {
@@ -202,8 +234,8 @@ var Contracts = (function() {
                                               return res;
                                           },
                                           function() {
-                                              // todo...some ugly copy/paste to fix here
-                                              var dom_const = dom, rng_const = rng, i, rngc = rng, res;
+                                              // todo: bunch of copypasta between call and new
+                                              var dom_const = dom, rng_const = rng, i, rngc = rng, res, args = [], boundArgs, bf;
                                               if(callOnly) {
                                                   blame(that.pos, "fun", "callOnly");
                                               } else if(options && options.constructor_contract !== undefined) {
@@ -220,14 +252,17 @@ var Contracts = (function() {
                                               }
                                               // check each of the arguments that we have a domain contract for
                                               for( i = 0 ; i < dom_const.length; i++) { 
-                                                  dom_const[i].posNeg(that.neg, that.pos).check(arguments[i]);
+                                                  args[i] = dom_const[i].posNeg(that.neg, that.pos).check(arguments[i]);
                                               }
                                               // send the arguments to the dependent range
                                               if(typeof rng === "function") {
-                                                  rngc = rng_const(arguments);
+                                                  rngc = rng_const.apply(this, args);
                                               }
                                               // apply function and check range
-                                              res = rngc.posNeg(that.pos, that.neg).check(f.apply(this, arguments));
+                                              boundArgs = [].concat.apply([null], args);
+                                              bf = f.bind.apply(f, boundArgs);
+                                              res = new bf();
+                                              res = rngc.posNeg(that.pos, that.neg).check(res);
                                               // check post condition
                                               if(options && typeof options.post === "function") {
                                                   if(!options.post(this)) {
@@ -241,12 +276,26 @@ var Contracts = (function() {
         });
     };
 
+
+    var ctor = function(dom, rng, options) {
+        var opt = merge(options, {newOnly: true});
+        return fun(dom, rng, opt);
+    };
+
+    var ctorSafe = function(dom, rng, options) {
+        var opt = merge(options, {newSafe: true});
+        return fun(dom, rng, opt);
+    };
+
     var object = function(objContract, options) {
         var c = new Contract("object", function(obj) {
-            // todo check that obj is actually an object
             var missingProps, op, i, 
                 handler = idHandler(obj);
             var that = this;
+            if(!(obj instanceof Object)) {
+                blame(this.pos, "object", obj);
+            }
+
             handler.get = function(receiver, name) {
                 if(that.oc.hasOwnProperty(name)) { 
                     return that.oc[name].posNeg(that.pos, that.neg).check(obj[name]);
@@ -310,7 +359,7 @@ var Contracts = (function() {
                                           });
 
             } else {
-                op = Proxy.create(handler);// todo: what about the prototype? defaulting to null
+                op = Proxy.create(handler, Object.prototype); // todo: is this the proto we actually want?
             }
             return op;
         });
@@ -375,12 +424,12 @@ var Contracts = (function() {
         });
     };
 
-    // Contract
     var opt = function(k) {
         return new Contract("opt", function(val) {
-            if(val === undefined) {
+            if(val === undefined) { // unsuplied arguments are just passed through
                 return val;
             } else {
+                // arg is actually something so check the underlying contract
                 return k.posNeg(this.pos, this.neg).check(val);
             }
         });
@@ -391,8 +440,10 @@ var Contracts = (function() {
     };
 
     var combinators = {
-        flat: flat,
+        check: check,
         fun: fun,
+        ctor: ctor,
+        ctorSafe: ctorSafe,
         object: object,
         any: any,
         or: or,
@@ -404,32 +455,32 @@ var Contracts = (function() {
 
     // Some basic contracts
     var contracts = {
-        Undef: combinators.flat(function(x) {
+        Undef: combinators.check(function(x) {
             return undefined === x;
         }, "Undefined"),
-        Null : combinators.flat(function(x) {
+        Null : combinators.check(function(x) {
             return null === x;
         }, "Null"),
-        Num: combinators.flat(function(x) {
+        Num: combinators.check(function(x) {
             return typeof(x) === "number";
         }, "Number"),
-        Bool: combinators.flat(function(x) {
+        Bool: combinators.check(function(x) {
             return typeof(x) === "boolean";
         }, "Boolean"),
-        Str: combinators.flat(function(x) {
+        Str: combinators.check(function(x) {
             return typeof(x) === "string";
         }, "String"),
-        Odd: combinators.flat(function(x) {
+        Odd: combinators.check(function(x) {
             return  (x % 2) === 1;
         }, "Odd"),
-        Even: combinators.flat(function(x) {
+        Even: combinators.check(function(x) {
             return (x % 2) === 1;
         }, "Even"),
-        Pos: combinators.flat(function(x) {
+        Pos: combinators.check(function(x) {
             return x >= 0;
         }, "Pos"),
         Arr: combinators.object({
-            length: combinators.flat(function(x) {
+            length: combinators.check(function(x) {
                 return typeof(x) === "number";
             }, "Number")
         }),

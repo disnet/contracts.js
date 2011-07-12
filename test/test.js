@@ -74,6 +74,115 @@ test("optional args for functions", function() {
     }, "cannot guard with a required arg after an optional arg");
 });
 
+test("higher order functions", function() {
+    var id = function(x) { return x; };
+    var pred = guard(
+        fun([fun(Bool, Bool), Bool], Bool),
+        function(p, x) { return p(x); },
+        server, client);
+
+    ok(pred(id, true), "higher order works");
+    raises(function () { pred(id, 42); }, "client broke contract");
+
+    var pred_client_ho = guard(
+        fun([fun(Bool, Str), Bool], Bool),
+        function(p, x) { return p(x); },
+        server, client);
+    raises(function () { pred_client_ho(id, true); }, "client broke contract");
+    raises(function () { pred_client_ho(function(x) { return "foo"; }, true); }, "server broke contract");
+
+    var pred_server_ho = guard(
+        fun([fun(Str, Bool), Bool], Bool),
+        function(p, x) { return p(x); },
+        server, client);
+    raises(function () { pred_server_ho(id, true); }, "server broke contract");
+});
+
+test("dependent functions", function() {
+    var id = guard(
+        fun(Str, function(arg) { return check(function(r) { return arg === r; }, "id===id"); }),
+        function(x) { return x; },
+        server, client);
+
+    ok(id("foo"), "id really is id");
+
+    var not_id = guard(
+        fun(Str, function(arg) { return check(function(r) { return arg === r; }, "id===id"); }),
+        function(x) { return x + "foo"; },
+        server, client);
+    raises(function() { not_id("foo"); }, "violates dependent contract");
+});
+
+
+test("functions and constructors", function() {
+    // some of this is duped from above
+    var id = function(x) { return x; };
+    var idc = guard(fun(Num, Num), id, server, client);
+    same(idc(4), 4,
+         "id obeys contract");
+    raises(function() { idc("foo"); },
+           "id breaks contract");
+
+
+    var id_nonew = guard(
+        fun(Num, Num, {callOnly: true}),
+        id,
+        server, client);
+    same(id_nonew(4), 4,
+         "nonew obeys contract");
+    raises(function() { new id_nonew(4); },
+           "nonew obeys contract but called by new");
+
+    raises(function() { id_nonew("foo"); },
+           "nonew breaks contract");
+    raises(function() { new id_nonew("foo"); },
+           "no newbreaks contract and called by new"); // todo: distinguish in blame message
+
+    var good_ctor = guard(
+        ctor(Str, object({a: Str, b: Num})),
+        function(s) { this.a = s; this.b = 42; },
+        server, client);
+    raises(function() { good_ctor("foo"); },
+           "onlynew obeys contract but not called with new");
+    ok(new good_ctor("foo"),
+         "onlynew obeys contract and called by new");
+
+    var bad_ctor = guard(
+        ctor(Num, object({a: Str, b: Num})),
+        function(s) { this.a = 42; this.b = s; },
+        server, client);
+    raises(function() { new bad_ctor("foo"); } );
+
+    var safe_ctor = guard(
+        ctorSafe(Str, object({a: Str, b:Num})),
+        function(s) { this.a = s; this.b = 42; },
+        server, client);
+    ok(new safe_ctor("foo"), "can call with new");
+    ok((new safe_ctor("foo")).a, "can call with new and get prop");
+    ok(safe_ctor("foo"), "can call without new");
+
+    var ctor_call = guard(
+        ctor({
+            call: fun(Num, object({a: Str, b: Num})),
+            new: fun(Str, object({a: Str, b: Num}))
+        }),
+        function(x) {
+            if(typeof(x) === "Number") {
+                this.a = "foo";
+                this.b = x;
+            } else {
+                this.a = x;
+                this.b = 42;
+            }
+        },
+        server, client);
+    same(ctor_call(222).b, 222, "calling works for combined ctor/call");
+    raises(function() { ctor_call("hello"); }, "broken contract for calling in combined ctor/call");
+    same(new ctor_call("hello").a, "hello", "new works for combined ctor/call");
+    raises(function() { new ctor_call(42); }, "broken contract for new in combined ctor/call");
+});
+
+
 test("can contract for both function + objects properties", function() {
     var id = function(x, y) { return x; };
     ok(id(4) === 4);
@@ -194,7 +303,10 @@ test("checking prototypes", function() {
     raises(function() { BBadC.a(); }, "contract on prototype says number but gives string");
     raises(function() { BBadC.b; }, "contract on proto still doesn't match value stored in b");
 
-    var BGoodAttemptC = guard(object({a: fun(any, Str), b: Num}), BBadC, "server", "client");
+    var BGoodAttemptC = guard(
+        object({a: fun(any, Str), b: Num}),
+        BBadC,
+        server, client);
     raises(function() { BGoodAttemptC.a(); }, "contract on prototype still says there is a problem");
     BBadC.a = function() { return "bar"; };
     equals(BBadC.a(), "bar", "ok now we are shadowning bad contract");
@@ -205,56 +317,6 @@ test("checking prototypes", function() {
     raises(function() { B_has_C_not_A.b; }, "blame even though contract is on object but prop is on proto");
 });
 
-test("functions and constructors", function() {
-    var id = function(x) { return x; };
-    var idc = guard(fun(Num, Num), id, server, client);
-    same(idc(4), 4,
-         "id obeys contract");
-    raises(function() { idc("foo"); },
-           "id breaks contract");
-
-    same(new idc(4), 4,
-         "id obeys contract and allows being called by new");
-    raises(function() { new idc("foo"); },
-           "id breaks contract and allows being called by new");
-
-    var id_nonew = guard(fun(Num, Num, {only_call: true} ), id, server, client);
-    same(id_nonew(4), 4,
-         "nonew obeys contract");
-    raises(function() { new id_nonew(4); },
-           "nonew obeys contract but called by new");
-
-    raises(function() { id_nonew("foo"); },
-           "nonew breaks contract");
-    raises(function() { new id_nonew("foo"); },
-           "no newbreaks contract and called by new"); // todo: distinguish in blame message
-
-    var id_onlynew = guard(fun(Num, Num, {only_new: true} ), id, server, client);
-    raises(function() { id_onlynew(4); },
-           "onlynew obeys contract but not called with new");
-    same(new id_onlynew(4), 4,
-         "onlynew obeys contract and called by new");
-
-    raises(function() { id_onlynew("foo"); },
-           "onlynew breaks contract and not called with new");
-    raises(function() { new id_onlynew("foo"); },
-           "onlynew breaks contract and called by new"); // todo: distinguish in blame message
-
-    // var id_new_with_contract = guard(
-    //     fun(Num, Num,
-    //           {constructor_contract: [Str, Str]} ),
-    //     id,
-    //     server, client);
-    // same(id_new_with_contract(4), 4,
-    //      "new_with_contract obeys contract");
-    // same(new id_new_with_contract("foo"), "foo",
-    //      "new_with_contract obeys contract when called by new");
-
-    // raises(function() { id_new_with_contract("foo"); },
-    //        "new_with_contract breaks contract");
-    // raises(function() { new id_new_with_contract(4); },
-    //        "new_with_contract breaks contract when called by new"); // todo: distinguish in blame message
-});
 
 
 module("jQuery Contracts");
