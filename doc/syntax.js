@@ -116,12 +116,12 @@ return guard(
      {a: "foo", b: {c: false, d: 42}},
      server, client)
 
-// immutable 
+// forzen 
 return guard(
      object({
           a: Str,
           b: Num
-     }, { immutable: true }), // todo: figure out correct ES5 term
+     }, { freeze: true }), 
      {a: "foo", b: 42},
      server, client)     
 
@@ -139,7 +139,7 @@ return guard(
      object({
           a: [Str, {immutable: true}],
           b: Num
-     }), // todo: figure out correct ES5 term
+     }), 
      {a: "foo", b: 42},
      server, client)     
 
@@ -247,7 +247,7 @@ return guard(
 // desugars to
 return guard(
      object({}, {
-         immutable: true,
+         frozen: true,
          noDelete: true,
          init: [Array.isArray, hasNoHoles]
      }),
@@ -262,7 +262,7 @@ return guard(
 // desugars to
 return guard(
      object({}, {
-          immutable : false,
+          frozen : false,
           noDelete: true, // does this make sense? maybe only noDelete for indexes?
           init : [Array.isArray, hasNoHoles]
      }),
@@ -277,7 +277,7 @@ return guard(
 // desugars to
 return guard(
      object({}, {
-          immutable : false,
+          frozen : false,
           noDelete : false,
           init : [Array.isArray]
      }),
