@@ -114,7 +114,7 @@ test("dependent functions", function() {
 });
 
 
-test("functions and constructors", function() {
+test("basic functions", function() {
     // some of this is duped from above
     var id = function(x) { return x; };
     var idc = guard(fun(Num, Num), id, server, client);
@@ -138,6 +138,9 @@ test("functions and constructors", function() {
     raises(function() { new id_nonew("foo"); },
            "no newbreaks contract and called by new"); // todo: distinguish in blame message
 
+});
+
+test("constructor contracts", function() {
     var good_ctor = guard(
         ctor(Str, object({a: Str, b: Num})),
         function(s) { this.a = s; this.b = 42; },
@@ -160,7 +163,9 @@ test("functions and constructors", function() {
     ok(new safe_ctor("foo"), "can call with new");
     ok((new safe_ctor("foo")).a, "can call with new and get prop");
     ok(safe_ctor("foo"), "can call without new");
+});
 
+test("call/new have different contracts", function() {
     var ctor_call = guard(
         fun({
             call: [Num, object({a: Str, b: Num})],
