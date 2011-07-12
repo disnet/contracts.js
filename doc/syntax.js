@@ -77,8 +77,8 @@ return guard(
 // different contract for call and new
 return guard(
      ctor({
-         call: fun(Str, Bool),
-         new : fun(Str, object({a: Str, b: Num}))
+         call: [Str, Bool],
+         new : [[Str, Num], object({a: Str, b: Num})]
      }),
      function(s) { /* ... */ },
      server, client)
