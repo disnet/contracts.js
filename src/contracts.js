@@ -127,7 +127,7 @@ var Contracts = (function() {
             return this;
         },
         // String x String -> Contract
-        posNeg : function(pos, neg) {
+        setBlame : function(pos, neg) {
             this.pos = pos;
             this.neg = neg;
             return this;
@@ -249,7 +249,7 @@ var Contracts = (function() {
                         // care of it if the argument is actually optional)
                         //
                         // blame is reversed
-                        args[i] = dom[i].posNeg(that.neg, that.pos).check(arguments[i]);
+                        args[i] = dom[i].setBlame(that.neg, that.pos).check(arguments[i]);
                         // assigning back to args since we might be wrapping functions/objects
                         // in delayed contracts
                     }
@@ -266,14 +266,14 @@ var Contracts = (function() {
                         boundArgs = [].concat.apply([null], args);
                         bf = f.bind.apply(f, boundArgs);
                         res = new bf();
-                        res = rng.posNeg(that.pos, that.neg).check(res);
+                        res = rng.setBlame(that.pos, that.neg).check(res);
                     } else {
                         if(options.this) {
-                            thisc = options.this.posNeg(that.pos, that.neg).check(this);
+                            thisc = options.this.setBlame(that.pos, that.neg).check(this);
                         } else {
                             thisc = this;
                         }
-                        res = rng.posNeg(that.pos, that.neg).check(f.apply(thisc, args));
+                        res = rng.setBlame(that.pos, that.neg).check(f.apply(thisc, args));
                     }
 
                     // check post condition
@@ -362,7 +362,7 @@ var Contracts = (function() {
             };
             handler.get = function(receiver, name) {
                 if(that.oc.hasOwnProperty(name)) { 
-                    return that.oc[name].posNeg(that.pos, that.neg).check(obj[name]);
+                    return that.oc[name].setBlame(that.pos, that.neg).check(obj[name]);
                 } else {
                     return obj[name];
                 }
@@ -377,7 +377,7 @@ var Contracts = (function() {
                     blame(that.pos, obj, "frozen object");
                 }
                 if(that.oc.hasOwnProperty(name)) { 
-                    obj[name] = that.oc[name].posNeg(that.pos, that.neg).check(val);
+                    obj[name] = that.oc[name].setBlame(that.pos, that.neg).check(val);
                 } else {
                     obj[name] = val;
                 }
@@ -473,7 +473,7 @@ var Contracts = (function() {
             }
             for(; i < ks.length; i++) {
                 try {
-                    return ks[i].posNeg(this.pos, this.neg).check(val);
+                    return ks[i].setBlame(this.pos, this.neg).check(val);
                 } catch (e) {
                     lastBlame = e;
                     continue;
@@ -491,8 +491,8 @@ var Contracts = (function() {
 
     var and = function(k1, k2) {
         return new Contract("and", function(val) {
-            var k1c = k1.posNeg(this.pos, this.neg).check(val);
-            return k2.posNeg(this.pos, this.neg).check(k1c);
+            var k1c = k1.setBlame(this.pos, this.neg).check(val);
+            return k2.setBlame(this.pos, this.neg).check(k1c);
         });
     };
 
@@ -502,13 +502,13 @@ var Contracts = (function() {
                 return val;
             } else {
                 // arg is actually something so check the underlying contract
-                return k.posNeg(this.pos, this.neg).check(val);
+                return k.setBlame(this.pos, this.neg).check(val);
             }
         });
     };
 
     var guard = function(k, x, pos, neg) {
-        return k.posNeg(pos, neg).check(x);
+        return k.setBlame(pos, neg).check(x);
     };
 
     var combinators = {
