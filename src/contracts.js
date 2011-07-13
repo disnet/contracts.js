@@ -390,6 +390,10 @@ var Contracts = (function() {
             }
             // check that all properties on the object have a contract
             missingProps = Object.keys(this.oc).filter(function(el) {
+                // if it's the optional contract ignore
+                if(that.oc[el].cname === "opt") {
+                    return false;
+                }
                 // using `in` instead of `hasOwnProperty` to
                 // allow property to be somewhere on the prototype chain
                 // todo: are we sure this is what we want? need a way to specify
