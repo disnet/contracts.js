@@ -1,22 +1,6 @@
 var Contracts = (function() {
     "use strict";
 
-    if(!Array.isArray){ // needed for cross browser...not that it matters with proxies atm
-        Array.isArray = (function(){
-            var builtInToString = Object.prototype.toString; // save a reference built-in Object.prototype.toString
-            var builtInToCall = Function.prototype.call; // save a reference to built-in Function.prototype.call
-            var callWithArgs = builtInToCall.bind(builtInToCall); // requires a built-in bind function, not a shim
-            
-            var argToString = function(o){
-                return callWithArgs(builtInToString, o);
-            };
-            
-            return function(o) { 
-                return argToString(o) === '[object Array]';
-            };
-        })();
-    }
-
     function blame(toblame, k, val) {
         throw {
             name: "BlameError",
