@@ -1,8 +1,3 @@
-/*global Proxy: true, */
-
-/*jslint white: false, plusplus: false */
-
-
 var Contracts = (function() {
     "use strict";
 
