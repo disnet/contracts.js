@@ -328,7 +328,53 @@ test("checking sealed/frozen objects", function() {
         Object.preventExtensions(o),
         server, client);
     raises(function() { noex.foo = 42; }, "can't set new property on non-extensible object");
+});
 
+test("object with optional properties", function() {
+    raises(function() { guard(
+        object({ a: opt(Num), b: Str }),
+        {a: 42},
+        server, client); },
+           "missing required property");
+    ok(guard(
+        object({ a: opt(Num), b: Str }),
+        {b: "foo"},
+        server, client),
+       "missing optional property");
+
+});
+
+test("property descriptors on an object's properties", function() {
+    var o = {};
+    Object.defineProperty(o, "a", { value: 42, writable: false });
+    Object.defineProperty(o, "b", { value: "foo", writable: true });
+    Object.defineProperty(o, "c", { value: true, configurable: false });
+    Object.defineProperty(o, "d", { value: 42, enumerable: false });
+    ok(guard(
+        object({
+            a: {value: Num, writable: false},
+            b: {value: Str, writable: true},
+            c: {value: opt(Bool), configurable: false},
+            d: {value: Num, enumerable: false}
+        }),
+        o,
+        server, client),
+       "all prop descriptors match the contract");
+    o = {};
+    Object.defineProperty(o, "a", { value: 42, writable: true });
+    Object.defineProperty(o, "b", { value: "foo", writable: false });
+    Object.defineProperty(o, "c", { value: true, configurable: true });
+    Object.defineProperty(o, "d", { value: 42, enumerable: true });
+    raises(function() { guard(
+        object({
+            a: {value: Num, writable: false},
+            b: {value: Str, writable: true},
+            c: {value: opt(Bool), configurable: false},
+            d: {value: Num, enumerable: false}
+        }),
+        o,
+        server, client); },
+       "all prop descriptors match the contract");
 });
 
 test("objects with pre/post conditions", function() {

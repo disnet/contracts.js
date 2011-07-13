@@ -320,12 +320,12 @@ var Contracts = (function() {
     };
 
     var object = function(objContract, options) {
+        options = options || {};
         var c = new Contract("object", function(obj) {
-            var missingProps, op, i, 
+            var missingProps, op, i, name,
                 handler = idHandler(obj);
             var that = this;
-            options = options || {};
-
+            
             if(!(obj instanceof Object)) {
                 blame(this.pos, "object", "not an object");
             }
@@ -348,6 +348,14 @@ var Contracts = (function() {
                 blame(this.pos, "object", "frozen object");
             }
 
+            for(name in this.oc) {
+                // wrap all object contract in a prop descriptor like object
+                // for symmetry with descriptor contracts
+                if(this.oc[name] instanceof Contract) {
+                    this.oc[name] = {value : this.oc[name]};
+                }
+            }
+
             handler.defineProperty = function(name, desc) {
                 if(!options.extensible || options.sealed || options.frozen) {
                     blame(that.pos, obj, "object is non-extensible");
@@ -362,7 +370,7 @@ var Contracts = (function() {
             };
             handler.get = function(receiver, name) {
                 if(that.oc.hasOwnProperty(name)) { 
-                    return that.oc[name].setBlame(that.pos, that.neg).check(obj[name]);
+                    return that.oc[name].value.setBlame(that.pos, that.neg).check(obj[name]);
                 } else {
                     return obj[name];
                 }
@@ -377,7 +385,7 @@ var Contracts = (function() {
                     blame(that.pos, obj, "frozen object");
                 }
                 if(that.oc.hasOwnProperty(name)) { 
-                    obj[name] = that.oc[name].setBlame(that.pos, that.neg).check(val);
+                    obj[name] = that.oc[name].value.setBlame(that.pos, that.neg).check(val);
                 } else {
                     obj[name] = val;
                 }
@@ -385,14 +393,31 @@ var Contracts = (function() {
             };
             if(options && options.noDelete) {
                 handler.delete = function(name) {
-                    blame(that.pos, that.oc, obj);
+                    blame(that.pos, that.oc[name].value, obj);
                 };
             }
             // check that all properties on the object have a contract
             missingProps = Object.keys(this.oc).filter(function(el) {
+                var objDesc;
                 // if it's the optional contract ignore
-                if(that.oc[el].cname === "opt") {
+                if(that.oc[el].value.cname === "opt") {
                     return false;
+                }
+
+                objDesc = Object.getOwnPropertyDescriptor(obj, el);
+                if(objDesc !== undefined) {
+                    if( (that.oc[el].writable === true && !objDesc.writable)
+                        || (that.oc[el].writable === false && objDesc.writable)) {
+                        blame(that.pos, obj, "writable descriptor doesn't match contract");
+                    }
+                    if( (that.oc[el].configurable === true && !objDesc.configurable)
+                        || (that.oc[el].configurable === false && objDesc.configurable)) {
+                        blame(that.pos, obj, "configurable descriptor doesn't match contract");
+                    }
+                    if( (that.oc[el].enumerable === true && !objDesc.enumerable)
+                        || (that.oc[el].enumerable === false && objDesc.enumerable)) {
+                        blame(that.pos, obj, "configurable descriptor doesn't match contract");
+                    }
                 }
                 // using `in` instead of `hasOwnProperty` to
                 // allow property to be somewhere on the prototype chain
