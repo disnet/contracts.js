@@ -150,8 +150,10 @@ o.b = o;
 var o = rec(function(o) { return { a : "hi", b: o}; });
 return guard(
      object({
-          a: Str,
-          b: self 
+         a: Num,
+         b: self,
+         c: fun(Num, self),
+         d: object({ y: Str, z: self }) // this self is not the same as the others!
      }),
      o,
      server, client)
