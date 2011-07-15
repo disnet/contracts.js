@@ -1,11 +1,19 @@
 var Contracts = (function() {
     "use strict";
 
-    function blame(toblame, k, val) {
-        throw {
-            name: "BlameError",
-            message: "I blame: " + toblame + " for violating '" + k + "' with value: " + val
-        };
+    function blame(toblame, contract, value) {
+        var msg = "Contract violation: expected <"
+                + contract.cname + ">, given: " + value + ".\n"
+                + "Blame is on " + toblame + "\n"
+                + "parent contract " + contract.parent.cname;
+        // this.prototype = Error.prototype;
+        // this.message = msg;
+        // this.atFault = toblame;
+        var er = new Error(msg);
+        var st = printStackTrace({e : er});
+        er.message += "\n\n" + st.join("\n") ;
+
+        throw er;
     }
 
     // merges props of o2 into o1 return o1
@@ -94,32 +102,37 @@ var Contracts = (function() {
     function Contract(cname, handler) {
         this.handler = handler;
         this.cname = cname;
+        this.parent = null;
     }
     Contract.prototype = {
         // a -> (a + Blame)
-        check : function(val) {
+        check : function check(val) {
             return this.handler(val);
         },
         // (a -> (a + Blame)) -> Contract
-        setHandler : function(handler) {
+        setHandler : function setHandler(handler) {
             this.handler = handler;
             return this;
         },
         // String x String -> Contract
-        setBlame : function(pos, neg) {
+        setBlame : function setBlame(pos, neg) {
             this.pos = pos;
             this.neg = neg;
+            return this;
+        },
+        setParent : function(parent) {
+            this.parent = parent;
             return this;
         }
     };
 
     // (any -> Bool), [Str] -> Contract
-    var check = function(p, name) {
-        return new Contract(name, function(val) {
+    function check(p, name) {
+        return new Contract(name, function check(val) {
             if (p(val)) {
                 return val;
             } else {
-                blame(this.pos, this.cname, val);
+                blame(this.pos, this, val);
             }
         });
     };
@@ -140,7 +153,7 @@ var Contracts = (function() {
     //   new: arr(Contract or arr(Contract), Contract)
     // }
     // -> Contract
-    var fun = function(dom, rng, options) {
+    function fun(dom, rng, options) {
         var callOnly, newOnly, cleanDom,
             newdom, newrng, calldom, callrng;
 
@@ -212,7 +225,7 @@ var Contracts = (function() {
             //   this: {...} - object contract to check 'this'
             // }
             var makeHandler = function(dom, rng, options) {
-                return function() {
+                return function functionHandler() {
                     var i, res, args = [], boundArgs, bf, thisc;
 
                     // check pre condition
@@ -228,7 +241,9 @@ var Contracts = (function() {
                         // care of it if the argument is actually optional)
                         //
                         // blame is reversed
-                        args[i] = dom[i].setBlame(that.neg, that.pos).check(arguments[i]);
+                        args[i] = dom[i].setBlame(that.neg, that.pos)
+                            .setParent(that)
+                            .check(arguments[i]);
                         // assigning back to args since we might be wrapping functions/objects
                         // in delayed contracts
                     }
@@ -245,14 +260,20 @@ var Contracts = (function() {
                         boundArgs = [].concat.apply([null], args);
                         bf = f.bind.apply(f, boundArgs);
                         res = new bf();
-                        res = rng.setBlame(that.pos, that.neg).check(res);
+                        res = rng.setBlame(that.pos, that.neg)
+                            .setParent(that)
+                            .check(res);
                     } else {
                         if(options.this) {
-                            thisc = options.this.setBlame(that.pos, that.neg).check(this);
+                            thisc = options.this.setBlame(that.pos, that.neg)
+                                .setParent(that)
+                                .check(this);
                         } else {
                             thisc = this;
                         }
-                        res = rng.setBlame(that.pos, that.neg).check(f.apply(thisc, args));
+                        res = rng.setBlame(that.pos, that.neg)
+                            .setParent(that)
+                            .check(f.apply(thisc, args));
                     }
 
                     // check post condition
@@ -288,17 +309,17 @@ var Contracts = (function() {
     };
 
 
-    var ctor = function(dom, rng, options) {
+    function ctor(dom, rng, options) {
         var opt = merge(options, {newOnly: true});
         return fun(dom, rng, opt);
     };
 
-    var ctorSafe = function(dom, rng, options) {
+    function ctorSafe(dom, rng, options) {
         var opt = merge(options, {newSafe: true});
         return fun(dom, rng, opt);
     };
 
-    var object = function(objContract, options) {
+    function object(objContract, options) {
         options = options || {};
         var c = new Contract("object", function(obj) {
             var missingProps, op, i, name,
@@ -405,7 +426,7 @@ var Contracts = (function() {
                 return !(el in obj); 
             });
             if(missingProps.length !== 0) {
-                // todo: use missingProps to get more descriptive blame msg
+                // todo: use missingProps to get more descriptive Blame msg
                 blame(this.pos, this.oc, obj);
             }
             // todo eagerly check the properties?
@@ -455,13 +476,39 @@ var Contracts = (function() {
         return c;
     };
 
-    var any = (function() {
+    function arr(ks) {
+        var i, getC, oc = {};
+        for(i = 0; i < ks.length; i++) {
+            if(typeof ks[i] === "function") {
+                if(i !== ks.length - 1) {
+                    throw "___() must be at the last position in the array";
+                }
+                getC = ks[i](i);
+            }
+            oc[i] = ks[i];
+        }
+        return object(oc, {getContract: getC});
+    };
+
+    function ___(k) {
+        return function(index) {
+            return function(propName, arrLength) {
+                var propIndex = parseInt(propName, 10);
+                if(propIndex >= index && propIndex < arrLength) {
+                    return k;
+                }
+                return null;
+            };
+        };
+    };
+
+    var any = (function any() {
         return new Contract("any", function(val) {
             return val;
         });
     })();
 
-    var or = function(ks) {
+    function or(ks) {
         // todo: could be nicer here and use arguments to accept varargs
         if(!Array.isArray(ks)) {
             throw {
@@ -487,20 +534,20 @@ var Contracts = (function() {
         });
     };
     
-    var none = (function() {
+    var none = (function none() {
         return new Contract("none", function(val) {
-            blame(this.pos, "none", val);
+            Blame(this.pos, "none", val);
         });
     })();
 
-    var and = function(k1, k2) {
+    function and(k1, k2) {
         return new Contract("and", function(val) {
             var k1c = k1.setBlame(this.pos, this.neg).check(val);
             return k2.setBlame(this.pos, this.neg).check(k1c);
         });
     };
 
-    var opt = function(k) {
+    function opt(k) {
         return new Contract("opt", function(val) {
             if(val === undefined) { // unsuplied arguments are just passed through
                 return val;
@@ -511,7 +558,17 @@ var Contracts = (function() {
         });
     };
 
-    var guard = function(k, x, pos, neg) {
+    function guard(k, x, pos, neg) {
+        if(!pos) {
+            if(x.name === "") {
+                pos = x.toString();
+            } else {
+                pos = x.name; 
+            }
+            var guardedAt = printStackTrace({e: new Error()})[1];
+            pos += " -- guarded at " + guardedAt;
+            neg = "client of `" + pos + "`";
+        }
         return k.setBlame(pos, neg).check(x);
     };
 
@@ -521,6 +578,8 @@ var Contracts = (function() {
         ctor: ctor,
         ctorSafe: ctorSafe,
         object: object,
+        arr: arr,
+        ___: ___,
         any: any,
         or: or,
         none: none,
