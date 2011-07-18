@@ -17,6 +17,7 @@ var client = "client";
 
 module("Basic Contracts");
 
+
 test("checking id", function() {
     var id = guard(
         fun(Num, Num),
@@ -25,6 +26,8 @@ test("checking id", function() {
 
     ok(id(3));
     raises(function() { id("foo"); });
+    var f = 42;
+    // id("foo");
 });
 
 test("names of contracts", function() {
@@ -377,6 +380,27 @@ test("property descriptors on an object's properties", function() {
        "all prop descriptors match the contract");
 });
 
+test("recursive object", function() {
+    // var o = {
+    //     a: 42,
+    //     b: null,
+    //     c: function(n) { return this; },
+    //     d: { y: "foo", z: null }
+    // };
+    // o.b = o;
+    // o.d.z = o.d;
+
+    // guard(
+    //     object({
+    //         a: Num,
+    //         b: self,
+    //         c: fun(Num, self),
+    //         d: object({ y: Str, z: self })
+    //     }),
+    //     o,
+    //     server, client);
+});
+
 test("objects with pre/post conditions", function() {
     var withPre = {x: 0, dec: function() { return --this.x; }};
     ok(withPre.dec() === -1, "works before contract");
@@ -445,6 +469,34 @@ test("checking prototypes", function() {
     raises(function() { B_has_C_not_A.b; }, "blame even though contract is on object but prop is on proto");
 });
 
+
+test("basic arrays", function() {
+    var ar = guard(
+        arr([Str, Bool]),
+        ["foo", false],
+        server, client);
+    same(ar[0], "foo", "tupel form of array");
+    same(ar[1], false, "tupel form of array");
+    ar = guard(
+        arr([Str, Bool]),
+        [false, "foo", 42],
+        server, client);
+    raises(function() { ar[0]; }, "brakes tuple form");
+    raises(function() { ar[1]; }, "brakes tuple form");
+    ok(ar[2], "not covered by contract");
+    // ar = guard(
+    //     arr([___(Bool)]),
+    //     [true, false, true, false, false],
+    //     server, client);
+    // ok(ar[2], "arbitrary number of bools ___(Bool)");
+    // ok(ar[4], "arbitrary number of bools ___(Bool)");
+    // ar = guard(
+    //     arr([___(Bool)]),
+    //     [true, false, true, "foo", false],
+    //     server, client);
+    // ok(ar[2], "arbitrary number of bools ___(Bool)");
+    // raises(function() { ar[3]; }, "brakes ___(Bool) ");
+});
 
 
 module("jQuery Contracts");

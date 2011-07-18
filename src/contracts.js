@@ -1,11 +1,16 @@
 var Contracts = (function() {
     "use strict";
 
-    function blame(toblame, contract, value) {
-        var msg = "Contract violation: expected <"
-                + contract.cname + ">, given: " + value + ".\n"
-                + "Blame is on " + toblame + "\n"
-                + "parent contract " + contract.parent.cname;
+    // [Str, Contract, any] -> \bot
+    function blame(toblame, contract, value, parentKs) {
+        var msg = "Contract violation: expected <" + contract.cname + ">"
+                + ", actual: " + (typeof(value) === "string" ? '"' + value + '"' : value)+ "\n"
+                + "Blame is on " + toblame + "\n";
+
+        if(parentKs) {
+            msg += "parent contracts:\n" + parentKs.reverse().join("\n");
+        }
+        // msg += "value initially guarded at: " + contract.getGuardSite();
         // this.prototype = Error.prototype;
         // this.message = msg;
         // this.atFault = toblame;
@@ -105,34 +110,22 @@ var Contracts = (function() {
         this.parent = null;
     }
     Contract.prototype = {
-        // a -> (a + Blame)
-        check : function check(val) {
-            return this.handler(val);
+        check : function check(val, pos, neg, parentKs) {
+            return this.handler(val, pos, neg, parentKs);
         },
-        // (a -> (a + Blame)) -> Contract
-        setHandler : function setHandler(handler) {
-            this.handler = handler;
-            return this;
-        },
-        // String x String -> Contract
-        setBlame : function setBlame(pos, neg) {
-            this.pos = pos;
-            this.neg = neg;
-            return this;
-        },
-        setParent : function(parent) {
-            this.parent = parent;
-            return this;
+        toString: function() {
+            return this.cname;
         }
     };
 
     // (any -> Bool), [Str] -> Contract
+    // todo: maybe change name to assert?
     function check(p, name) {
-        return new Contract(name, function check(val) {
+        return new Contract(name, function check(val, pos, neg, parentKs) {
             if (p(val)) {
                 return val;
             } else {
-                blame(this.pos, this, val);
+                blame(pos, this, val, parentKs);
             }
         });
     };
@@ -154,7 +147,7 @@ var Contracts = (function() {
     // }
     // -> Contract
     function fun(dom, rng, options) {
-        var callOnly, newOnly, cleanDom,
+        var callOnly, newOnly, cleanDom, domname,
             newdom, newrng, calldom, callrng;
 
         cleanDom = function(dom) {
@@ -206,12 +199,13 @@ var Contracts = (function() {
         if(newOnly && options.this) {
             throw "Illegal arguments: cannot have both newOnly and a contract on 'this'";
         }
+        domname = "(" + calldom.join(",") + ")";
 
         // todo: better name for case when we have both call and new contracts
-        return new Contract(calldom.cname + " -> " + callrng.cname, function(f) {
+        return new Contract(domname + " -> " + callrng.cname, function(f, pos, neg, parentKs) {
             // todo: check that f is actually a function
             if(typeof f !== "function") {
-                blame(this.pos, f, "not a function"); // todo fix blame message
+                blame(pos, this, f, parentKs); 
             }
             var handler = idHandler(f);
             var that = this; 
@@ -231,19 +225,19 @@ var Contracts = (function() {
                     // check pre condition
                     if(typeof options.pre === "function") {
                         if(!options.pre(this)) {
-                            blame(that.pos, "fun", "precond"); // todo: fix up blame message
+                            blame(pos, that, "precond");  // todo: fix up blame message
                         }
                     }
 
+                    var parents = parentKs.slice(0);
+                    parents.push(that);
                     // check all the arguments
                     for( i = 0; i < dom.length; i++) { 
                         // might pass through undefined which is fine (opt will take
                         // care of it if the argument is actually optional)
                         //
                         // blame is reversed
-                        args[i] = dom[i].setBlame(that.neg, that.pos)
-                            .setParent(that)
-                            .check(arguments[i]);
+                        args[i] = dom[i].check(arguments[i], neg, pos, parents);
                         // assigning back to args since we might be wrapping functions/objects
                         // in delayed contracts
                     }
@@ -260,26 +254,20 @@ var Contracts = (function() {
                         boundArgs = [].concat.apply([null], args);
                         bf = f.bind.apply(f, boundArgs);
                         res = new bf();
-                        res = rng.setBlame(that.pos, that.neg)
-                            .setParent(that)
-                            .check(res);
+                        res = rng.check(res, pos, neg, parents);
                     } else {
                         if(options.this) {
-                            thisc = options.this.setBlame(that.pos, that.neg)
-                                .setParent(that)
-                                .check(this);
+                            thisc = options.this.check(this, pos, neg, parents);
                         } else {
                             thisc = this;
                         }
-                        res = rng.setBlame(that.pos, that.neg)
-                            .setParent(that)
-                            .check(f.apply(thisc, args));
+                        res = rng.check(f.apply(thisc, args), pos, neg, parents);
                     }
 
                     // check post condition
                     if(typeof options.post === "function") {
                         if(!options.post(this)) {
-                            blame(that.pos, "fun", "postcond"); // todo: fix up blame message
+                            blame(pos, "fun", "postcond"); // todo: fix up blame message
                         }
                     }
                     return res;
@@ -289,13 +277,13 @@ var Contracts = (function() {
             if(newOnly) {
                 options.isNew = true;
                 callHandler = function() {
-                    blame(that.pos, "fun", "new only");
+                    blame(pos, that, "new only", parentKs);
                 };
                 newHandler = makeHandler(newdom, newrng, options);
             } else if(callOnly) {
                 options.isNew = false;
                 newHandler = function() {
-                    blame(that.pos, "fun", "call only");
+                    blame(pos, that, "call only", parentKs);
                 };
                 callHandler = makeHandler(calldom, callrng, options);
             } else { // both false...both true is a contract construction-time error and handled earlier
@@ -321,31 +309,41 @@ var Contracts = (function() {
 
     function object(objContract, options) {
         options = options || {};
-        var c = new Contract("object", function(obj) {
+        // todo watch out for cycles
+        var objName = function(obj) {
+            var props = Object.keys(obj).map(function(propName) {
+                return propName + " : " + obj[propName].cname;
+            }, this);
+            return "{" + props.join(", ") + "}";
+        };
+
+        var c = new Contract(objName(objContract), function(obj, pos, neg, parentKs) {
             var missingProps, op, i, name,
                 handler = idHandler(obj);
             var that = this;
+            var parents = parentKs.slice(0);
+            parents.push(this);
             
             if(!(obj instanceof Object)) {
-                blame(this.pos, "object", "not an object");
+                blame(pos, this, obj);
             }
             if(options.extensible === true && !Object.isExtensible(obj)) {
-                blame(this.pos, "object", "not a extensible object");
+                blame(pos, "object", "not a extensible object");
             }
             if(options.extensible === false && Object.isExtensible(obj)) {
-                blame(this.pos, "object", "extensible object");
+                blame(pos, "object", "extensible object");
             }
             if(options.sealed === true && !Object.isSealed(obj)) {
-                blame(this.pos, "object", "not a sealed object");
+                blame(pos, "object", "not a sealed object");
             }
             if(options.sealed === false && Object.isSealed(obj)) {
-                blame(this.pos, "object", "sealed object");
+                blame(pos, "object", "sealed object");
             }
             if(options.frozen === true && !Object.isFrozen(obj)) {
-                blame(this.pos, "object", "not a frozen object");
+                blame(pos, "object", "not a frozen object");
             }
             if(options.frozen === false && Object.isFrozen(obj)) {
-                blame(this.pos, "object", "frozen object");
+                blame(pos, "object", "frozen object");
             }
 
             for(name in this.oc) {
@@ -358,34 +356,34 @@ var Contracts = (function() {
 
             handler.defineProperty = function(name, desc) {
                 if(!options.extensible || options.sealed || options.frozen) {
-                    blame(that.pos, obj, "object is non-extensible");
+                    blame(pos, obj, "object is non-extensible");
                 }
                 Object.defineProperty(obj, name, desc);
             };
             handler.delete = function(name) {
                 if(options.sealed || options.frozen) {
-                    blame(that.pos, obj, "object is " + (options.sealed ? "sealed" : "frozen"));
+                    blame(pos, obj, "object is " + (options.sealed ? "sealed" : "frozen"));
                 }
                 return delete obj[name]; 
             };
             handler.get = function(receiver, name) {
                 if(that.oc.hasOwnProperty(name)) { 
-                    return that.oc[name].value.setBlame(that.pos, that.neg).check(obj[name]);
+                    return that.oc[name].value.check(obj[name], pos, neg, parents);
                 } else {
                     return obj[name];
                 }
             };
             handler.set = function(receiver, name, val) {
                 if(!options.extensible && Object.getOwnPropertyDescriptor(obj, name) === undefined) {
-                    blame(that.pos, obj, "non-extensible object");
+                    blame(pos, obj, "non-extensible object");
                 }
                 if(options.frozen) {
                     // normally would silengtly fail or throw a type error (strict mode)
                     // but now we throw blame for better messaging
-                    blame(that.pos, obj, "frozen object");
+                    blame(pos, obj, "frozen object");
                 }
                 if(that.oc.hasOwnProperty(name)) { 
-                    obj[name] = that.oc[name].value.setBlame(that.pos, that.neg).check(val);
+                    obj[name] = that.oc[name].value.check(val, pos, neg, parents);
                 } else {
                     obj[name] = val;
                 }
@@ -393,7 +391,7 @@ var Contracts = (function() {
             };
             if(options && options.noDelete) {
                 handler.delete = function(name) {
-                    blame(that.pos, that.oc[name].value, obj);
+                    blame(pos, that.oc[name].value, obj);
                 };
             }
             // check that all properties on the object have a contract
@@ -408,15 +406,15 @@ var Contracts = (function() {
                 if(objDesc !== undefined) {
                     if( (that.oc[el].writable === true && !objDesc.writable)
                         || (that.oc[el].writable === false && objDesc.writable)) {
-                        blame(that.pos, obj, "writable descriptor doesn't match contract");
+                        blame(pos, obj, "writable descriptor doesn't match contract");
                     }
                     if( (that.oc[el].configurable === true && !objDesc.configurable)
                         || (that.oc[el].configurable === false && objDesc.configurable)) {
-                        blame(that.pos, obj, "configurable descriptor doesn't match contract");
+                        blame(pos, obj, "configurable descriptor doesn't match contract");
                     }
                     if( (that.oc[el].enumerable === true && !objDesc.enumerable)
                         || (that.oc[el].enumerable === false && objDesc.enumerable)) {
-                        blame(that.pos, obj, "configurable descriptor doesn't match contract");
+                        blame(pos, obj, "configurable descriptor doesn't match contract");
                     }
                 }
                 // using `in` instead of `hasOwnProperty` to
@@ -427,7 +425,7 @@ var Contracts = (function() {
             });
             if(missingProps.length !== 0) {
                 // todo: use missingProps to get more descriptive Blame msg
-                blame(this.pos, this.oc, obj);
+                blame(pos, this.oc, obj);
             }
             // todo eagerly check the properties?
 
@@ -436,11 +434,11 @@ var Contracts = (function() {
                 if(Array.isArray(options.initPredicate)) {
                     for( i = 0; i < options.initPredicate.length; i++) {
                         if(!options.initPredicate[i](obj))
-                            blame(this.pos, this.oc, obj);
+                            blame(pos, this.oc, obj);
                     }
                 } else {
                     if(!options.initPredicate(obj))
-                        blame(this.pos, this.oc, obj);
+                        blame(pos, this.oc, obj);
                 }
             }
 
@@ -516,15 +514,15 @@ var Contracts = (function() {
                 message: "Must create the 'or' contract with an array of contracts"
             };
         }
-        return new Contract("or", function(val) {
+        return new Contract("or", function(val, pos, neg, parentKs) {
             var i = 0, lastBlame;
             // for now only accepting first order contracts for 'or'
             if (typeof val === "function") {
-                blame(this.pos, "or", val);
+                blame(pos, "or", val);
             }
             for(; i < ks.length; i++) {
                 try {
-                    return ks[i].setBlame(this.pos, this.neg).check(val);
+                    return ks[i].check(val, pos, neg, parentKs);
                 } catch (e) {
                     lastBlame = e;
                     continue;
@@ -535,41 +533,45 @@ var Contracts = (function() {
     };
     
     var none = (function none() {
-        return new Contract("none", function(val) {
-            Blame(this.pos, "none", val);
+        return new Contract("none", function(val, pos, neg, parentKs) {
+            blame(pos, this, val, parentKs);
         });
     })();
 
     function and(k1, k2) {
-        return new Contract("and", function(val) {
-            var k1c = k1.setBlame(this.pos, this.neg).check(val);
-            return k2.setBlame(this.pos, this.neg).check(k1c);
+        return new Contract("and", function(val, pos, neg, parentKs) {
+            var k1c = k1.check(val, pos, neg, parentKs);
+            return k2.check(k1c, pos, neg, parentKs);
         });
     };
 
     function opt(k) {
-        return new Contract("opt", function(val) {
+        return new Contract("opt", function(val, pos, neg, parentKs) {
             if(val === undefined) { // unsuplied arguments are just passed through
                 return val;
             } else {
                 // arg is actually something so check the underlying contract
-                return k.setBlame(this.pos, this.neg).check(val);
+                return k.check(val, pos, neg, parentKs);
             }
         });
     };
 
     function guard(k, x, pos, neg) {
         if(!pos) {
-            if(x.name === "") {
-                pos = x.toString();
-            } else {
-                pos = x.name; 
-            }
+            // if(x.name === "") {
+            //     pos = x.toString();
+            // } else {
+            //     pos = x.name; 
+            // }
             var guardedAt = printStackTrace({e: new Error()})[1];
-            pos += " -- guarded at " + guardedAt;
-            neg = "client of `" + pos + "`";
+            pos = "value guarded at: " + guardedAt;
+            neg = "client of " + pos;
         }
-        return k.setBlame(pos, neg).check(x);
+        if(pos && !neg) {
+            neg = "client of " + pos;
+        }
+        // k.setGuardSite(guardedAt);
+        return k.check(x, pos, neg, []);
     };
 
     var combinators = {
@@ -609,7 +611,7 @@ var Contracts = (function() {
             return  (x % 2) === 1;
         }, "Odd"),
         Even: combinators.check(function(x) {
-            return (x % 2) === 1;
+            return (x % 2) !== 1;
         }, "Even"),
         Pos: combinators.check(function(x) {
             return x >= 0;
