@@ -170,4 +170,44 @@ $(document).ready(function() {
             oo);
         o.a = "bar";
     });
+    bt("object prop reaad-only but contract writable, server at fault", function() {
+        var oo = Object.defineProperty({a: "foo"}, "b", {value: 42, writable: false});
+        var o = guard(
+            object({a: {value: Str, writable: true}, b: {value: Num, writable: true }}),
+            oo);
+        o.b = 22;
+    });
+    bt("object prop writable but contract read-only, server at fault", function() {
+        var oo = Object.defineProperty({a: "foo"}, "b", {value: 42, writable: true});
+        var o = guard(
+            object({a: {value: Str, writable: true}, b: {value: Num, writable: false }}),
+            oo);
+        o.b = 22;
+    });
+    bt("object prop enumerable but contract non-enumerable, server at fault", function() {
+        var oo = Object.defineProperty({a: "foo"}, "b", {value: 42, enumerable: true});
+        var o = guard(
+            object({a: {value: Str, writable: true}, b: {value: Num, enumerable: false }}),
+            oo);
+    });
+    bt("object prop configurable but contract non-configurable, server at fault", function() {
+        var oo = Object.defineProperty({a: "foo"}, "b", {value: 42, configurable: true});
+        var o = guard(
+            object({a: {value: Str, writable: true}, b: {value: Num, configurable: false }}),
+            oo);
+    });
+    bt("object prop no-write, client at fault", function() {
+        var oo = Object.defineProperty({a: "foo"}, "b", {value: 42, writable: false});
+        var o = guard(
+            object({a: {value: Str, writable: true}, b: {value: Num, writable: false }}),
+            oo);
+        o.b = 22;
+    });
+    bt("object prop non-configurable, client at fault", function() {
+        var oo = Object.defineProperty({a: "foo"}, "b", {value: 42, configurable: false});
+        var o = guard(
+            object({a: {value: Str, writable: true}, b: {value: Num, writable: false }}),
+            oo);
+        Object.defineProperty(o, "b", {value: "bar", configurable: true});
+    });
 });

@@ -329,22 +329,22 @@ var Contracts = (function() {
                 blame(pos, this, obj, parentKs);
             }
             if(options.extensible === true && !Object.isExtensible(obj)) {
-                blame(pos, "extensible: true", "extensible: false", parents);
+                blame(pos, "[extensible object]", "[non-extensible object]", parents);
             }
             if(options.extensible === false && Object.isExtensible(obj)) {
-                blame(pos, "extensible: false", "extensible: true", parents);
+                blame(pos, "[non-extensible]", "[extensible object]", parents);
             }
             if(options.sealed === true && !Object.isSealed(obj)) {
-                blame(pos, "sealed: true", "sealed: false", parents);
+                blame(pos, "[sealed object]", "[non-sealed object]", parents);
             }
             if(options.sealed === false && Object.isSealed(obj)) {
-                blame(pos, "sealed: false", "sealed: true", parents);
+                blame(pos, "[non-sealed object]", "[sealed object]", parents);
             }
             if(options.frozen === true && !Object.isFrozen(obj)) {
-                blame(pos, "frozen: true", "frozen: false", parents);
+                blame(pos, "[frozen object]", "[non-frozen object]", parents);
             }
             if(options.frozen === false && Object.isFrozen(obj)) {
-                blame(pos, "frozen: false", "frozen: true", parents);
+                blame(pos, "[non-frozen object]", "[frozen object]", parents);
             }
 
             for(name in this.oc) {
@@ -359,9 +359,18 @@ var Contracts = (function() {
                 // note: we coulad have also allowed a TypeError to be thrown by the system
                 // if in strict mode or silengtly fail otherwise but we're using the blame system
                 // for hopfully better error messaging
-                if(!options.extensible || options.sealed || options.frozen) {
+                if((options.extensible === false) || options.sealed || options.frozen) {
                     // have to reverse blame since the client is the one calling defineProperty
-                    blame(neg, "non-extensible object", "[call to Object.defineProperty]", parents);
+                    blame(neg,
+                          "[non-extensible object]",
+                          "[attempted to change property descriptor of: " + name + "]",
+                          parents);
+                }
+                if(!that.oc[name].configurable) {
+                    blame(neg,
+                          "[non-configurable property: " + name + "]",
+                          "[attempted to change the property descriptor of property: " + name + "]",
+                          parents);
                 }
                 Object.defineProperty(obj, name, desc);
             };
@@ -381,12 +390,15 @@ var Contracts = (function() {
             };
             handler.set = function(receiver, name, val) {
                 if(!options.extensible && Object.getOwnPropertyDescriptor(obj, name) === undefined) {
-                    blame(neg, "non-extensible object", "[call to set on a new property]", parents);
+                    blame(neg, "non-extensible object", "[attempted to set a new property: " + name + "]", parents);
                 }
                 if(options.frozen) {
-                    blame(neg, "frozen object", "[call to set]", parents);
+                    blame(neg, "frozen object", "[attempted to set: " + name + "]", parents);
                 }
                 if(that.oc.hasOwnProperty(name)) { 
+                    if(!that.oc[name].writable) {
+                        blame(neg, "read-only property", "[attempted to set read-only property: " + name + "]", parents);
+                    }
                     // have to reverse blame since the client is the one calling set
                     obj[name] = that.oc[name].value.check(val, neg, pos, parents);
                 } else {
@@ -402,19 +414,26 @@ var Contracts = (function() {
                     return false;
                 }
 
+                // deal with property descriptor contracts
                 objDesc = Object.getOwnPropertyDescriptor(obj, el);
                 if(objDesc !== undefined) {
-                    if( (that.oc[el].writable === true && !objDesc.writable)
-                        || (that.oc[el].writable === false && objDesc.writable)) {
-                        blame(pos, obj, "writable descriptor doesn't match contract");
+                    if(that.oc[el].writable === true && !objDesc.writable) {
+                        blame(pos, "[writable property: " + el + "]", "[read-only property: " + el + "]", parents);
                     }
-                    if( (that.oc[el].configurable === true && !objDesc.configurable)
-                        || (that.oc[el].configurable === false && objDesc.configurable)) {
-                        blame(pos, obj, "configurable descriptor doesn't match contract");
+                    if (that.oc[el].writable === false && objDesc.writable) {
+                        blame(pos, "[read-only property: " + el + "]", "[writable property: " + el + "]", parents);
                     }
-                    if( (that.oc[el].enumerable === true && !objDesc.enumerable)
-                        || (that.oc[el].enumerable === false && objDesc.enumerable)) {
-                        blame(pos, obj, "configurable descriptor doesn't match contract");
+                    if(that.oc[el].configurable === true && !objDesc.configurable) {
+                        blame(pos, "[configurable property: " + el + "]", "[non-configurable property: " + el + "]", parents);
+                    }
+                    if(that.oc[el].configurable === false && objDesc.configurable) {
+                        blame(pos, "[non-configurable property: " + el + "]", "[configurable property: " + el + "]", parents);
+                    }
+                    if(that.oc[el].enumerable === true && !objDesc.enumerable) {
+                        blame(pos, "[enumerable property: " + el + "]", "[non-enumerable property: " + el + "]", parents);
+                    }
+                    if(that.oc[el].enumerable === false && objDesc.enumerable) {
+                        blame(pos, "[non-enumerable property: " + el + "]", "[enumerable property: " + el + "]", parents);
                     }
                 }
                 // using `in` instead of `hasOwnProperty` to
