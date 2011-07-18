@@ -3,7 +3,8 @@ var Contracts = (function() {
 
     // [Str, Contract, any] -> \bot
     function blame(toblame, contract, value, parentKs) {
-        var msg = "Contract violation: expected <" + contract.cname + ">"
+        var cname = contract.cname || contract;
+        var msg = "Contract violation: expected <" + cname + ">"
                 + ", actual: " + (typeof(value) === "string" ? '"' + value + '"' : value)+ "\n"
                 + "Blame is on " + toblame + "\n";
 
@@ -325,44 +326,49 @@ var Contracts = (function() {
             parents.push(this);
             
             if(!(obj instanceof Object)) {
-                blame(pos, this, obj);
+                blame(pos, this, obj, parentKs);
             }
             if(options.extensible === true && !Object.isExtensible(obj)) {
-                blame(pos, "object", "not a extensible object");
+                blame(pos, "extensible: true", "extensible: false", parents);
             }
             if(options.extensible === false && Object.isExtensible(obj)) {
-                blame(pos, "object", "extensible object");
+                blame(pos, "extensible: false", "extensible: true", parents);
             }
             if(options.sealed === true && !Object.isSealed(obj)) {
-                blame(pos, "object", "not a sealed object");
+                blame(pos, "sealed: true", "sealed: false", parents);
             }
             if(options.sealed === false && Object.isSealed(obj)) {
-                blame(pos, "object", "sealed object");
+                blame(pos, "sealed: false", "sealed: true", parents);
             }
             if(options.frozen === true && !Object.isFrozen(obj)) {
-                blame(pos, "object", "not a frozen object");
+                blame(pos, "frozen: true", "frozen: false", parents);
             }
             if(options.frozen === false && Object.isFrozen(obj)) {
-                blame(pos, "object", "frozen object");
+                blame(pos, "frozen: false", "frozen: true", parents);
             }
 
             for(name in this.oc) {
                 // wrap all object contract in a prop descriptor like object
-                // for symmetry with descriptor contracts
+                // for symmetry with descriptor contracts: { a: Num } ==> { a: {value: Num} }
                 if(this.oc[name] instanceof Contract) {
                     this.oc[name] = {value : this.oc[name]};
                 }
             }
 
             handler.defineProperty = function(name, desc) {
+                // note: we coulad have also allowed a TypeError to be thrown by the system
+                // if in strict mode or silengtly fail otherwise but we're using the blame system
+                // for hopfully better error messaging
                 if(!options.extensible || options.sealed || options.frozen) {
-                    blame(pos, obj, "object is non-extensible");
+                    // have to reverse blame since the client is the one calling defineProperty
+                    blame(neg, "non-extensible object", "[call to Object.defineProperty]", parents);
                 }
                 Object.defineProperty(obj, name, desc);
             };
             handler.delete = function(name) {
                 if(options.sealed || options.frozen) {
-                    blame(pos, obj, "object is " + (options.sealed ? "sealed" : "frozen"));
+                    // have to reverse blame since the client is the one calling delete
+                    blame(neg, (options.sealed ? "sealed" : "frozen") + " object", "[call to delete]", parents);
                 }
                 return delete obj[name]; 
             };
@@ -375,25 +381,19 @@ var Contracts = (function() {
             };
             handler.set = function(receiver, name, val) {
                 if(!options.extensible && Object.getOwnPropertyDescriptor(obj, name) === undefined) {
-                    blame(pos, obj, "non-extensible object");
+                    blame(neg, "non-extensible object", "[call to set on a new property]", parents);
                 }
                 if(options.frozen) {
-                    // normally would silengtly fail or throw a type error (strict mode)
-                    // but now we throw blame for better messaging
-                    blame(pos, obj, "frozen object");
+                    blame(neg, "frozen object", "[call to set]", parents);
                 }
                 if(that.oc.hasOwnProperty(name)) { 
-                    obj[name] = that.oc[name].value.check(val, pos, neg, parents);
+                    // have to reverse blame since the client is the one calling set
+                    obj[name] = that.oc[name].value.check(val, neg, pos, parents);
                 } else {
                     obj[name] = val;
                 }
                 return true;
             };
-            if(options && options.noDelete) {
-                handler.delete = function(name) {
-                    blame(pos, that.oc[name].value, obj);
-                };
-            }
             // check that all properties on the object have a contract
             missingProps = Object.keys(this.oc).filter(function(el) {
                 var objDesc;
@@ -424,33 +424,21 @@ var Contracts = (function() {
                 return !(el in obj); 
             });
             if(missingProps.length !== 0) {
-                // todo: use missingProps to get more descriptive Blame msg
-                blame(pos, this.oc, obj);
-            }
-            // todo eagerly check the properties?
-
-            if(options && options.initPredicate) {
-                // check each predicate if we have more than one
-                if(Array.isArray(options.initPredicate)) {
-                    for( i = 0; i < options.initPredicate.length; i++) {
-                        if(!options.initPredicate[i](obj))
-                            blame(pos, this.oc, obj);
-                    }
-                } else {
-                    if(!options.initPredicate(obj))
-                        blame(pos, this.oc, obj);
-                }
+                blame(pos, this, "[missing properties: " + missingProps + "]", parents);
             }
 
-            // making this a function proxy if object is also a function to preserve
-            // typeof checks
+            // making this a function proxy if object is also a
+            // function to preserve typeof checks
             if (typeof obj === "function") {
                 op = Proxy.createFunction(handler,
                                           function(args) {
                                               return obj.apply(this, arguments);
                                           },
                                           function(args) {
-                                              return obj.apply(this, arguments);
+                                              var boundArgs, bf;
+                                              boundArgs = [].concat.apply([null], arguments);
+                                              bf = obj.bind.apply(obj, boundArgs);
+                                              return new bf();
                                           });
 
             } else {
@@ -557,14 +545,14 @@ var Contracts = (function() {
     };
 
     function guard(k, x, pos, neg) {
+        var guardedAt;
         if(!pos) {
-            // if(x.name === "") {
-            //     pos = x.toString();
-            // } else {
-            //     pos = x.name; 
-            // }
-            var guardedAt = printStackTrace({e: new Error()})[1];
-            pos = "value guarded at: " + guardedAt;
+            guardedAt = printStackTrace({e: new Error()})[1];
+            if(typeof x === "function" && x.name !== "") {
+                pos = "function '" + x.name + "' guarded at: " + guardedAt;
+            } else {
+                pos = "value guarded at: " + guardedAt;
+            }
             neg = "client of " + pos;
         }
         if(pos && !neg) {

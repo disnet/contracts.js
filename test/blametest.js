@@ -98,4 +98,76 @@ $(document).ready(function() {
             { a: "foo"});
         o.a;
     });
+    bt("object missing properties, server at fault", function() {
+        var o = guard(
+            object({a: Num, b: Str}),
+            {a: 42});
+    });
+    bt("object set, client at fault", function() {
+        var o = guard(
+            object({ a: Num }),
+            { a: 42});
+        o.a = "foo";
+    });
+    bt("object with a function, client at fault", function() {
+        var o = guard(
+            object({ f: fun(Num, Str)}),
+            { f: function(n) { return "foo"; } });
+        o.f("foo");
+    });
+    bt("object with a function, server at fault", function() {
+        var o = guard(
+            object({ f: fun(Num, Str)}),
+            { f: function(n) { return 42; } });
+        o.f(42);
+    });
+    bt("object, server at fault, not extensible", function() {
+        var o = guard(
+            object({ a: Num }, {extensible: false}),
+            {a: 42});
+    });
+    bt("object with a function returning an object, server at fault", function() {
+        var o = guard(
+            object({ f: fun(Num, object({a: Num}))}),
+            { f: function(n) { return {a: "foo"}; } });
+        o.f(42).a;
+    });
+    bt("object with a function taking an object, client at fault", function() {
+        var o = guard(
+            object({ f: fun(object({a: Num}), Num)}),
+            { f: function(o) { return o.a; } });
+        o.f({a: "foo"});
+    });
+    bt("object non-extensible, client at fault", function() {
+        var oo = { a: "foo"};
+        Object.preventExtensions(oo);
+        var o = guard(
+            object({a: Str}, {extensible: false}),
+            oo);
+        Object.defineProperty(o, "foo", {value: 42});
+    });
+    bt("object sealed, client at fault", function() {
+        var oo = { a: "foo"};
+        Object.seal(oo);
+        var o = guard(
+            object({a: Str}, {sealed: true}),
+            oo);
+        delete o.a;
+    });
+    bt("object non-extensible call to set, client at fault", function() {
+        var oo = { a: "foo"};
+        Object.preventExtensions(oo);
+        var o = guard(
+            object({a: Str}, {extensible: false}),
+            oo);
+        o.bar = "bar";
+    });
+    bt("object frozen call to set, client at fault", function() {
+        var oo = { a: "foo"};
+        Object.freeze(oo);
+        var o = guard(
+            object({a: Str}, {frozen: true}),
+            oo);
+        o.a = "bar";
+    });
 });
