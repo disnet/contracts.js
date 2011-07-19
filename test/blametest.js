@@ -125,6 +125,13 @@ $(document).ready(function() {
         new idc("foo");
     });
 
+    bt("function this contract, client at fault", function() {
+        var idc = guard(
+            fun(Str, Num, {this: object({a: Num, b: Str})}),
+            function(s) { return this.a; });
+        var o = {a: "foo", b:"foo", f: idc};
+        o.f("foo");
+    });
 
 
     // object blame messages
@@ -280,5 +287,20 @@ $(document).ready(function() {
                 }
             });
         o.f(42);
+    });
+
+    bt("object with function this contract, client at fault", function() {
+        // var o = guard(
+        //     object({
+        //         f: fun(Num, Num, {
+        //             this: object({a: Num}),
+        //         a: Num
+        //     }), {
+        //         a: -1,
+        //         f: function(n) {
+        //             return this.a + n;
+        //         }
+        //     });
+        // o.f(42);
     });
 });

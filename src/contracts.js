@@ -61,7 +61,7 @@ var Contracts = (function() {
     function blame(toblame, contract, value, parents) {
         var cname = contract.cname || contract;
         var msg = "expected <" + cname + ">"
-                + ", actual: " + (typeof(value) === "string" ? '"' + value + '"' : value) + "\n";
+                + ", actual: " + (typeof(value) === "string" ? '"' + value + '"' : value);
 
         throw _blame(toblame, msg, parents);
     }
@@ -167,7 +167,7 @@ var Contracts = (function() {
     // }
     // -> Contract
     function fun(dom, rng, options) {
-        var callOnly, newOnly, cleanDom, domname,
+        var callOnly, newOnly, cleanDom, domName, optionsName, contractName,
             newdom, newrng, calldom, callrng;
 
         cleanDom = function(dom) {
@@ -219,10 +219,13 @@ var Contracts = (function() {
         if(newOnly && options.this) {
             throw "Illegal arguments: cannot have both newOnly and a contract on 'this'";
         }
-        domname = "(" + calldom.join(",") + ")";
+
+        domName = "(" + calldom.join(",") + ")";
+        optionsName = (options.this ? "{this: " + options.this.cname + "}" : "");
+        contractName = domName + " -> " + callrng.cname + " " + optionsName;
 
         // todo: better name for case when we have both call and new contracts
-        return new Contract(domname + " -> " + callrng.cname, "fun", function(f, pos, neg, parentKs) {
+        return new Contract(contractName, "fun", function(f, pos, neg, parentKs) {
             var callHandler, newHandler,
                 handler = idHandler(f),
                 that = this,
