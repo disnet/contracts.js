@@ -537,9 +537,12 @@ var Contracts = (function() {
         return c;
     };
 
+    // (___(any), () -> Contract) -> Contract
     function arr(ks) {
+        // todo might make sens to allow var args along with array arguments
         var i, rangeContract, rangeIndex, oc = {};
         for(i = 0; i < ks.length; i++) {
+            // assuming that the only possible function is ___()
             if(typeof ks[i] === "function") {
                 if(i !== ks.length - 1) {
                     throw "___() must be at the last position in the array";
