@@ -289,18 +289,50 @@ $(document).ready(function() {
         o.f(42);
     });
 
-    bt("object with function this contract, client at fault", function() {
-        // var o = guard(
-        //     object({
-        //         f: fun(Num, Num, {
-        //             this: object({a: Num}),
-        //         a: Num
-        //     }), {
-        //         a: -1,
-        //         f: function(n) {
-        //             return this.a + n;
-        //         }
-        //     });
-        // o.f(42);
+    bt("object with function 'this' contract, client at fault", function() {
+        var o = guard(
+            object({
+                a: Num,
+                f: fun(Num, Str, {
+                    this: object({a: Num})})
+            }), {
+                a: 24,
+                f: function(n) {
+                    return this.a;
+                }
+            });
+        var f = o.f;
+        f(42);
+    });
+    bt("object with function 'this' contract, server at fault", function() {
+        var o = guard(
+            object({
+                a: Str,
+                f: fun(Num, Str, {
+                    this: object({a: Num})})
+            }), {
+                a: 24,
+                f: function(n) {
+                    return this.a;
+                }
+            });
+        o.f(42);
+    });
+
+    bt("object with function 'this' contract, client at fault but in 'construction' of contract", function() {
+        // odd but correct behavior to blame the client...the client should have put f on a different
+        // object since the this contract doesn't match the object that the function is in.
+        var o = guard(
+            object({
+                a: Num,
+                f: fun(Num, Str, {
+                    this: object({a: Str})})
+            }), {
+                a: 24,
+                f: function(n) {
+                    return this.a;
+                }
+            });
+        o.f(42);
     });
 });

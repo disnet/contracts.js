@@ -283,7 +283,8 @@ var Contracts = (function() {
                         res = rng.check(res, pos, neg, parents);
                     } else {
                         if(options.this) {
-                            thisc = options.this.check(this, pos, neg, parents);
+                            // blame is reversed
+                            thisc = options.this.check(this, neg, pos, parents);
                         } else {
                             thisc = this;
                         }
