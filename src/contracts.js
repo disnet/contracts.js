@@ -1,52 +1,76 @@
 var Contracts = (function() {
     "use strict";
 
-    // [Str, Contract, any] -> \bot
-    function blame(toblame, contract, value, parentKs) {
-        var cname = contract.cname || contract;
-        var msg = "Contract violation: expected <" + cname + ">"
-                + ", actual: " + (typeof(value) === "string" ? '"' + value + '"' : value)+ "\n"
-                + "Blame is on " + toblame + "\n";
-
-        if(parentKs) {
-            msg += "parent contracts:\n" + parentKs.reverse().join("\n");
-        }
-        // msg += "value initially guarded at: " + contract.getGuardSite();
-        // this.prototype = Error.prototype;
-        // this.message = msg;
-        // this.atFault = toblame;
-        var er = new Error(msg);
-        var st = printStackTrace({e : er});
-        er.message += "\n\n" + st.join("\n") ;
-
-        throw er;
-    }
-
-    // merges props of o2 into o1 return o1
-    function merge(o1, o2) {
-        var o3 = {};
-        var f = function(o) {
-            for(var name in o) {
-                if(o.hasOwnProperty(name)) {
-                    o3[name] = o[name];
+    var Utils = {
+        // walk the proto chain to get the property descriptor
+        getPropertyDescriptor : function getPropertyDescriptor(obj, prop) {
+            var o = obj;
+            do {
+                var desc = Object.getOwnPropertyDescriptor(o, prop); 
+                if (desc !== undefined) {
+                    return desc;
                 }
+                o = Object.getPrototypeOf(o);
+            } while(o !== null);
+            return undefined;
+        },
+
+        // merges props of o2 into o1 return o1
+        merge : function merge(o1, o2) {
+            var o3 = {};
+            var f = function(o) {
+                for(var name in o) {
+                    if(o.hasOwnProperty(name)) {
+                        o3[name] = o[name];
+                    }
+                }
+            };
+            f(o1);
+            f(o2);
+            return o3;
+        },
+
+        hasNoHoles : function hasNoHoles(obj) {
+            var i = 0;
+            for( ; i < obj.length; i++) {
+                if(!(i in obj))
+                    return false;
             }
-        };
-        f(o1);
-        f(o2);
-        return o3;
+            return true;
+        }
     };
 
-    function hasNoHoles(obj) {
-        var i = 0;
-        for( ; i < obj.length; i++) {
-            if(!(i in obj))
-                return false;
+    // Str -> \bot
+    function _blame(toblame, msg, parents) {
+        var err, st, ps = parents.slice(0);
+        var m = "Contract violation: " + msg + "\n"
+                + "Blame is on " + toblame + "\n";
+
+        if(ps) {
+            m += "Parent contracts:\n" + ps.reverse().join("\n");
         }
-        return true;
+
+        err =  new Error(m);
+        st = printStackTrace({e : err});
+        err.message += "\n\n" + st.join("\n") ;
+
+        throw err;
     }
 
-    // creates the properties that behave as an identity for a Proxy
+    // [Str, Contract, any] -> \bot
+    function blame(toblame, contract, value, parents) {
+        var cname = contract.cname || contract;
+        var msg = "expected <" + cname + ">"
+                + ", actual: " + (typeof(value) === "string" ? '"' + value + '"' : value) + "\n";
+
+        throw _blame(toblame, msg, parents);
+    }
+
+    function blameM(toblame, msg, parents) {
+        _blame(toblame, msg, parents);
+    }
+
+    // creeates an identity proxy handler
     function idHandler(obj) {
         return {
             getOwnPropertyDescriptor: function(name) {
@@ -55,17 +79,11 @@ var Contracts = (function() {
                 return desc;
             },
             getPropertyDescriptor: function(name) {
-                var o = obj;
-                // walk the prototype chain checking for the given property
-                do {
-                    var desc = Object.getOwnPropertyDescriptor(o, name); 
-                    if (desc !== undefined) {
-                        desc.configurable = true;
-                        return desc;
-                    }
-                    o = Object.getPrototypeOf(o);
-                } while(o !== null);
-                return undefined;
+                var desc = Utils.getPropertyDescriptor(obj, name);
+                if(desc) {
+                    desc.configurable = true;
+                }
+                return desc;
             },
             getOwnPropertyNames: function() {
                 return Object.getOwnPropertyNames(obj);
@@ -105,9 +123,10 @@ var Contracts = (function() {
             keys: function() { return Object.keys(obj); }
         };
     }
-    function Contract(cname, handler) {
+    function Contract(cname, ctype, handler) {
         this.handler = handler;
         this.cname = cname;
+        this.ctype = ctype;
         this.parent = null;
     }
     Contract.prototype = {
@@ -122,7 +141,7 @@ var Contracts = (function() {
     // (any -> Bool), [Str] -> Contract
     // todo: maybe change name to assert?
     function check(p, name) {
-        return new Contract(name, function check(val, pos, neg, parentKs) {
+        return new Contract(name, "flat", function check(val, pos, neg, parentKs) {
             if (p(val)) {
                 return val;
             } else {
@@ -203,14 +222,17 @@ var Contracts = (function() {
         domname = "(" + calldom.join(",") + ")";
 
         // todo: better name for case when we have both call and new contracts
-        return new Contract(domname + " -> " + callrng.cname, function(f, pos, neg, parentKs) {
-            // todo: check that f is actually a function
+        return new Contract(domname + " -> " + callrng.cname, "fun", function(f, pos, neg, parentKs) {
+            var callHandler, newHandler,
+                handler = idHandler(f),
+                that = this,
+                parents = parentKs.slice(0);
+
             if(typeof f !== "function") {
-                blame(pos, this, f, parentKs); 
+                blame(pos, this, f, parents); 
             }
-            var handler = idHandler(f);
-            var that = this; 
-            var callHandler, newHandler;
+
+            parents.push(that);
 
             // options:
             // { isNew: Bool   - make a constructor handler (to be called with new)
@@ -221,17 +243,17 @@ var Contracts = (function() {
             // }
             var makeHandler = function(dom, rng, options) {
                 return function functionHandler() {
-                    var i, res, args = [], boundArgs, bf, thisc;
+                    var i, res,
+                        args = [],
+                        boundArgs, bf, thisc;
 
                     // check pre condition
                     if(typeof options.pre === "function") {
                         if(!options.pre(this)) {
-                            blame(pos, that, "precond");  // todo: fix up blame message
+                            blameM(neg, "failed precondition on: " + that, parents);  
                         }
                     }
 
-                    var parents = parentKs.slice(0);
-                    parents.push(that);
                     // check all the arguments
                     for( i = 0; i < dom.length; i++) { 
                         // might pass through undefined which is fine (opt will take
@@ -268,7 +290,7 @@ var Contracts = (function() {
                     // check post condition
                     if(typeof options.post === "function") {
                         if(!options.post(this)) {
-                            blame(pos, "fun", "postcond"); // todo: fix up blame message
+                            blameM(neg, "failed postcondition on: " + that, parents);  
                         }
                     }
                     return res;
@@ -278,53 +300,56 @@ var Contracts = (function() {
             if(newOnly) {
                 options.isNew = true;
                 callHandler = function() {
-                    blame(pos, that, "new only", parentKs);
+                    blameM(neg, "called newOnly function without new", parents);
                 };
                 newHandler = makeHandler(newdom, newrng, options);
             } else if(callOnly) {
                 options.isNew = false;
                 newHandler = function() {
-                    blame(pos, that, "call only", parentKs);
+                    blameM(neg, "called callOnly function with a new", parents);
                 };
                 callHandler = makeHandler(calldom, callrng, options);
             } else { // both false...both true is a contract construction-time error and handled earlier
                 callHandler = makeHandler(calldom, callrng, options);
                 newHandler = makeHandler(newdom, newrng, options);
             }
-            var fp = Proxy.createFunction(handler, callHandler, newHandler);
-            fp.__cname = this.cname;
-            return fp;
+            return Proxy.createFunction(handler, callHandler, newHandler);
         });
     };
 
 
     function ctor(dom, rng, options) {
-        var opt = merge(options, {newOnly: true});
+        var opt = Utils.merge(options, {newOnly: true});
         return fun(dom, rng, opt);
     };
 
     function ctorSafe(dom, rng, options) {
-        var opt = merge(options, {newSafe: true});
+        var opt = Utils.merge(options, {newSafe: true});
         return fun(dom, rng, opt);
     };
 
     function object(objContract, options) {
         options = options || {};
+
         // todo watch out for cycles
         var objName = function(obj) {
             var props = Object.keys(obj).map(function(propName) {
-                return propName + " : " + obj[propName].cname;
+                if(obj[propName].cname) {
+                    return propName + " : " + obj[propName].cname;
+                } else {
+                    return propName + " : " + obj[propName].value.cname;
+                }
             }, this);
             return "{" + props.join(", ") + "}";
         };
 
-        var c = new Contract(objName(objContract), function(obj, pos, neg, parentKs) {
-            var missingProps, op, i, name,
+        var c = new Contract(objName(objContract), "object", function(obj, pos, neg, parentKs) {
+            var missingProps, op, i, prop, contractDesc, objDesc, value,
                 handler = idHandler(obj);
             var that = this;
             var parents = parentKs.slice(0);
             parents.push(this);
-            
+
             if(!(obj instanceof Object)) {
                 blame(pos, this, obj, parentKs);
             }
@@ -347,11 +372,74 @@ var Contracts = (function() {
                 blame(pos, "[non-frozen object]", "[frozen object]", parents);
             }
 
-            for(name in this.oc) {
-                // wrap all object contract in a prop descriptor like object
-                // for symmetry with descriptor contracts: { a: Num } ==> { a: {value: Num} }
-                if(this.oc[name] instanceof Contract) {
-                    this.oc[name] = {value : this.oc[name]};
+            // do some cleaning of the object contract...
+            // in particular wrap all object contract in a prop descriptor like object
+            // for symmetry with user defined contract property
+            // descriptors: object({ a: Num }) ==> object({ a: {value: Num} })
+            for(prop in this.oc) {
+                // todo: commenting out for now to allow us to have an object contract prototype chain
+                // only reason not too allow this is if the user puts something silly on the chain. 
+                // if(!this.oc.hasOwnProperty(prop)) {
+                //     continue; 
+                // }
+
+                contractDesc = this.oc[prop];
+                objDesc = Utils.getPropertyDescriptor(obj, prop);
+
+                // pull out the contract (might be direct or in a descriptor like {value: Str, writable: true})
+                if(contractDesc instanceof Contract) {
+                    value = contractDesc;
+                } else {
+                    // case when defined as a contract property descriptor
+                    if(contractDesc.value) {
+                        value = contractDesc.value;
+                    } else {
+                        // something other than a descriptor
+                        blameM(pos, "contract property descriptor missing value property", parents);
+                    }
+                }
+
+                if(objDesc) {
+                    // check the contract descriptors agains what is actually on the object
+                    // and blame where apropriate
+                    if(contractDesc.writable === true && !objDesc.writable) {
+                        blame(pos, "[writable property: " + prop + "]", "[read-only property: " + prop + "]", parents);
+                    }
+                    if (contractDesc.writable === false && objDesc.writable) {
+                        blame(pos, "[read-only property: " + prop + "]", "[writable property: " + prop + "]", parents);
+                    }
+                    if(contractDesc.configurable === true && !objDesc.configurable) {
+                        blame(pos, "[configurable property: " + prop + "]", "[non-configurable property: " + prop + "]", parents);
+                    }
+                    if(contractDesc.configurable === false && objDesc.configurable) {
+                        blame(pos, "[non-configurable property: " + prop + "]", "[configurable property: " + prop + "]", parents);
+                    }
+                    if(contractDesc.enumerable === true && !objDesc.enumerable) {
+                        blame(pos, "[enumerable property: " + prop + "]", "[non-enumerable property: " + prop + "]", parents);
+                    }
+                    if(contractDesc.enumerable === false && objDesc.enumerable) {
+                        blame(pos, "[non-enumerable property: " + prop + "]", "[enumerable property: " + prop + "]", parents);
+                    }
+
+                    // contract descriptors default to the descriptor on the value unless
+                    // explicitly specified by the contrac 
+                    this.oc[prop] = {
+                        value        : value,
+                        writable     : contractDesc.writable || objDesc.writable,
+                        configurable : contractDesc.configurable || objDesc.configurable,
+                        enumerable   : contractDesc.enumerable || objDesc.enumerable
+                    };
+                } else { // property does not exist but we have a contract for it
+                    if(value.cname === "opt") { // the opt contract allows a property to be optional
+                        this.oc[prop] = {       // so just put in the contract with all the prop descriptors set to true
+                            value        : value,
+                            writable     : true,
+                            configurable : true,
+                            enumerable   : true
+                        };
+                    } else {
+                        blame(pos, this, "[missing property: " + prop + "]", parents);
+                    }
                 }
             }
 
@@ -406,45 +494,6 @@ var Contracts = (function() {
                 }
                 return true;
             };
-            // check that all properties on the object have a contract
-            missingProps = Object.keys(this.oc).filter(function(el) {
-                var objDesc;
-                // if it's the optional contract ignore
-                if(that.oc[el].value.cname === "opt") {
-                    return false;
-                }
-
-                // deal with property descriptor contracts
-                objDesc = Object.getOwnPropertyDescriptor(obj, el);
-                if(objDesc !== undefined) {
-                    if(that.oc[el].writable === true && !objDesc.writable) {
-                        blame(pos, "[writable property: " + el + "]", "[read-only property: " + el + "]", parents);
-                    }
-                    if (that.oc[el].writable === false && objDesc.writable) {
-                        blame(pos, "[read-only property: " + el + "]", "[writable property: " + el + "]", parents);
-                    }
-                    if(that.oc[el].configurable === true && !objDesc.configurable) {
-                        blame(pos, "[configurable property: " + el + "]", "[non-configurable property: " + el + "]", parents);
-                    }
-                    if(that.oc[el].configurable === false && objDesc.configurable) {
-                        blame(pos, "[non-configurable property: " + el + "]", "[configurable property: " + el + "]", parents);
-                    }
-                    if(that.oc[el].enumerable === true && !objDesc.enumerable) {
-                        blame(pos, "[enumerable property: " + el + "]", "[non-enumerable property: " + el + "]", parents);
-                    }
-                    if(that.oc[el].enumerable === false && objDesc.enumerable) {
-                        blame(pos, "[non-enumerable property: " + el + "]", "[enumerable property: " + el + "]", parents);
-                    }
-                }
-                // using `in` instead of `hasOwnProperty` to
-                // allow property to be somewhere on the prototype chain
-                // todo: are we sure this is what we want? need a way to specify
-                // a prop *must* be on the object?
-                return !(el in obj); 
-            });
-            if(missingProps.length !== 0) {
-                blame(pos, this, "[missing properties: " + missingProps + "]", parents);
-            }
 
             // making this a function proxy if object is also a
             // function to preserve typeof checks
@@ -508,28 +557,29 @@ var Contracts = (function() {
     };
 
     var any = (function any() {
-        return new Contract("any", function(val) {
+        return new Contract("any", "any", function(val) {
             return val;
         });
     })();
 
-    function or(ks) {
-        // todo: could be nicer here and use arguments to accept varargs
-        if(!Array.isArray(ks)) {
-            throw {
-                name: "BadContract",
-                message: "Must create the 'or' contract with an array of contracts"
-            };
-        }
-        return new Contract("or", function(val, pos, neg, parentKs) {
-            var i = 0, lastBlame;
-            // for now only accepting first order contracts for 'or'
-            if (typeof val === "function") {
-                blame(pos, "or", val);
+    function or() {
+        var ks, name;
+        ks = [].slice.call(arguments);
+        ks.forEach(function(el) {
+            if(el.ctype === "fun" || el.ctype === "object") {
+                throw "cannot construct an 'or' contract with a function or object contract";
             }
-            for(; i < ks.length; i++) {
+        });
+
+        name = ks.join(" or ");
+        return new Contract(name, "or",  function(val, pos, neg, parentKs) {
+            var i, lastBlame,
+                parents = parentKs.slice(0);
+            parents.push(this);
+            
+            for(i = 0; i < ks.length; i++) {
                 try {
-                    return ks[i].check(val, pos, neg, parentKs);
+                    return ks[i].check(val, pos, neg, parents);
                 } catch (e) {
                     lastBlame = e;
                     continue;
@@ -540,20 +590,20 @@ var Contracts = (function() {
     };
     
     var none = (function none() {
-        return new Contract("none", function(val, pos, neg, parentKs) {
+        return new Contract("none", "none",  function(val, pos, neg, parentKs) {
             blame(pos, this, val, parentKs);
         });
     })();
 
     function and(k1, k2) {
-        return new Contract("and", function(val, pos, neg, parentKs) {
+        return new Contract(k1.cname + " and " + k2.cname, "and", function(val, pos, neg, parentKs) {
             var k1c = k1.check(val, pos, neg, parentKs);
             return k2.check(k1c, pos, neg, parentKs);
         });
     };
 
     function opt(k) {
-        return new Contract("opt", function(val, pos, neg, parentKs) {
+        return new Contract("opt(" + k.cname + ")", "opt", function(val, pos, neg, parentKs) {
             if(val === undefined) { // unsuplied arguments are just passed through
                 return val;
             } else {

@@ -21,6 +21,7 @@ function bt(msg, f) {
 }
 
 $(document).ready(function() {
+    // function blame messages
     bt("simple, client is blamed", function() {
         function id(x) {
             return x;
@@ -40,6 +41,27 @@ $(document).ready(function() {
         idc(42);
     });
 
+    bt("or combinator, client is blamed", function() {
+        var idc = guard(
+            fun(or(Num, Str), Bool),
+            function(ns) { return false; });
+        idc(false);
+    });
+
+    bt("or combinator non first order value", function() {
+        var idc = guard(
+            or(fun(Num, Bool), Bool),
+            function(ns) { return false; });
+        idc(42);
+    });
+
+    bt("and combinator, client is blamed", function() {
+        var idc = guard(
+            fun(and(Num, Str), Bool),
+            function(ns) { return false; });
+        idc(false);
+    });
+
     bt("multi args", function() {
         function id(x, y) {
             return x;
@@ -49,7 +71,7 @@ $(document).ready(function() {
             id);
         idc("foo");
     });
-
+    
     bt("higher order, server at fault", function() {
         function id(f) {
             f("foo");
@@ -87,6 +109,25 @@ $(document).ready(function() {
 
         idc(42);
     });
+
+    bt("function new only, client at fault", function() {
+        var idc = guard(
+            fun(Str, object({}), {newOnly: true}),
+            function(s) { });
+
+        idc("foo");
+    });
+
+    bt("function call only, client at fault", function() {
+        var idc = guard(
+            fun(Str, Num, {callOnly: true}),
+            function(s) { return 42; });
+        new idc("foo");
+    });
+
+
+
+    // object blame messages
     bt("object, server at fault, not an object", function() {
         var o = guard(
             object({ a: Num }),
@@ -209,5 +250,35 @@ $(document).ready(function() {
             object({a: {value: Str, writable: true}, b: {value: Num, writable: false }}),
             oo);
         Object.defineProperty(o, "b", {value: "bar", configurable: true});
+    });
+
+    bt("object with function pre-condition, client at fault", function() {
+        var o = guard(
+            object({
+                f: fun(Num, Num, {
+                    pre: function(obj) { return obj.a > 0; }}),
+                a: Num
+            }), {
+                a: -1,
+                f: function(n) {
+                    return this.a + n;
+                }
+            });
+        o.f(42);
+    });
+
+    bt("object with function post-condition, client at fault", function() {
+        var o = guard(
+            object({
+                f: fun(Num, Num, {
+                    post: function(obj) { return obj.a > 0; }}),
+                a: Num
+            }), {
+                a: -1,
+                f: function(n) {
+                    return this.a + n;
+                }
+            });
+        o.f(42);
     });
 });
