@@ -177,7 +177,7 @@ var Contracts = (function() {
             }
             // don't allow required argument contracts to follow optional
             dom.reduce(function(prevWasOpt, curr) {
-                if(curr.cname === "opt") {
+                if(curr.ctype === "opt") {
                     return true;
                 } else {
                     if(prevWasOpt) {
@@ -430,7 +430,7 @@ var Contracts = (function() {
                         enumerable   : contractDesc.enumerable || objDesc.enumerable
                     };
                 } else { // property does not exist but we have a contract for it
-                    if(value.cname === "opt") { // the opt contract allows a property to be optional
+                    if(value.ctype === "opt") { // the opt contract allows a property to be optional
                         this.oc[prop] = {       // so just put in the contract with all the prop descriptors set to true
                             value        : value,
                             writable     : true,
