@@ -139,7 +139,6 @@ var Contracts = (function() {
     };
 
     // (any -> Bool), [Str] -> Contract
-    // todo: maybe change name to assert?
     function check(p, name) {
         return new Contract(name, "flat", function check(val, pos, neg, parentKs) {
             if (p(val)) {
@@ -224,7 +223,6 @@ var Contracts = (function() {
         optionsName = (options.this ? "{this: " + options.this.cname + "}" : "");
         contractName = domName + " -> " + callrng.cname + " " + optionsName;
 
-        // todo: better name for case when we have both call and new contracts
         return new Contract(contractName, "fun", function(f, pos, neg, parentKs) {
             var callHandler, newHandler,
                 handler = idHandler(f),
@@ -335,7 +333,6 @@ var Contracts = (function() {
     function object(objContract, options) {
         options = options || {};
 
-        // todo watch out for cycles
         var objName = function(obj) {
             var props = Object.keys(obj).map(function(propName) {
                 if(obj[propName].cname) {
@@ -476,6 +473,9 @@ var Contracts = (function() {
             handler.get = function(receiver, name) {
                 if(that.oc.hasOwnProperty(name)) { 
                     return that.oc[name].value.check(obj[name], pos, neg, parents);
+                } else if ( (options.arrayRangeContract && (options.arrayRange !== undefined))
+                            && (parseInt(name, 10) >= options.arrayRange) ) {
+                    return options.arrayRangeContract.check(obj[name], pos, neg, parents);
                 } else {
                     return obj[name];
                 }
@@ -493,6 +493,9 @@ var Contracts = (function() {
                     }
                     // have to reverse blame since the client is the one calling set
                     obj[name] = that.oc[name].value.check(val, neg, pos, parents);
+                } else if ( (options.arrayRangeContract && (options.arrayRange !== undefined))
+                            && (parseInt(name, 10) >= options.arrayRange) ) {
+                    obj[name] = options.arrayRangeContract.check(val, neg, pos, parents);
                 } else {
                     obj[name] = val;
                 }
@@ -535,28 +538,24 @@ var Contracts = (function() {
     };
 
     function arr(ks) {
-        var i, getC, oc = {};
+        var i, rangeContract, rangeIndex, oc = {};
         for(i = 0; i < ks.length; i++) {
             if(typeof ks[i] === "function") {
                 if(i !== ks.length - 1) {
                     throw "___() must be at the last position in the array";
                 }
-                getC = ks[i](i);
+                rangeContract = ks[i]();
+                rangeIndex = i;
+            } else {
+                oc[i] = ks[i];
             }
-            oc[i] = ks[i];
         }
-        return object(oc, {getContract: getC});
+        return object(oc, {arrayRange: rangeIndex, arrayRangeContract: rangeContract});
     };
 
     function ___(k) {
-        return function(index) {
-            return function(propName, arrLength) {
-                var propIndex = parseInt(propName, 10);
-                if(propIndex >= index && propIndex < arrLength) {
-                    return k;
-                }
-                return null;
-            };
+        return function() {
+            return k;
         };
     };
 

@@ -484,18 +484,22 @@ test("basic arrays", function() {
     raises(function() { ar[0]; }, "brakes tuple form");
     raises(function() { ar[1]; }, "brakes tuple form");
     ok(ar[2], "not covered by contract");
-    // ar = guard(
-    //     arr([___(Bool)]),
-    //     [true, false, true, false, false],
-    //     server, client);
-    // ok(ar[2], "arbitrary number of bools ___(Bool)");
-    // ok(ar[4], "arbitrary number of bools ___(Bool)");
-    // ar = guard(
-    //     arr([___(Bool)]),
-    //     [true, false, true, "foo", false],
-    //     server, client);
-    // ok(ar[2], "arbitrary number of bools ___(Bool)");
-    // raises(function() { ar[3]; }, "brakes ___(Bool) ");
+    ar = guard(
+        arr([___(Bool)]),
+        [true, "foo", true, false, true],
+        server, client);
+    ok(ar[2], "arbitrary number of bools ___(Bool)");
+    ok(ar[4], "arbitrary number of bools ___(Bool)");
+    raises(function() { ar[1]; }, "element doesn't match ___(Bool) contract");
+    raises(function() { ar[0] = "foo"; }, "element doesn't match ___(Bool) contract");
+
+    ar = guard(
+        arr([Str, Num, ___(Bool)]),
+        [false, 42, true, false, true],
+        server, client);
+    ok(ar[1], "arbitrary number of bools ___(Bool)");
+    ok(ar[4], "arbitrary number of bools ___(Bool)");
+    raises(function() { ar[0]; }, "element doesn't match ___(Bool) contract");
 });
 
 

@@ -335,4 +335,38 @@ $(document).ready(function() {
             });
         o.f(42);
     });
+
+    bt("arrays basic, server at fault", function() {
+        var a = guard(
+            arr([Str, Num]),
+            ["foo", "foo"]);
+        a[1];
+    });
+
+    bt("arrays basic, client at fault", function() {
+        var a = guard(
+            arr([Str, Num]),
+            ["foo", 42]);
+        a[1] = "foo";
+    });
+
+    bt("arrays ___, server at fault", function() {
+        var a = guard(
+            arr([___(Num)]),
+            [42, 44, 99, "foo", 234]);
+        a[3];
+    });
+    bt("arrays ___, client at fault", function() {
+        var a = guard(
+            arr([___(Num)]),
+            [42, 44, 99, "foo", 234]);
+        a[0] = "foo";
+    });
+
+    bt("arrays ___ with a bunch of extras, client at fault", function() {
+        var a = guard(
+            arr([Num, Bool, Str, ___(Num)]),
+            [42, false, "foo", 444, 234, 100]);
+        a[0] = "foo";
+    });
 });
