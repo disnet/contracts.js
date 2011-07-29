@@ -481,7 +481,7 @@ var Contracts = (function() {
                 }
             };
             handler.set = function(receiver, name, val) {
-                if(!options.extensible && Object.getOwnPropertyDescriptor(obj, name) === undefined) {
+                if( (options.extensible === false) && Object.getOwnPropertyDescriptor(obj, name) === undefined) {
                     blame(neg, "non-extensible object", "[attempted to set a new property: " + name + "]", parents);
                 }
                 if(options.frozen) {
