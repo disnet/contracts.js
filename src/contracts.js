@@ -133,9 +133,15 @@ var Contracts = (function() {
         check : function check(val, pos, neg, parentKs) {
             return this.handler(val, pos, neg, parentKs);
         },
+        toContract: function() {
+            return this;  
+        },
         toString: function() {
             return this.cname;
         }
+    };
+    Function.prototype.toContract = function() {
+        return check(this, "<user defined contract>");
     };
 
     // (any -> Bool), [Str] -> Contract
