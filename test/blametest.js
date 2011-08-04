@@ -29,6 +29,7 @@ $(document).ready(function() {
         var idc = guard(
             fun(Num, Num),
             id);
+        idc = idc.use();
         idc("foo");
     });
     bt("simple, server is blamed", function() {
@@ -38,27 +39,28 @@ $(document).ready(function() {
         var idc = guard(
             fun(Num, Num),
             id);
+        idc = idc.use();
         idc(42);
     });
 
     bt("or combinator, client is blamed", function() {
         var idc = guard(
             fun(or(Num, Str), Bool),
-            function(ns) { return false; });
+            function(ns) { return false; }).use();
         idc(false);
     });
 
     bt("or combinator non first order value", function() {
         var idc = guard(
             or(fun(Num, Bool), Bool),
-            function(ns) { return false; });
+            function(ns) { return false; }).use();
         idc(42);
     });
 
     bt("and combinator, client is blamed", function() {
         var idc = guard(
             fun(and(Num, Str), Bool),
-            function(ns) { return false; });
+            function(ns) { return false; }).use();
         idc(false);
     });
 
@@ -68,7 +70,7 @@ $(document).ready(function() {
         }
         var idc = guard(
             fun([Num, Str], Num),
-            id);
+            id).use();
         idc("foo");
     });
     
@@ -79,7 +81,7 @@ $(document).ready(function() {
         }
         var idc = guard(
             fun(fun(Str, Str), Num),
-            id);
+            id).use();
 
         (function traceTest() {
             idc(function(x) { return x; });
@@ -93,7 +95,7 @@ $(document).ready(function() {
         }
         var idc = guard(
             fun(fun(Str, Str), Num),
-            id);
+            id).use();
 
         idc(function(x) { return 42; });
     });
@@ -105,7 +107,7 @@ $(document).ready(function() {
         }
         var idc = guard(
             fun(fun(Str, Str), Num),
-            id);
+            id).use();
 
         idc(42);
     });
@@ -113,7 +115,7 @@ $(document).ready(function() {
     bt("function new only, client at fault", function() {
         var idc = guard(
             fun(Str, object({}), {newOnly: true}),
-            function(s) { });
+            function(s) { }).use();
 
         idc("foo");
     });
@@ -121,14 +123,14 @@ $(document).ready(function() {
     bt("function call only, client at fault", function() {
         var idc = guard(
             fun(Str, Num, {callOnly: true}),
-            function(s) { return 42; });
+            function(s) { return 42; }).use();
         new idc("foo");
     });
 
     bt("function this contract, client at fault", function() {
         var idc = guard(
             fun(Str, Num, {this: object({a: Num, b: Str})}),
-            function(s) { return this.a; });
+            function(s) { return this.a; }).use();
         var o = {a: "foo", b:"foo", f: idc};
         o.f("foo");
     });
@@ -138,52 +140,52 @@ $(document).ready(function() {
     bt("object, server at fault, not an object", function() {
         var o = guard(
             object({ a: Num }),
-            42);
+            42).use();
     });
     bt("object, server at fault", function() {
         var o = guard(
             object({ a: Num }),
-            { a: "foo"});
+            { a: "foo"}).use();
         o.a;
     });
     bt("object missing properties, server at fault", function() {
         var o = guard(
             object({a: Num, b: Str}),
-            {a: 42});
+            {a: 42}).use();
     });
     bt("object set, client at fault", function() {
         var o = guard(
             object({ a: Num }),
-            { a: 42});
+            { a: 42}).use();
         o.a = "foo";
     });
     bt("object with a function, client at fault", function() {
         var o = guard(
             object({ f: fun(Num, Str)}),
-            { f: function(n) { return "foo"; } });
+            { f: function(n) { return "foo"; } }).use();
         o.f("foo");
     });
     bt("object with a function, server at fault", function() {
         var o = guard(
             object({ f: fun(Num, Str)}),
-            { f: function(n) { return 42; } });
+            { f: function(n) { return 42; } }).use();
         o.f(42);
     });
     bt("object, server at fault, not extensible", function() {
         var o = guard(
             object({ a: Num }, {extensible: false}),
-            {a: 42});
+            {a: 42}).use();
     });
     bt("object with a function returning an object, server at fault", function() {
         var o = guard(
             object({ f: fun(Num, object({a: Num}))}),
-            { f: function(n) { return {a: "foo"}; } });
+            { f: function(n) { return {a: "foo"}; } }).use();
         o.f(42).a;
     });
     bt("object with a function taking an object, client at fault", function() {
         var o = guard(
             object({ f: fun(object({a: Num}), Num)}),
-            { f: function(o) { return o.a; } });
+            { f: function(o) { return o.a; } }).use();
         o.f({a: "foo"});
     });
     bt("object non-extensible, client at fault", function() {
@@ -191,7 +193,7 @@ $(document).ready(function() {
         Object.preventExtensions(oo);
         var o = guard(
             object({a: Str}, {extensible: false}),
-            oo);
+            oo).use();
         Object.defineProperty(o, "foo", {value: 42});
     });
     bt("object sealed, client at fault", function() {
@@ -199,7 +201,7 @@ $(document).ready(function() {
         Object.seal(oo);
         var o = guard(
             object({a: Str}, {sealed: true}),
-            oo);
+            oo).use();
         delete o.a;
     });
     bt("object non-extensible call to set, client at fault", function() {
@@ -207,7 +209,7 @@ $(document).ready(function() {
         Object.preventExtensions(oo);
         var o = guard(
             object({a: Str}, {extensible: false}),
-            oo);
+            oo).use();
         o.bar = "bar";
     });
     bt("object frozen call to set, client at fault", function() {
@@ -215,47 +217,47 @@ $(document).ready(function() {
         Object.freeze(oo);
         var o = guard(
             object({a: Str}, {frozen: true}),
-            oo);
+            oo).use();
         o.a = "bar";
     });
     bt("object prop reaad-only but contract writable, server at fault", function() {
         var oo = Object.defineProperty({a: "foo"}, "b", {value: 42, writable: false});
         var o = guard(
             object({a: {value: Str, writable: true}, b: {value: Num, writable: true }}),
-            oo);
+            oo).use();
         o.b = 22;
     });
     bt("object prop writable but contract read-only, server at fault", function() {
         var oo = Object.defineProperty({a: "foo"}, "b", {value: 42, writable: true});
         var o = guard(
             object({a: {value: Str, writable: true}, b: {value: Num, writable: false }}),
-            oo);
+            oo).use();
         o.b = 22;
     });
     bt("object prop enumerable but contract non-enumerable, server at fault", function() {
         var oo = Object.defineProperty({a: "foo"}, "b", {value: 42, enumerable: true});
         var o = guard(
             object({a: {value: Str, writable: true}, b: {value: Num, enumerable: false }}),
-            oo);
+            oo).use();
     });
     bt("object prop configurable but contract non-configurable, server at fault", function() {
         var oo = Object.defineProperty({a: "foo"}, "b", {value: 42, configurable: true});
         var o = guard(
             object({a: {value: Str, writable: true}, b: {value: Num, configurable: false }}),
-            oo);
+            oo).use();
     });
     bt("object prop no-write, client at fault", function() {
         var oo = Object.defineProperty({a: "foo"}, "b", {value: 42, writable: false});
         var o = guard(
             object({a: {value: Str, writable: true}, b: {value: Num, writable: false }}),
-            oo);
+            oo).use();
         o.b = 22;
     });
     bt("object prop non-configurable, client at fault", function() {
         var oo = Object.defineProperty({a: "foo"}, "b", {value: 42, configurable: false});
         var o = guard(
             object({a: {value: Str, writable: true}, b: {value: Num, writable: false }}),
-            oo);
+            oo).use();
         Object.defineProperty(o, "b", {value: "bar", configurable: true});
     });
 
@@ -270,9 +272,10 @@ $(document).ready(function() {
                 f: function(n) {
                     return this.a + n;
                 }
-            });
+            }).use();
         o.f(42);
     });
+
 
     bt("object with function post-condition, client at fault", function() {
         var o = guard(
@@ -285,7 +288,7 @@ $(document).ready(function() {
                 f: function(n) {
                     return this.a + n;
                 }
-            });
+            }).use();
         o.f(42);
     });
 
@@ -300,7 +303,7 @@ $(document).ready(function() {
                 f: function(n) {
                     return this.a;
                 }
-            });
+            }).use();
         var f = o.f;
         f(42);
     });
@@ -315,7 +318,7 @@ $(document).ready(function() {
                 f: function(n) {
                     return this.a;
                 }
-            });
+            }).use();
         o.f(42);
     });
 
@@ -332,41 +335,41 @@ $(document).ready(function() {
                 f: function(n) {
                     return this.a;
                 }
-            });
+            }).use();
         o.f(42);
     });
 
     bt("arrays basic, server at fault", function() {
         var a = guard(
             arr([Str, Num]),
-            ["foo", "foo"]);
+            ["foo", "foo"]).use();
         a[1];
     });
 
     bt("arrays basic, client at fault", function() {
         var a = guard(
             arr([Str, Num]),
-            ["foo", 42]);
+            ["foo", 42]).use();
         a[1] = "foo";
     });
 
     bt("arrays ___, server at fault", function() {
         var a = guard(
             arr([___(Num)]),
-            [42, 44, 99, "foo", 234]);
+            [42, 44, 99, "foo", 234]).use();
         a[3];
     });
     bt("arrays ___, client at fault", function() {
         var a = guard(
             arr([___(Num)]),
-            [42, 44, 99, "foo", 234]);
+            [42, 44, 99, "foo", 234]).use();
         a[0] = "foo";
     });
 
     bt("arrays ___ with a bunch of extras, client at fault", function() {
         var a = guard(
             arr([Num, Bool, Str, ___(Num)]),
-            [42, false, "foo", 444, 234, 100]);
+            [42, false, "foo", 444, 234, 100]).use();
         a[0] = "foo";
     });
 });
