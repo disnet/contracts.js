@@ -40,11 +40,12 @@ var Contracts = (function() {
         }
     };
 
-    // Str -> \bot
-    function _blame(toblame, msg, parents) {
-        var err, st, ps = parents.slice(0);
+    // (ModuleName, ModuleName, Str, [Contract]) -> \bot
+    function _blame(toblame, other, msg, parents) {
+        var server, err, st, ps = parents.slice(0);
+        server = toblame.isServer ? toblame : other;
         var m = "Contract violation: " + msg + "\n"
-                + "Blame is on " + toblame + "\n";
+                + "Value guarded in: " + server + " -- blame is on: " + toblame + "\n";
 
         if(ps) {
             m += "Parent contracts:\n" + ps.reverse().join("\n");
@@ -57,20 +58,20 @@ var Contracts = (function() {
         throw err;
     }
 
-    // [Str, Contract, any] -> \bot
-    function blame(toblame, contract, value, parents) {
+    // (ModuleName, ModuleName, Contract, any, [Contract]) -> \bot
+    function blame(toblame, other, contract, value, parents) {
         var cname = contract.cname || contract;
         var msg = "expected <" + cname + ">"
                 + ", actual: " + (typeof(value) === "string" ? '"' + value + '"' : value);
 
-        throw _blame(toblame, msg, parents);
+        throw _blame(toblame, other, msg, parents);
     }
 
-    function blameM(toblame, msg, parents) {
-        _blame(toblame, msg, parents);
+    function blameM(toblame, other, msg, parents) {
+        _blame(toblame, other, msg, parents);
     }
 
-    // creeates an identity proxy handler
+    // creates an identity proxy handler
     function idHandler(obj) {
         return {
             getOwnPropertyDescriptor: function(name) {
@@ -140,17 +141,29 @@ var Contracts = (function() {
             return this.cname;
         }
     };
+
+    // (Str, Str, Bool) ==> ModuleName
+    function ModuleName(filename, linenum, isServer) {
+        this.filename = filename;
+        this.linenum = linenum;
+        this.isServer = isServer
+    }
+    ModuleName.prototype.toString = function() {
+        return this.filename + ":" + this.linenum;
+    }
+
     Function.prototype.toContract = function() {
         return check(this, "<user defined contract>");
     };
 
+
     // (any -> Bool), [Str] -> Contract
     function check(p, name) {
-        return new Contract(name, "flat", function check(val, pos, neg, parentKs) {
+        return new Contract(name, "check", function check(val, pos, neg, parentKs) {
             if (p(val)) {
                 return val;
             } else {
-                blame(pos, this, val, parentKs);
+                blame(pos, neg, this, val, parentKs);
             }
         });
     };
@@ -236,7 +249,7 @@ var Contracts = (function() {
                 parents = parentKs.slice(0);
 
             if(typeof f !== "function") {
-                blame(pos, this, f, parents); 
+                blame(pos, neg, this, f, parents); 
             }
 
             parents.push(that);
@@ -257,7 +270,7 @@ var Contracts = (function() {
                     // check pre condition
                     if(typeof options.pre === "function") {
                         if(!options.pre(this)) {
-                            blameM(neg, "failed precondition on: " + that, parents);  
+                            blameM(neg, pos, "failed precondition on: " + that, parents);  
                         }
                     }
 
@@ -298,7 +311,7 @@ var Contracts = (function() {
                     // check post condition
                     if(typeof options.post === "function") {
                         if(!options.post(this)) {
-                            blameM(neg, "failed postcondition on: " + that, parents);  
+                            blameM(neg, pos, "failed postcondition on: " + that, parents);  
                         }
                     }
                     return res;
@@ -308,13 +321,13 @@ var Contracts = (function() {
             if(newOnly) {
                 options.isNew = true;
                 callHandler = function() {
-                    blameM(neg, "called newOnly function without new", parents);
+                    blameM(neg, pos, "called newOnly function without new", parents);
                 };
                 newHandler = makeHandler(newdom, newrng, options);
             } else if(callOnly) {
                 options.isNew = false;
                 newHandler = function() {
-                    blameM(neg, "called callOnly function with a new", parents);
+                    blameM(neg, pos, "called callOnly function with a new", parents);
                 };
                 callHandler = makeHandler(calldom, callrng, options);
             } else { // both false...both true is a contract construction-time error and handled earlier
@@ -358,25 +371,25 @@ var Contracts = (function() {
             parents.push(this);
 
             if(!(obj instanceof Object)) {
-                blame(pos, this, obj, parentKs);
+                blame(pos, neg, this, obj, parentKs);
             }
             if(options.extensible === true && !Object.isExtensible(obj)) {
-                blame(pos, "[extensible object]", "[non-extensible object]", parents);
+                blame(pos, neg, "[extensible object]", "[non-extensible object]", parents);
             }
             if(options.extensible === false && Object.isExtensible(obj)) {
-                blame(pos, "[non-extensible]", "[extensible object]", parents);
+                blame(pos, neg, "[non-extensible]", "[extensible object]", parents);
             }
             if(options.sealed === true && !Object.isSealed(obj)) {
-                blame(pos, "[sealed object]", "[non-sealed object]", parents);
+                blame(pos, neg, "[sealed object]", "[non-sealed object]", parents);
             }
             if(options.sealed === false && Object.isSealed(obj)) {
-                blame(pos, "[non-sealed object]", "[sealed object]", parents);
+                blame(pos, neg, "[non-sealed object]", "[sealed object]", parents);
             }
             if(options.frozen === true && !Object.isFrozen(obj)) {
-                blame(pos, "[frozen object]", "[non-frozen object]", parents);
+                blame(pos, neg, "[frozen object]", "[non-frozen object]", parents);
             }
             if(options.frozen === false && Object.isFrozen(obj)) {
-                blame(pos, "[non-frozen object]", "[frozen object]", parents);
+                blame(pos, neg, "[non-frozen object]", "[frozen object]", parents);
             }
 
             // do some cleaning of the object contract...
@@ -402,7 +415,7 @@ var Contracts = (function() {
                         value = contractDesc.value;
                     } else {
                         // something other than a descriptor
-                        blameM(pos, "contract property descriptor missing value property", parents);
+                        blameM(pos, neg, "contract property descriptor missing value property", parents);
                     }
                 }
 
@@ -410,22 +423,22 @@ var Contracts = (function() {
                     // check the contract descriptors agains what is actually on the object
                     // and blame where apropriate
                     if(contractDesc.writable === true && !objDesc.writable) {
-                        blame(pos, "[writable property: " + prop + "]", "[read-only property: " + prop + "]", parents);
+                        blame(pos, neg, "[writable property: " + prop + "]", "[read-only property: " + prop + "]", parents);
                     }
                     if (contractDesc.writable === false && objDesc.writable) {
-                        blame(pos, "[read-only property: " + prop + "]", "[writable property: " + prop + "]", parents);
+                        blame(pos, neg, "[read-only property: " + prop + "]", "[writable property: " + prop + "]", parents);
                     }
                     if(contractDesc.configurable === true && !objDesc.configurable) {
-                        blame(pos, "[configurable property: " + prop + "]", "[non-configurable property: " + prop + "]", parents);
+                        blame(pos, neg, "[configurable property: " + prop + "]", "[non-configurable property: " + prop + "]", parents);
                     }
                     if(contractDesc.configurable === false && objDesc.configurable) {
-                        blame(pos, "[non-configurable property: " + prop + "]", "[configurable property: " + prop + "]", parents);
+                        blame(pos, neg, "[non-configurable property: " + prop + "]", "[configurable property: " + prop + "]", parents);
                     }
                     if(contractDesc.enumerable === true && !objDesc.enumerable) {
-                        blame(pos, "[enumerable property: " + prop + "]", "[non-enumerable property: " + prop + "]", parents);
+                        blame(pos, neg, "[enumerable property: " + prop + "]", "[non-enumerable property: " + prop + "]", parents);
                     }
                     if(contractDesc.enumerable === false && objDesc.enumerable) {
-                        blame(pos, "[non-enumerable property: " + prop + "]", "[enumerable property: " + prop + "]", parents);
+                        blame(pos, neg, "[non-enumerable property: " + prop + "]", "[enumerable property: " + prop + "]", parents);
                     }
 
                     // contract descriptors default to the descriptor on the value unless
@@ -445,7 +458,7 @@ var Contracts = (function() {
                             enumerable   : true
                         };
                     } else {
-                        blame(pos, this, "[missing property: " + prop + "]", parents);
+                        blame(pos, neg, this, "[missing property: " + prop + "]", parents);
                     }
                 }
             }
@@ -456,13 +469,13 @@ var Contracts = (function() {
                 // for hopfully better error messaging
                 if((options.extensible === false) || options.sealed || options.frozen) {
                     // have to reverse blame since the client is the one calling defineProperty
-                    blame(neg,
+                    blame(neg, pos,
                           "[non-extensible object]",
                           "[attempted to change property descriptor of: " + name + "]",
                           parents);
                 }
                 if(!that.oc[name].configurable) {
-                    blame(neg,
+                    blame(neg, pos,
                           "[non-configurable property: " + name + "]",
                           "[attempted to change the property descriptor of property: " + name + "]",
                           parents);
@@ -472,7 +485,7 @@ var Contracts = (function() {
             handler.delete = function(name) {
                 if(options.sealed || options.frozen) {
                     // have to reverse blame since the client is the one calling delete
-                    blame(neg, (options.sealed ? "sealed" : "frozen") + " object", "[call to delete]", parents);
+                    blame(neg, pos, (options.sealed ? "sealed" : "frozen") + " object", "[call to delete]", parents);
                 }
                 return delete obj[name]; 
             };
@@ -488,14 +501,14 @@ var Contracts = (function() {
             };
             handler.set = function(receiver, name, val) {
                 if( (options.extensible === false) && Object.getOwnPropertyDescriptor(obj, name) === undefined) {
-                    blame(neg, "non-extensible object", "[attempted to set a new property: " + name + "]", parents);
+                    blame(neg, pos, "non-extensible object", "[attempted to set a new property: " + name + "]", parents);
                 }
                 if(options.frozen) {
-                    blame(neg, "frozen object", "[attempted to set: " + name + "]", parents);
+                    blame(neg, pos, "frozen object", "[attempted to set: " + name + "]", parents);
                 }
                 if(that.oc.hasOwnProperty(name)) { 
                     if(!that.oc[name].writable) {
-                        blame(neg, "read-only property", "[attempted to set read-only property: " + name + "]", parents);
+                        blame(neg, pos, "read-only property", "[attempted to set read-only property: " + name + "]", parents);
                     }
                     // have to reverse blame since the client is the one calling set
                     obj[name] = that.oc[name].value.check(val, neg, pos, parents);
@@ -523,7 +536,8 @@ var Contracts = (function() {
                                           });
 
             } else {
-                op = Proxy.create(handler, Object.prototype); // todo: is this the proto we actually want?
+                op = Proxy.create(handler, Object.prototype); 
+                // todo: is this the proto we actually want?
             }
             return op;
         });
@@ -603,7 +617,7 @@ var Contracts = (function() {
     
     var none = (function none() {
         return new Contract("none", "none",  function(val, pos, neg, parentKs) {
-            blame(pos, this, val, parentKs);
+            blame(pos, neg, this, val, parentKs);
         });
     })();
 
@@ -625,22 +639,49 @@ var Contracts = (function() {
         });
     };
 
-    function guard(k, x, pos, neg) {
-        var guardedAt;
-        if(!pos) {
-            guardedAt = printStackTrace({e: new Error()})[1];
-            if(typeof x === "function" && x.name !== "") {
-                pos = "function '" + x.name + "' guarded at: " + guardedAt;
-            } else {
-                pos = "value guarded at: " + guardedAt;
+    // note that this function is particular about where it is called from.
+    // it gets the filename/linenum combo from the file that called the
+    // function that called getModName (two levels up the stack).
+    // () -> ModuleName
+    function getModName(isServer) {
+        var guardedAt, match, filename, linenum, st = printStackTrace({e: new Error()});
+        // in the stacktrace the frame above this one is where we were guarded/used
+        guardedAt = st[2];
+        // pull out the filename (which will become our module) and line 
+        // number (the location in the module where the guard/use occured)
+        // stack traces look like: {anonymous}()@file:///Path/to/file.js:4242
+        match = /\/([^\/]*):(\d*)$/.exec(guardedAt);
+        filename = match[1];
+        linenum = match[2];
+        return new ModuleName(filename, linenum, isServer);
+    };
+
+    // ModuleName = ?{filename: Str, linenum: Str}
+    // RawContract = ?{use: (ModuleName?) -> any}
+    // (Contract, any, ModuleName?) -> RawContract
+    function guard(k, x, server) {
+        if(!server) {
+            // if a server wasn't provied, guess if from the stacktrace
+            server = getModName(true);
+        }
+        return {
+            // (ModuleName?) -> any 
+            // technically the return is a contracted value but no way to 
+            // tell unless the contract is violated
+            use: function(client) {
+                // if a client name wasn't provided, guess it from the stacktrace
+                if(!client) {
+                    client = getModName(false);
+                }
+                // when the user does a guard(...).use() trick we want to
+                // disambiguate the server from the client a little nicer
+                if( (server.filename === client.filename) && (server.linenum === client.linenum)) {
+                    server.linenum = server.linenum + " (server)";
+                    client.linenum = client.linenum + " (client)";
+                }
+                return k.check(x, server, client, []);
             }
-            neg = "client of " + pos;
-        }
-        if(pos && !neg) {
-            neg = "client of " + pos;
-        }
-        // k.setGuardSite(guardedAt);
-        return k.check(x, pos, neg, []);
+        };
     };
 
     var combinators = {
@@ -715,3 +756,6 @@ var Contracts = (function() {
         contracts: contracts
     };
 })();
+
+
+
