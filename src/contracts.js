@@ -149,7 +149,7 @@ var Contracts = (function() {
         this.isServer = isServer
     }
     ModuleName.prototype.toString = function() {
-        return this.filename + ":" + this.linenum;
+        return this.filename + (this.linenum === "" ? "" : (":" + this.linenum));
     }
 
     Function.prototype.toContract = function() {
@@ -663,6 +663,8 @@ var Contracts = (function() {
         if(!server) {
             // if a server wasn't provied, guess if from the stacktrace
             server = getModName(true);
+        } else {
+            server = new ModuleName(server, "", true);
         }
         return {
             // (ModuleName?) -> any 
@@ -672,6 +674,8 @@ var Contracts = (function() {
                 // if a client name wasn't provided, guess it from the stacktrace
                 if(!client) {
                     client = getModName(false);
+                } else {
+                    client = new ModuleName(client, "", false);
                 }
                 // when the user does a guard(...).use() trick we want to
                 // disambiguate the server from the client a little nicer

@@ -32,6 +32,16 @@ $(document).ready(function() {
         idc = idc.use();
         idc("foo");
     });
+    bt("simple, client is blamed with explicit module naming", function() {
+        function id(x) {
+            return x;
+        }
+        var idc = guard(
+            fun(Num, Num),
+            id, "mySpecialIdentityModule");
+        idc = idc.use("myUserofIdentity");
+        idc("foo");
+    });
     bt("simple, server is blamed", function() {
         function id(x) {
             return "foo";
