@@ -463,6 +463,63 @@ test("basic arrays", function() {
     raises(function() { ar[0]; }, "element doesn't match ___(Bool) contract");
 });
 
+module("temporal contracts");
+
+test("basic temporal contracts", function() {
+    var on = [true],
+        NumC = check(function(x, stack) { 
+            if(stack[0][0]) { return typeof x === 'number'; }
+            else { return false; }
+        });
+    var incC = guard(
+        fun([NumC], NumC, {checkStack: function(stack) { return stack[0][0]; }}),
+        function(x) { return x + 1; },
+        false, 
+        function(stack) { stack.push(on); }).use();
+
+    same(incC(42), 43, "works when membrane is on");
+    on[0] = false;
+    raises(function() { incC(42); }, "membrane is off so fails");
+});
+
+test("temporal contracts can do dependency", function() {
+    var NumArg = check(function(x, stack) {
+            stack.push(x);
+            return typeof x === 'number';
+        }), 
+        NumRng = check(function(x, stack) {
+            var arg = stack.pop();
+            return (typeof x === 'number') && (x > arg);
+        }),
+        incC = guard(
+            fun([NumArg], NumRng),
+            function(x) { return x + 1; }).use(),
+        incBadC = guard(
+            fun([NumArg], NumRng),
+            function(x) { return x - 1; }).use();
+
+    same(incC(42), 43, "abides by contract");
+    raises(function() { incBadC(42); }, "violates contract");
+});
+
+
+test("a basic temporal contract forbidding calling after return", function() {
+    var stolen_ref,
+        apply = guard(
+        fun([fun(any, Bool, {checkStack: function(stack) {
+            return stack.pop();
+        }}), any],
+            check(function(x, stack) {
+                stack.pop(); stack.push(false);
+                return typeof x === 'boolean';
+            })), 
+        function(cmp, x) { stolen_ref = cmp; return cmp(x); },
+        false,
+        function(stack) { stack.push(true); }).use();
+
+    same(apply(function(x) { return x > 0; }, 42), true);
+    raises(function() { stolen_ref(42); }, "attempted to call function after return");
+});
 
 module("jQuery Contracts");
 

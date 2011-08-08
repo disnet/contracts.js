@@ -131,8 +131,8 @@ var Contracts = (function() {
         this.parent = null;
     }
     Contract.prototype = {
-        check : function check(val, pos, neg, parentKs) {
-            return this.handler(val, pos, neg, parentKs);
+        check : function check(val, pos, neg, parentKs, stack) {
+            return this.handler(val, pos, neg, parentKs, stack);
         },
         toContract: function() {
             return this;  
@@ -157,10 +157,10 @@ var Contracts = (function() {
     };
 
 
-    // (any -> Bool), [Str] -> Contract
+    // ((any, Stack?) -> Bool), [Str] -> Contract
     function check(p, name) {
-        return new Contract(name, "check", function check(val, pos, neg, parentKs) {
-            if (p(val)) {
+        return new Contract(name, "check", function check(val, pos, neg, parentKs, stack) {
+            if (p(val, stack)) {
                 return val;
             } else {
                 blame(pos, neg, this, val, parentKs);
@@ -208,6 +208,7 @@ var Contracts = (function() {
             return dom;
         };
 
+
         // dom is overloaded so check if was called as
         // an object with the contracts for call/new
         if(dom && dom.call && dom.new) {
@@ -242,7 +243,7 @@ var Contracts = (function() {
         optionsName = (options.this ? "{this: " + options.this.cname + "}" : "");
         contractName = domName + " -> " + callrng.cname + " " + optionsName;
 
-        return new Contract(contractName, "fun", function(f, pos, neg, parentKs) {
+        return new Contract(contractName, "fun", function(f, pos, neg, parentKs, stack) {
             var callHandler, newHandler,
                 handler = idHandler(f),
                 that = this,
@@ -267,6 +268,9 @@ var Contracts = (function() {
                         args = [],
                         boundArgs, bf, thisc;
 
+                    if (options && options.checkStack && !(options.checkStack(stack))) {
+                        throw new Error("stack checking failed");
+                    }
                     // check pre condition
                     if(typeof options.pre === "function") {
                         if(!options.pre(this)) {
@@ -280,7 +284,7 @@ var Contracts = (function() {
                         // care of it if the argument is actually optional)
                         //
                         // blame is reversed
-                        args[i] = dom[i].check(arguments[i], neg, pos, parents);
+                        args[i] = dom[i].check(arguments[i], neg, pos, parents, stack);
                         // assigning back to args since we might be wrapping functions/objects
                         // in delayed contracts
                     }
@@ -297,15 +301,15 @@ var Contracts = (function() {
                         boundArgs = [].concat.apply([null], args);
                         bf = f.bind.apply(f, boundArgs);
                         res = new bf();
-                        res = rng.check(res, pos, neg, parents);
+                        res = rng.check(res, pos, neg, parents, stack);
                     } else {
                         if(options.this) {
                             // blame is reversed
-                            thisc = options.this.check(this, neg, pos, parents);
+                            thisc = options.this.check(this, neg, pos, parents, stack);
                         } else {
                             thisc = this;
                         }
-                        res = rng.check(f.apply(thisc, args), pos, neg, parents);
+                        res = rng.check(f.apply(thisc, args), pos, neg, parents, stack);
                     }
 
                     // check post condition
@@ -659,7 +663,9 @@ var Contracts = (function() {
     // ModuleName = ?{filename: Str, linenum: Str}
     // RawContract = ?{use: (ModuleName?) -> any}
     // (Contract, any, ModuleName?) -> RawContract
-    function guard(k, x, server) {
+    function guard(k, x, server, setup) {
+        var stack = [];
+        if(typeof setup === 'function') { setup(stack); }
         if(!server) {
             // if a server wasn't provied, guess if from the stacktrace
             server = getModName(true);
@@ -683,7 +689,7 @@ var Contracts = (function() {
                     server.linenum = server.linenum + " (server)";
                     client.linenum = client.linenum + " (client)";
                 }
-                return k.check(x, server, client, []);
+                return k.check(x, server, client, [], stack);
             }
         };
     };
