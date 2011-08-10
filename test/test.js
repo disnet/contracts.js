@@ -349,24 +349,31 @@ test("property descriptors on an object's properties", function() {
 });
 
 test("recursive object", function() {
-    // var o = {
-    //     a: 42,
-    //     b: null,
-    //     c: function(n) { return this; },
-    //     d: { y: "foo", z: null }
-    // };
-    // o.b = o;
-    // o.d.z = o.d;
+    var o = {a: 42, b: null, c: function(x) { return {a: "foo"}; }, d: {z: "bar", s: null}};
+    o.b = o;
+    o.d.s = o.d;
 
-    // guard(
-    //     object({
-    //         a: Num,
-    //         b: self,
-    //         c: fun(Num, self),
-    //         d: object({ y: Str, z: self })
-    //     }),
-    //     o,
-    //     server, client);
+    o = guard(
+        object({
+            a: Num,
+            b: self,
+            c: fun(Num, self),
+            d: object({
+                z: Str,
+                s: self
+            })
+        }),
+        o).use();
+
+    same(o.a, 42, "abides by contract");
+    same(o.b.a, 42, "abides by contract");
+    raises(function() { o.b.a = "foo"; }, "violates contract");
+
+    raises(function() { o.c("foo"); }, "violates contract");
+    raises(function() { o.c(42).a; }, "server violates contract");
+    same(o.d.z, "bar", "abides by contract");
+    raises(function() { o.d.s.z = 42; }, "violates contract");
+
 });
 
 test("objects with pre/post conditions", function() {

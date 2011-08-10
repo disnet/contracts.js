@@ -186,7 +186,7 @@ var Contracts = (function() {
     // -> Contract
     function fun(dom, rng, options) {
         var callOnly, newOnly, cleanDom, domName, optionsName, contractName,
-            newdom, newrng, calldom, callrng;
+            newdom, newrng, calldom, callrng, c;
 
         cleanDom = function(dom) {
             // wrap the domain in array so we can be consistent
@@ -243,7 +243,7 @@ var Contracts = (function() {
         optionsName = (options.this ? "{this: " + options.this.cname + "}" : "");
         contractName = domName + " -> " + callrng.cname + " " + optionsName;
 
-        return new Contract(contractName, "fun", function(f, pos, neg, parentKs, stack) {
+        c = new Contract(contractName, "fun", function(f, pos, neg, parentKs, stack) {
             var callHandler, newHandler,
                 handler = idHandler(f),
                 that = this,
@@ -327,19 +327,24 @@ var Contracts = (function() {
                 callHandler = function() {
                     blameM(neg, pos, "called newOnly function without new", parents);
                 };
-                newHandler = makeHandler(newdom, newrng, options);
+                newHandler = makeHandler(this.newdom, this.newrng, options);
             } else if(callOnly) {
                 options.isNew = false;
                 newHandler = function() {
                     blameM(neg, pos, "called callOnly function with a new", parents);
                 };
-                callHandler = makeHandler(calldom, callrng, options);
+                callHandler = makeHandler(this.calldom, this.callrng, options);
             } else { // both false...both true is a contract construction-time error and handled earlier
-                callHandler = makeHandler(calldom, callrng, options);
-                newHandler = makeHandler(newdom, newrng, options);
+                callHandler = makeHandler(this.calldom, this.callrng, options);
+                newHandler = makeHandler(this.newdom, this.newrng, options);
             }
             return Proxy.createFunction(handler, callHandler, newHandler);
         });
+        c.calldom = calldom;
+        c.callrng = callrng;
+        c.newdom = newdom;
+        c.newrng = newrng;
+        return c;
     };
 
 
@@ -366,6 +371,8 @@ var Contracts = (function() {
             }, this);
             return "{" + props.join(", ") + "}";
         };
+
+
 
         var c = new Contract(objName(objContract), "object", function(obj, pos, neg, parentKs) {
             var missingProps, op, i, prop, contractDesc, objDesc, value,
@@ -546,18 +553,54 @@ var Contracts = (function() {
             return op;
         });
         c.oc = objContract;
-        // Allows us to add property's to the object
-        // contract after initialization. Useful for
-        // recursive contracts.
-        c.addPropertyContract = function(newOc) {
-            var name;
-            for(name in newOc) {
-                if(newOc.hasOwnProperty(name)) {
-                    this.oc[name] = newOc[name];
+
+        // hook up the recursive contracts if they exist
+        function setSelfContracts(c, toset) {
+            var i, name, functionContractChildren = ["calldom", "callrng", "newdom", "newrng"];
+            // check each of the properties in an object contract
+            if(typeof c.oc !== 'undefined') {
+                for(name in c.oc) {
+                    // if this prop is the self contract replace it with the contract reference
+                    if(c.oc[name] === self) {
+                        c.oc[name] = toset;
+                    // otherwise if it's a function contract then there might be nested
+                    // self contracts so dive into them with the original toset reference
+                    } else if(c.oc[name].ctype !== "object") {
+                        setSelfContracts(c.oc[name], toset);
+                    }
+                    // note that we don't dive into object contracts...each self contract
+                    // thus binds to its enclosing object contract
                 }
+            } else {
+                // run through each of the function contract properties
+                functionContractChildren.forEach(function(fcName) {
+                    if (typeof c[fcName] !== 'undefined') {
+                        // the domain contracts are stored in an array so go through those first
+                        if(Array.isArray(c[fcName])) {
+                            for(i = 0; i < c[fcName].length; i++) {
+                                if(c[fcName][i] === self) {
+                                    c[fcName][i] = toset;
+                                } else if(c[fcName][i].ctype !== "object") {
+                                    // dive into nested contracts with the original toset reference
+                                    setSelfContracts(c[fcName][i], toset);
+                                }
+                            } 
+                        } else {
+                            // for the range contracts
+                            if(c[fcName] === self) {
+                                c[fcName] = toset;
+                            } else if(c[fcName] !== "object") {
+                                setSelfContracts(c[fcName], toset);
+                            }
+
+                        }
+
+                    }                     
+                });
+
             }
-            return this;
-        };
+        }
+        setSelfContracts(c, c);
         return c;
     };
 
@@ -590,6 +633,10 @@ var Contracts = (function() {
         return new Contract("any", "any", function(val) {
             return val;
         });
+    })();
+
+    var self = (function () {
+        return new Contract("self", "self", function(val){ return val; })    
     })();
 
     function or() {
@@ -703,6 +750,7 @@ var Contracts = (function() {
         arr: arr,
         ___: ___,
         any: any,
+        self: self,
         or: or,
         none: none,
         and: and,
