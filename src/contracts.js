@@ -750,7 +750,7 @@ var Contracts = (function() {
         arr: arr,
         ___: ___,
         any: any,
-        self: self,
+
         or: or,
         none: none,
         and: and,
@@ -788,7 +788,8 @@ var Contracts = (function() {
             length: combinators.check(function(x) {
                 return typeof(x) === "number";
             }, "Number")
-        })
+        }),
+        Self: self,
         // come back to these later...sort of want
         // to actively freeze the objects coming in
         // not just check that they have been frozen (maybe)

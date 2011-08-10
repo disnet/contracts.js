@@ -356,11 +356,11 @@ test("recursive object", function() {
     o = guard(
         object({
             a: Num,
-            b: self,
-            c: fun(Num, self),
+            b: Self,
+            c: fun(Num, Self),
             d: object({
                 z: Str,
-                s: self
+                s: Self
             })
         }),
         o).use();
