@@ -1,5 +1,6 @@
 var Contracts = (function() {
     "use strict";
+    var enabled = true;
 
     var Utils = {
         // walk the proto chain to get the property descriptor
@@ -736,7 +737,11 @@ var Contracts = (function() {
                     server.linenum = server.linenum + " (server)";
                     client.linenum = client.linenum + " (client)";
                 }
-                return k.check(x, server, client, [], stack);
+                if(enabled) {
+                    return k.check(x, server, client, [], stack);                
+                } else {
+                    return x;                    
+                }
             }
         };
     };
@@ -812,7 +817,9 @@ var Contracts = (function() {
     };
     return {
         combinators: combinators,
-        contracts: contracts
+        contracts: contracts,
+        // todo: if we're worried about hostile code will need a better way to enable/disable contracts
+        enabled: function(b) { enabled = b; }
     };
 })();
 

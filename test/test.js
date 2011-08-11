@@ -528,6 +528,21 @@ test("a basic temporal contract forbidding calling after return", function() {
     raises(function() { stolen_ref(42); }, "attempted to call function after return");
 });
 
+test("can disable contract checking", function() {
+    Contracts.enabled(false);
+    var id = guard(
+        fun(Num, Num),
+        function(x) { return x; }
+    ).use();
+    same(id("foo"), "foo", "violates contract but ok since they are disabled");
+    Contracts.enabled(true);
+    id = guard(
+        fun(Num, Num),
+        function(x) { return x; }
+    ).use();
+    raises(function() { id("foo"); }, "violates contract and now raises blame");
+});
+
 module("jQuery Contracts");
 
 // test("checking jquery", function() {
