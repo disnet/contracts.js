@@ -275,7 +275,7 @@ var Contracts = (function() {
                     // check pre condition
                     if(typeof options.pre === "function") {
                         if(!options.pre(this)) {
-                            blameM(neg, pos, "failed precondition on: " + that, parents);  
+                            blame(neg, pos, "precondition: " + options.pre.toString(), "[failed precondition]", parents);  
                         }
                     }
 
@@ -495,11 +495,18 @@ var Contracts = (function() {
                 Object.defineProperty(obj, name, desc);
             };
             handler.delete = function(name) {
+                var res, invariant;
                 if(options.sealed || options.frozen) {
                     // have to reverse blame since the client is the one calling delete
                     blame(neg, pos, (options.sealed ? "sealed" : "frozen") + " object", "[call to delete]", parents);
                 }
-                return delete obj[name]; 
+                res = delete obj[name]; 
+                if(options.invariant) {
+                    invariant = options.invariant.bind(obj);
+                    if(!invariant()) {
+                        blame(neg, pos, "invariant: " + options.invariant.toString(), "[invariant violated]", parents);
+                    }
+                }
             };
             handler.get = function(receiver, name) {
                 if(that.oc.hasOwnProperty(name)) { 
@@ -512,6 +519,7 @@ var Contracts = (function() {
                 }
             };
             handler.set = function(receiver, name, val) {
+                var invariant;
                 if( (options.extensible === false) && Object.getOwnPropertyDescriptor(obj, name) === undefined) {
                     blame(neg, pos, "non-extensible object", "[attempted to set a new property: " + name + "]", parents);
                 }
@@ -529,6 +537,12 @@ var Contracts = (function() {
                     obj[name] = options.arrayRangeContract.check(val, neg, pos, parents);
                 } else {
                     obj[name] = val;
+                }
+                if(options.invariant) {
+                    invariant = options.invariant.bind(obj);
+                    if(!invariant()) {
+                        blame(neg, pos, "invariant: " + options.invariant.toString(), "[invariant violated]", parents);
+                    }
                 }
                 return true;
             };
