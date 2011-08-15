@@ -316,7 +316,9 @@ var Contracts = (function() {
                     // check post condition
                     if(typeof options.post === "function") {
                         if(!options.post(this)) {
-                            blameM(neg, pos, "failed postcondition on: " + that, parents);  
+                            blame(neg, pos, "failed postcondition on: " + options.post.toString(),
+                                  "[failed postcondition]",
+                                  parents);  
                         }
                     }
                     return res;
