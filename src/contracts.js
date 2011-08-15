@@ -184,14 +184,15 @@ var Contracts = (function() {
     function ModuleName(filename, linenum, isServer) {
         this.filename = filename;
         this.linenum = linenum;
-        this.isServer = isServer
+        this.isServer = isServer;
     }
     ModuleName.prototype.toString = function() {
         return this.filename + (this.linenum === "" ? "" : (":" + this.linenum));
-    }
+    };
 
     Function.prototype.toContract = function() {
-        return check(this, "<user defined contract>");
+        var name = "<user defined: " + this.toString() + ">";
+        return check(this, name);
     };
 
 
