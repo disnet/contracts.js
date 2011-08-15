@@ -41,6 +41,20 @@ var Contracts = (function() {
         }
     };
 
+    function filterStack(st) {
+        var re = /contracts\.js:\d*$/;
+        if (Array.isArray(st)) {
+            return st.filter(function(frame) {
+                if(re.test(frame)) {
+                    return false;
+                }
+                return true;
+            });
+        } else {
+            return st;
+        }
+    };
+
     // (ModuleName, ModuleName, Str, [Contract]) -> \bot
     function _blame(toblame, other, msg, parents) {
         var server, err, st, ps = parents.slice(0);
@@ -53,8 +67,8 @@ var Contracts = (function() {
         }
 
         err =  new Error(m);
-        st = printStackTrace({e : err});
-        err.message += "\n\n" + st.join("\n") ;
+        st = filterStack(printStackTrace({e : err}));
+        err.cleaned_stacktrace = st;
 
         throw err;
     }
