@@ -55,9 +55,24 @@ var Contracts = (function() {
         }
     };
 
+    // Parses out filename and line number. Expects an array where the 0th entry
+    // is the file location and line number
+    // [...Str] -> [Str, Num] or null
+    function findCallsite(trace) {
+        var match, t = trace[0],
+            // string looks like {adsf}@file:///path/to/file.js:42
+            re = /@(.*):(\d*)$/;
+        match = re.exec(t);
+        if(match) {
+            return [match[1], parseInt(match[2], 10)];
+        } else {
+            return null;
+        }
+    }
+
     // (ModuleName, ModuleName, Str, [Contract]) -> \bot
     function _blame(toblame, other, msg, parents) {
-        var server, err, st, ps = parents.slice(0);
+        var server, err, st, callsite, ps = parents.slice(0);
         server = toblame.isServer ? toblame : other;
         var m = "Contract violation: " + msg + "\n"
                 + "Value guarded in: " + server + " -- blame is on: " + toblame + "\n";
@@ -70,6 +85,14 @@ var Contracts = (function() {
         st = filterStack(printStackTrace({e : err}));
         err.cleaned_stacktrace = st;
 
+        // pretend the error was thrown at the place in usercode where the violation occured
+        callsite = findCallsite(st);
+        if(callsite) {
+            // by setting these fields tools like firebug will link to the
+            // appropriate place in the user code
+            err.fileName = callsite[0];
+            err.lineNumber = callsite[1];
+        }
         throw err;
     }
 
@@ -330,7 +353,7 @@ var Contracts = (function() {
                     // check post condition
                     if(typeof options.post === "function") {
                         if(!options.post(this)) {
-                            blame(neg, pos, "failed postcondition on: " + options.post.toString(),
+                            blame(neg, pos, "failed postcondition: " + options.post.toString(),
                                   "[failed postcondition]",
                                   parents);  
                         }
