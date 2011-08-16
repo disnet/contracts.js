@@ -734,6 +734,22 @@ var Contracts = (function() {
         });
     };
 
+    function not(k) {
+        var res;
+        if(k.ctype === "fun" || k.ctype === "object") {
+            throw "cannot construct a 'not' contract with a function or object contract";
+        }
+        return new Contract("not " + k.cname, "not", function(val, pos, neg, parentKs) {
+            try {
+                res = k.check(val, pos, neg, parentKs);
+                blame(pos, neg, this, val, parentKs);
+            } catch (b) {
+                // inverting the original contract so return ok
+                return res;
+            }
+        });
+    };
+
     function opt(k) {
         return new Contract("opt(" + k.cname + ")", "opt", function(val, pos, neg, parentKs) {
             if(val === undefined) { // unsuplied arguments are just passed through
@@ -812,6 +828,7 @@ var Contracts = (function() {
 
         or: or,
         none: none,
+        not: not,
         and: and,
         opt: opt,
         guard: guard
@@ -819,7 +836,7 @@ var Contracts = (function() {
 
     // Some basic contracts
     var contracts = {
-        Undef: combinators.check(function(x) {
+        Undefined: combinators.check(function(x) {
             return undefined === x;
         }, "Undefined"),
         Null : combinators.check(function(x) {
@@ -849,25 +866,7 @@ var Contracts = (function() {
             }, "Number")
         }),
         Self: self,
-        // come back to these later...sort of want
-        // to actively freeze the objects coming in
-        // not just check that they have been frozen (maybe)
-
-        // List: combinators.object({}, {
-        //     frozen: true,
-        //     noDelete: true,
-        //     initPredicate: [Array.isArray, hasNoHoles]
-        // }),
-        // SaneArray: combinators.object({}, {
-        //     frozen: false,
-        //     noDelete: true,
-        //     initPredicate: [Array.isArray, hasNoHoles]
-        // }),
-        // JsArray: combinators.object({}, {
-        //     frozen: false,
-        //     noDelete: false,
-        //     initPredicate: Array.isArray
-        // })
+        Any: any
     };
     return {
         combinators: combinators,
