@@ -420,6 +420,7 @@ var Contracts = (function() {
                 handler = idHandler(obj);
             var that = this;
             var parents = parentKs.slice(0);
+            var invariant;
             parents.push(this);
 
             if(!(obj instanceof Object)) {
@@ -515,6 +516,14 @@ var Contracts = (function() {
                 }
             }
 
+            // check object invariant
+            if(options.invariant) {
+                invariant = options.invariant.bind(obj);
+                if(!invariant()) {
+                    blame(neg, pos, "invariant: " + options.invariant.toString(), obj, parents);
+                }
+            }
+
             handler.defineProperty = function(name, desc) {
                 // note: we coulad have also allowed a TypeError to be thrown by the system
                 // if in strict mode or silengtly fail otherwise but we're using the blame system
@@ -544,7 +553,7 @@ var Contracts = (function() {
                 if(options.invariant) {
                     invariant = options.invariant.bind(obj);
                     if(!invariant()) {
-                        blame(neg, pos, "invariant: " + options.invariant.toString(), "[invariant violated]", parents);
+                        blame(neg, pos, "invariant: " + options.invariant.toString(), obj, parents);
                     }
                 }
             };
@@ -581,7 +590,7 @@ var Contracts = (function() {
                 if(options.invariant) {
                     invariant = options.invariant.bind(obj);
                     if(!invariant()) {
-                        blame(neg, pos, "invariant: " + options.invariant.toString(), "[invariant violated]", parents);
+                        blame(neg, pos, "invariant: " + options.invariant.toString(), obj, parents);
                     }
                 }
                 return true;
@@ -611,7 +620,9 @@ var Contracts = (function() {
 
         // hook up the recursive contracts if they exist
         function setSelfContracts(c, toset) {
-            var i, name, functionContractChildren = ["calldom", "callrng", "newdom", "newrng"];
+            var i, name,
+                // all the different possible children names from the combinators (really kludgy)
+                childrenNames = ["k", "k1", "k2", "flats", "ho", "calldom", "callrng", "newdom", "newrng"];
             // check each of the properties in an object contract
             if(typeof c.oc !== 'undefined') {
                 for(name in c.oc) {
@@ -627,25 +638,24 @@ var Contracts = (function() {
                     // thus binds to its enclosing object contract
                 }
             } else {
-                // run through each of the function contract properties
-                functionContractChildren.forEach(function(fcName) {
-                    if (typeof c[fcName] !== 'undefined') {
-                        // the domain contracts are stored in an array so go through those first
-                        if(Array.isArray(c[fcName])) {
-                            for(i = 0; i < c[fcName].length; i++) {
-                                if(c[fcName][i] === self) {
-                                    c[fcName][i] = toset;
-                                } else if(c[fcName][i].ctype !== "object") {
+                // run through each of the children contracts (sorry, pretty kludgy)
+                childrenNames.forEach(function(cName) {
+                    if (typeof c[cName] !== 'undefined') {
+                        // the if stored in an array go through those first
+                        if(Array.isArray(c[cName])) {
+                            for(i = 0; i < c[cName].length; i++) {
+                                if(c[cName][i] === self) {
+                                    c[cName][i] = toset;
+                                } else if(c[cName][i].ctype !== "object") {
                                     // dive into nested contracts with the original toset reference
-                                    setSelfContracts(c[fcName][i], toset);
+                                    setSelfContracts(c[cName][i], toset);
                                 }
                             } 
                         } else {
-                            // for the range contracts
-                            if(c[fcName] === self) {
-                                c[fcName] = toset;
-                            } else if(c[fcName] !== "object") {
-                                setSelfContracts(c[fcName], toset);
+                            if(c[cName] === self) {
+                                c[cName] = toset;
+                            } else if(c[cName] !== "object") {
+                                setSelfContracts(c[cName], toset);
                             }
 
                         }
@@ -695,30 +705,42 @@ var Contracts = (function() {
     })();
 
     function or() {
-        var ks, name;
+        var c, ks, name, flats, ho;
         ks = [].slice.call(arguments);
-        ks.forEach(function(el) {
-            if(el.ctype === "fun" || el.ctype === "object") {
-                throw "cannot construct an 'or' contract with a function or object contract";
-            }
+        flats = ks.filter(function(el) {
+            return el.ctype === "check";
         });
+        ho = ks.filter(function(el) {
+            return el.ctype !== "check";
+        });
+        if(ho.length > 1) {
+            throw "Cannot have more than 1 higher order contract in 'or'";
+        }
 
         name = ks.join(" or ");
-        return new Contract(name, "or",  function(val, pos, neg, parentKs) {
+        c = new Contract(name, "or",  function(val, pos, neg, parentKs) {
             var i, lastBlame,
                 parents = parentKs.slice(0);
             parents.push(this);
             
-            for(i = 0; i < ks.length; i++) {
+            for(i = 0; i < flats.length; i++) {
                 try {
-                    return ks[i].check(val, pos, neg, parents);
+                    return this.flats[i].check(val, pos, neg, parents);
                 } catch (e) {
                     lastBlame = e;
                     continue;
                 }
             }
-            throw lastBlame; // the last contract in the array still assigned blame so surface it
+            if(ho.length === 1) {
+                return this.ho[0].check(val, pos, neg, parents);
+            } else {
+                throw lastBlame; // the last contract in the array still assigned blame so surface it
+            }
         });
+
+        c.flats = flats;
+        c.ho = ho;
+        return c;
     };
     
     var none = (function none() {
@@ -728,37 +750,46 @@ var Contracts = (function() {
     })();
 
     function and(k1, k2) {
-        return new Contract(k1.cname + " and " + k2.cname, "and", function(val, pos, neg, parentKs) {
+        var c;
+        c = new Contract(k1.cname + " and " + k2.cname, "and", function(val, pos, neg, parentKs) {
             var k1c = k1.check(val, pos, neg, parentKs);
             return k2.check(k1c, pos, neg, parentKs);
         });
+        c.k1 = k1;
+        c.k2 = k2;
+        return c;
     };
 
     function not(k) {
-        var res;
+        var c, res;
         if(k.ctype === "fun" || k.ctype === "object") {
             throw "cannot construct a 'not' contract with a function or object contract";
         }
-        return new Contract("not " + k.cname, "not", function(val, pos, neg, parentKs) {
+        c = new Contract("not " + k.cname, "not", function(val, pos, neg, parentKs) {
             try {
-                res = k.check(val, pos, neg, parentKs);
+                res = this.k.check(val, pos, neg, parentKs);
                 blame(pos, neg, this, val, parentKs);
             } catch (b) {
                 // inverting the original contract so return ok
                 return res;
             }
         });
+        c.k = k;
+        return c;
     };
 
     function opt(k) {
-        return new Contract("opt(" + k.cname + ")", "opt", function(val, pos, neg, parentKs) {
+        var c;
+        c = new Contract("opt(" + k.cname + ")", "opt", function(val, pos, neg, parentKs) {
             if(val === undefined) { // unsuplied arguments are just passed through
                 return val;
             } else {
                 // arg is actually something so check the underlying contract
-                return k.check(val, pos, neg, parentKs);
+                return this.k.check(val, pos, neg, parentKs);
             }
         });
+        c.k = k;
+        return c;
     };
 
     // note that this function is particular about where it is called from.
