@@ -1,6 +1,9 @@
 var Contracts = (function() {
     "use strict";
-    var enabled = true;
+
+    var enabled = true,
+        // [...{ proxy: Proxy, contract: Contract }]
+        unproxy = [];
 
     var Utils = {
         // walk the proto chain to get the property descriptor
@@ -38,8 +41,40 @@ var Contracts = (function() {
                     return false;
             }
             return true;
+        },
+
+        // if a1 and a2 are differently sized, return the empty list
+        zip: function(a1, a2) {
+            var i, ret = [];
+            if(!Array.isArray(a1) || !Array.isArray(a2) || (a1.length !== a2.length)) {
+                ret = [];
+            } else {
+                for(i = 0; i < a1.length; i++) {
+                    ret.push([a1[i], a2[i]]);
+                }
+            }
+            return ret;
         }
     };
+
+    function checkOptions(a, b) {
+        var name, pOpt = true;
+        for(name in a) {
+            if(a[name] instanceof Contract) {
+                if(!a[name].equals(b[name])) {
+                    pOpt = false;
+                }
+            } else if(a[name] !== b[name]) {
+                pOpt = false;
+            }
+        }
+        for(name in b) {
+            if(!(name in a)) {
+                pOpt = false;
+            }
+        }
+        return pOpt;
+    }
 
     function filterStack(st) {
         var re = /contracts\.js:\d*$/;
@@ -170,13 +205,27 @@ var Contracts = (function() {
     }
     Contract.prototype = {
         check : function check(val, pos, neg, parentKs, stack) {
-            return this.handler(val, pos, neg, parentKs, stack);
+            // if contractOn(val) === this { return val }
+            var pc = unproxy.filter(function(el) { return val === el.proxy; });
+            if(pc.length > 1) { throw "assumption failed: unproxy object stores multiple unique proxies"; }
+            // todo: need to implement contract equality
+            if(pc.length === 1 && pc[0].contract === this) {
+                // don't bother wrapping twice
+                // though...we might want to run the handler for the initialization check that happens
+                // but need to make sure that the initialization doesn't update unproxy
+                return val;
+            } else {
+                return this.handler(val, pos, neg, parentKs, stack);
+            }
         },
         toContract: function() {
             return this;  
         },
         toString: function() {
             return this.cname;
+        },
+        equals: function(other) {
+            throw "Equality checking must be overridden";
         }
     };
 
@@ -198,13 +247,19 @@ var Contracts = (function() {
 
     // ((any, Stack?) -> Bool), [Str] -> Contract
     function check(p, name) {
-        return new Contract(name, "check", function check(val, pos, neg, parentKs, stack) {
+        var c;
+        c = new Contract(name, "check", function check(val, pos, neg, parentKs, stack) {
             if (p(val, stack)) {
                 return val;
             } else {
                 blame(pos, neg, this, val, parentKs);
             }
         });
+        c.equals = function(other) {
+            return (this.cname === other.cname) &&
+                (this.handler === other.handler);
+        };
+        return c;
     };
 
     // (Contract or arr(Contract)),     -- The domain contract - use array for multiple arguments
@@ -286,7 +341,8 @@ var Contracts = (function() {
             var callHandler, newHandler,
                 handler = idHandler(f),
                 that = this,
-                parents = parentKs.slice(0);
+                parents = parentKs.slice(0),
+                p;
 
             if(typeof f !== "function") {
                 blame(pos, neg, this, f, parents); 
@@ -379,12 +435,38 @@ var Contracts = (function() {
                 callHandler = makeHandler(this.calldom, this.callrng, options);
                 newHandler = makeHandler(this.newdom, this.newrng, options);
             }
-            return Proxy.createFunction(handler, callHandler, newHandler);
+
+            p = Proxy.createFunction(handler, callHandler, newHandler);
+            unproxy.push({proxy: p, contract: this});
+            return p;
         });
         c.calldom = calldom;
         c.callrng = callrng;
         c.newdom = newdom;
         c.newrng = newrng;
+        c.raw_options = options;
+        c.equals = function(other) {
+            var name, zipCDom, zipNDom, pCDom, pNDom, pOpt;
+            // can can short circuit here if we're not testing against another contract
+            if(!other instanceof Contract || other.ctype !== this.ctype) { return false; }
+            zipCDom = Utils.zip(this.calldom, other.calldom);
+            zipNDom = Utils.zip(this.newdom, other.newdom);
+            pCDom = (zipCDom.length !== 0) && zipCDom.every(function(zd) {
+                return zd[0].equals(zd[1]);
+            });
+            pNDom = (zipNDom.length !== 0) && zipNDom.every(function(zd) {
+                return zd[0].equals(zd[1]);
+            });
+
+            // this will "fail" equality testing if the options object has
+            // pre/post functions that are the "same" but not the same reference
+            pOpt = checkOptions(this.raw_options, other.raw_options);
+            return pOpt &&
+                pCDom &&
+                pNDom &&
+                (this.callrng.equals(other.callrng)) &&
+                (this.newrng.equals(other.newrng));
+        };
         return c;
     };
 
@@ -569,6 +651,7 @@ var Contracts = (function() {
             };
             handler.set = function(receiver, name, val) {
                 var invariant;
+
                 if( (options.extensible === false) && Object.getOwnPropertyDescriptor(obj, name) === undefined) {
                     blame(neg, pos, "non-extensible object", "[attempted to set a new property: " + name + "]", parents);
                 }
@@ -614,9 +697,11 @@ var Contracts = (function() {
                 op = Proxy.create(handler, Object.prototype); 
                 // todo: is this the proto we actually want?
             }
+            unproxy.push({proxy: op, contract: this});
             return op;
         });
         c.oc = objContract;
+        c.raw_options = options;
 
         // hook up the recursive contracts if they exist
         function setSelfContracts(c, toset) {
@@ -666,6 +751,12 @@ var Contracts = (function() {
             }
         }
         setSelfContracts(c, c);
+
+
+        c.equals = function(other) {
+            if(!other instanceof Contract || other.ctype !== this.ctype) { return false; }
+            return checkOptions(this.oc, other.oc) && checkOptions(this.raw_options, other.raw_options);
+        };
         return c;
     };
 
@@ -695,13 +786,21 @@ var Contracts = (function() {
     };
 
     var any = (function any() {
-        return new Contract("any", "any", function(val) {
+        var c = new Contract("any", "any", function(val) {
             return val;
         });
+        c.equals = function(other) {
+            return this === other;
+        };
+        return c;
     })();
 
     var self = (function () {
-        return new Contract("self", "self", function(val){ return val; })    
+        var c = new Contract("self", "self", function(val){ return val; });
+        c.equals = function(other) {
+            return this === other;
+        };
+        return c;
     })();
 
     function or() {
@@ -740,13 +839,26 @@ var Contracts = (function() {
 
         c.flats = flats;
         c.ho = ho;
+        c.equals = function(other) {
+            var zipFlats, pFlats;
+            if(!other instanceof Contract || other.ctype !== this.ctype) { return false; }
+            zipFlats = Utils.zip(this.flats, other.flats);
+            pFlats = (zipFlats.length !== 0) && zipFlats.every(function(zf) {
+                return zf[0].equals(zf[1]);
+            });
+            return pFlats && (this.ho.equals(other.ho));
+        };
         return c;
     };
     
     var none = (function none() {
-        return new Contract("none", "none",  function(val, pos, neg, parentKs) {
+        var c = new Contract("none", "none",  function(val, pos, neg, parentKs) {
             blame(pos, neg, this, val, parentKs);
         });
+        c.equals = function(other) {
+            this === other;
+        };
+        return c;
     })();
 
     function and(k1, k2) {
@@ -757,6 +869,10 @@ var Contracts = (function() {
         });
         c.k1 = k1;
         c.k2 = k2;
+        c.equals = function(other) {
+            if(!other instanceof Contract || other.ctype !== this.ctype) { return false; }
+            return (this.k1.equals(other.k1)) && (this.k2.equals(other.k2));
+        };
         return c;
     };
 
@@ -775,6 +891,10 @@ var Contracts = (function() {
             }
         });
         c.k = k;
+        c.equals = function(other) {
+            if(!other instanceof Contract || other.ctype !== this.ctype) { return false; }
+            return this.k.equals(other.k);
+        };
         return c;
     };
 
@@ -789,6 +909,10 @@ var Contracts = (function() {
             }
         });
         c.k = k;
+        c.equals = function(other) {
+            if(!other instanceof Contract || other.ctype !== this.ctype) { return false; }
+            return this.k.equals(other.k);
+        };
         return c;
     };
 

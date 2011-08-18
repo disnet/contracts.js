@@ -543,13 +543,59 @@ test("can disable contract checking", function() {
     raises(function() { id("foo"); }, "violates contract and now raises blame");
 });
 
-module("jQuery Contracts");
+test("contract equality", function() {
+    var c1 = fun(Num, Num),
+        c2 = fun(Num, Num),
+        o1 = object({a: Num}),
+        o2 = object({a: Num});
+    
 
-// test("checking jquery", function() {
-//     ok(jQuery.length);
-//     equals(jQuery("div").selector, "div");
-//     ok(jQuery.apply(this, ["div"]));
-//     ok(jQuery([1,2,3]));
-//     ok(jQuery(Contracts.C.guard(Contracts.K.Array, [1,2,3], "server", "client")));
-//     // want to test grep
-// });
+    ok(c1.equals(c1), "function is eq to itself");
+    ok(c1.equals(c2), "same fun contracts");
+
+    c1 = fun(Num, Num);
+    c2 = fun(Str, Num);
+    ok(!c1.equals(c2), "different fun contracts");
+    c1 = fun(Num, Num);
+    c2 = fun(Num, Str);
+    ok(!c1.equals(c2), "different fun contracts");
+    c1 = fun(Num, Num, {callOnly: true} );
+    c2 = fun(Num, Num, {callOnly: true} );
+    ok(c1.equals(c2), "same fun contracts with opts");
+    c1 = fun(Num, Num, {callOnly: true} );
+    c2 = fun(Num, Num, {callOnly: false} );
+    ok(!c1.equals(c2), "differnt fun contracts with opts");
+    c1 = fun(Num, Num, {callOnly: false} );
+    c2 = fun(Num, Num, {callOnly: false, newOnly: true} );
+    ok(!c1.equals(c2), "differnt fun contracts with different opts");
+    c1 = fun([Str, Num], Num, {callOnly: true} );
+    c2 = fun([Str, Num], Num, {callOnly: true} );
+    ok(c1.equals(c2), "same fun contracts with opts and multi args");
+    c1 = fun([Str, Num], Num, {callOnly: true} );
+    c2 = fun([Num, Num], Num, {callOnly: true} );
+    ok(!c1.equals(c2), "different fun contracts with opts and multi args");
+    c1 = fun(Num, Num, {this: object({name: Str})} );
+    c2 = fun(Num, Num, {this: object({name: Str})} );
+    ok(c1.equals(c2), "same fun contracts with this contract");
+    c1 = fun(Num, Num, {this: object({name: Str})} );
+    c2 = fun(Num, Num, {this: object({name: Num})} );
+    ok(!c1.equals(c2), "same fun contracts with this contract");
+
+    o1 = object({a: Num});
+    o2 = object({a: Num});
+    ok(o1.equals(o2), "same objects");
+    o1 = object({a: Num});
+    o2 = object({a: Str});
+    ok(!o1.equals(o2), "different objects");
+    o1 = object({a: Num, f: fun(Num, Num)});
+    o2 = object({a: Num, f: fun(Num, Num)});
+    ok(o1.equals(o2), "same objects funtion props");
+    o1 = object({a: Num, f: fun(Num, Num)});
+    o2 = object({a: Num, f: fun(Num, Str)});
+    ok(!o1.equals(o2), "different objects funtion props");
+    o1 = object({a: Num});
+    o2 = object({a: Num, f: fun(Num, Num)});
+    ok(!o1.equals(o2), "different objects missing function props");
+
+    ok(!c1.equals(o1), "different contracts completely");
+});
