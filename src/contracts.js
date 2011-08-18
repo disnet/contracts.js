@@ -40,7 +40,7 @@ var Contracts = (function() {
             get: function(p) {
                 var pc;
                 if(weak) {
-                    if(typeof p === "object" || typeof p === "function") {
+                    if((p !== null) && typeof p === "object" || typeof p === "function") {
                         return unproxy.get(p);
                     } else {
                         return undefined;
@@ -261,7 +261,6 @@ var Contracts = (function() {
         check : function check(val, pos, neg, parentKs, stack) {
             var c = unproxy.get(val);
             if(c && c.equals(this)) {
-                console.log("skipping double wrap");
                 // don't bother wrapping twice
                 // though...we might want to run the handler for the initialization check that happens
                 // but need to make sure that the initialization doesn't update unproxy
