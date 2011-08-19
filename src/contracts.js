@@ -13,19 +13,6 @@ var Contracts = (function() {
         } else {
             weak = false;
             unproxy = [];
-            // var pc = unproxy.filter(function(el) { return val === el.proxy; });
-            // if(pc.length > 1) { throw "assumption failed: unproxy object stores multiple unique proxies"; }
-            // // todo: need to implement contract equality
-            // if(pc.length === 1 && pc[0].contract.equals(this)) {
-            //     console.log("skipping double wrap");
-            //     // don't bother wrapping twice
-            //     // though...we might want to run the handler for the initialization check that happens
-            //     // but need to make sure that the initialization doesn't update unproxy
-            //     return val;
-            // } else {
-            //     return this.handler(val, pos, neg, parentKs, stack);
-            // }
-
         }
         return {
             // (Proxy, Contract) -> Unit
