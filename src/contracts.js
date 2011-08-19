@@ -248,9 +248,9 @@ var Contracts = (function() {
         check : function check(val, pos, neg, parentKs, stack) {
             var c = unproxy.get(val);
             if(c && c.equals(this)) {
-                // don't bother wrapping twice
-                // though...we might want to run the handler for the initialization check that happens
-                // but need to make sure that the initialization doesn't update unproxy
+                // don't bother wrapping twice though we want to run the handler
+                // for the initialization check that happens and just ignore the return
+                this.handler(val, pos, neg, parentKs, stack);
                 return val;
             } else {
                 return this.handler(val, pos, neg, parentKs, stack);
