@@ -7,7 +7,7 @@ var Contracts = (function() {
 
     unproxy = (function() {
         var unproxy, weak;
-        if(WeakMap) {
+        if(typeof(WeakMap) !== 'undefined') {
             weak = true;
             unproxy = new WeakMap();
         } else {
