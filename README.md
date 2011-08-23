@@ -1,6 +1,7 @@
 Contracts.js is a contract library for JavaScript.
 
 To use include the files:
+
   * src/stacktrac.js
   * src/contracts.js
   * src/autoload.js
