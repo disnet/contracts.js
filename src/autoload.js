@@ -8,3 +8,4 @@ function load(obj) {
   }
 }
 load(Contracts.contracts);
+load(Contracts.combinators);
