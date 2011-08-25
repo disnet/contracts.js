@@ -1037,13 +1037,13 @@ var Contracts = (function() {
         }, "Null"),
         Num: combinators.check(function(x) {
             return typeof(x) === "number";
-        }, "Number"),
+        }, "Num"),
         Bool: combinators.check(function(x) {
             return typeof(x) === "boolean";
-        }, "Boolean"),
+        }, "Bool"),
         Str: combinators.check(function(x) {
             return typeof(x) === "string";
-        }, "String"),
+        }, "Str"),
         Odd: combinators.check(function(x) {
             return  (x % 2) === 1;
         }, "Odd"),
@@ -1053,6 +1053,12 @@ var Contracts = (function() {
         Pos: combinators.check(function(x) {
             return x >= 0;
         }, "Pos"),
+        Nat: combinators.check(function(x) {
+            return x > 0;
+        }, "Nat"),
+        Neg: combinators.check(function(x) {
+            return x < 0;
+        }, "Neg"),
         Arr: combinators.object({
             length: combinators.check(function(x) {
                 return typeof(x) === "number";
