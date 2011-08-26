@@ -1065,7 +1065,8 @@ var Contracts = (function() {
             }, "Number")
         }),
         Self: self,
-        Any: any
+        Any: any,
+        None: none
     };
     return {
         combinators: combinators,
