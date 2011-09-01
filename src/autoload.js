@@ -3,7 +3,7 @@ function load(obj) {
   var name;
   for(name in obj) {
     if(obj.hasOwnProperty(name)) {
-      window[name] = obj[name];
+      this[name] = obj[name];
     }
   }
 }
