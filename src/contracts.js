@@ -1,3 +1,10 @@
+/**
+ * contracts.coffee
+ * http://disnetdev.com/contracts.coffee
+ *
+ * Copyright 2011, Tim Disney
+ * Released under the MIT License
+ */
 var Contracts = (function() {
     "use strict";
 
