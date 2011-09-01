@@ -966,8 +966,13 @@ var Contracts = (function() {
         // number (the location in the module where the guard/use occured)
         // stack traces look like: {anonymous}()@file:///Path/to/file.js:4242
         match = /\/([^\/]*):(\d*)$/.exec(guardedAt);
-        filename = match[1];
-        linenum = match[2];
+        if(match) {
+            filename = match[1];
+            linenum = match[2];
+        } else {
+            filename = "unknown"
+            linenum = "-1"
+        }
         return new ModuleName(filename, linenum, isServer);
     };
 
