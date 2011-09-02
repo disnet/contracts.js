@@ -124,19 +124,6 @@ var Contracts = (function() {
         return pOpt;
     }
 
-    function filterStack(st) {
-        var re = /contracts\.js:\d*$/;
-        if (Array.isArray(st)) {
-            return st.filter(function(frame) {
-                if(re.test(frame)) {
-                    return false;
-                }
-                return true;
-            });
-        } else {
-            return st;
-        }
-    };
 
     // Parses out filename and line number. Expects an array where the 0th entry
     // is the file location and line number
@@ -165,7 +152,7 @@ var Contracts = (function() {
         }
 
         err =  new Error(m);
-        st = filterStack(printStackTrace({e : err}));
+        st = printStackTrace({e : err});
         err.cleaned_stacktrace = st;
 
         // pretend the error was thrown at the place in usercode where the violation occured
