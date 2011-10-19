@@ -393,7 +393,7 @@ var Contracts = (function() {
                 return function functionHandler() {
                     var i, res,
                         args = [],
-                        boundArgs, bf, thisc;
+                        boundArgs, bf, thisc, clean_rng;
 
                     if (options && options.checkStack && !(options.checkStack(stack))) {
                         throw new Error("stack checking failed");
@@ -418,7 +418,9 @@ var Contracts = (function() {
 
                     if(typeof rng === "function") {
                         // send the arguments to the dependent range
-                        rng = rng.apply(this, args);
+                        clean_rng = rng.apply(this, args);
+                    } else {
+                        clean_rng = rng;
                     }
 
                     // apply the function and check its result
@@ -428,7 +430,7 @@ var Contracts = (function() {
                         boundArgs = [].concat.apply([null], args);
                         bf = f.bind.apply(f, boundArgs);
                         res = new bf();
-                        res = rng.check(res, pos, neg, parents, stack);
+                        res = clean_rng.check(res, pos, neg, parents, stack);
                     } else {
                         if(options.this) {
                             // blame is reversed
@@ -436,7 +438,7 @@ var Contracts = (function() {
                         } else {
                             thisc = this;
                         }
-                        res = rng.check(f.apply(thisc, args), pos, neg, parents, stack);
+                        res = clean_rng.check(f.apply(thisc, args), pos, neg, parents, stack);
                     }
 
                     // check post condition
