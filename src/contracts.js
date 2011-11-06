@@ -988,12 +988,15 @@ var Contracts = (function() {
             // (ModuleName?) -> any 
             // technically the return is a contracted value but no way to 
             // tell unless the contract is violated
-            use: function(client) {
+            use: function(client, srvr) {
                 // if a client name wasn't provided, guess it from the stacktrace
                 if(!client) {
                     client = getModName(false);
                 } else {
                     client = new ModuleName(client, "", false);
+                }
+                if(srvr) {
+                    server = new ModuleName(srvr, "", false); 
                 }
                 // when the user does a guard(...).use() trick we want to
                 // disambiguate the server from the client a little nicer
