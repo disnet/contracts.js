@@ -515,18 +515,22 @@ var Contracts = (function() {
         return fun(dom, rng, opt);
     };
 
-    function object(objContract, options) {
+    function object(objContract, options, name) {
         options = options || {};
 
         var objName = function(obj) {
-            var props = Object.keys(obj).map(function(propName) {
-                if(obj[propName].cname) {
-                    return propName + " : " + obj[propName].cname;
-                } else {
-                    return propName + " : " + obj[propName].value.cname;
-                }
-            }, this);
-            return "{" + props.join(", ") + "}";
+            if(name === undefined) {
+                var props = Object.keys(obj).map(function(propName) {
+                    if(obj[propName].cname) {
+                        return propName + " : " + obj[propName].cname;
+                    } else {
+                        return propName + " : " + obj[propName].value.cname;
+                    }
+                }, this);
+                return "{" + props.join(", ") + "}";
+            } else {
+                return name;       
+            }
         };
 
 
@@ -797,8 +801,9 @@ var Contracts = (function() {
     // (___(any), () -> Contract) -> Contract
     function arr(ks) {
         // todo might make sens to allow var args along with array arguments
-        var i, rangeContract, rangeIndex, oc = {};
+        var i, rangeContract, rangeIndex, oc = {}, name = "", prefix = "";
         for(i = 0; i < ks.length; i++) {
+            if (i !== 0)  { prefix = ", "; }
             // assuming that the only possible function is ___()
             if(typeof ks[i] === "function") {
                 if(i !== ks.length - 1) {
@@ -806,11 +811,14 @@ var Contracts = (function() {
                 }
                 rangeContract = ks[i]();
                 rangeIndex = i;
+                name += prefix + "..." + rangeContract.cname;
             } else {
                 oc[i] = ks[i];
+                name += prefix + ks[i].cname;
             }
         }
-        return object(oc, {arrayRange: rangeIndex, arrayRangeContract: rangeContract});
+        name = "[" + name + "]";
+        return object(oc, {arrayRange: rangeIndex, arrayRangeContract: rangeContract}, name);
     };
 
     function ___(k) {
