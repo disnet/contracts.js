@@ -5,36 +5,38 @@ http://disnetdev.com/contracts.coffee
 Copyright 2011, Tim Disney
 Released under the MIT License
 ###
-Contracts = (->
+root = global ? this
+
+root.Contracts = (->
   "use strict"
 
   enabled = true
-  unproxy = []
+  up = []
 
   unproxy = (->
     if WeakMap?
       weak = true
-      unproxy = new WeakMap()
+      up = new WeakMap()
     else
       weak = false
-      unproxy = []
+      up = []
 
     set: (p, c) ->
       if weak
-        unproxy.set p, c
+        up.set p, c
       else
-        unproxy.push
+        up.push
           proxy: p
           contract: c
 
     get: (p) ->
       if weak
         if (p isnt null) and typeof p is "object" or typeof p is "function"
-          unproxy.get p
+          up.get p
         else
           undefined
       else
-        pc = unproxy.filter (el) ->
+        pc = up.filter (el) ->
           p is el.proxy
         throw "assumption failed: unproxy object stores multiple unique proxies"  if pc.length > 1
         if pc.length is 1
@@ -684,8 +686,7 @@ Contracts = (->
           return @flats[i].check(val, pos, neg, parents)
         catch e
           lastBlame = e
-          continue
-        i++
+          i++
 
       if ho.length is 1
         @ho[0].check val, pos, neg, parents

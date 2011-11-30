@@ -1,9 +1,10 @@
 // load all the contract identifiers into the global scope
 function load(obj) {
-  var name;
+  var name, root;
+  root = typeof global !== "undefined" && global !== null ? global : this;
   for(name in obj) {
     if(obj.hasOwnProperty(name)) {
-      this[name] = obj[name];
+      root[name] = obj[name];
     }
   }
 }
