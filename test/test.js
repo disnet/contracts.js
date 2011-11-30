@@ -30,8 +30,8 @@ test("checking id", function() {
 });
 
 test("names of contracts", function() {
-    equal(Str.cname, "String");
-    equal(Num.cname, "Number");
+    equal(Str.cname, "Str");
+    equal(Num.cname, "Num");
     // todo: fix
     // equal(M.idObj.id.__cname, "Number -> Number");
 });
