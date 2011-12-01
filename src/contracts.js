@@ -1,65 +1,73 @@
+(function() {
 
-/*
-contracts.coffee
-http://disnetdev.com/contracts.coffee
-
-Copyright 2011, Tim Disney
-Released under the MIT License
-*/
-
-var root;
-
-root = typeof global !== "undefined" && global !== null ? global : this;
-
-root.Contracts = (function() {
   "use strict";
-  var Contract, ModuleName, Utils, and_, any, arr, blame, blameM, check, checkOptions, combinators, contracts, ctor, ctorSafe, enabled, findCallsite, fun, getModName, guard, idHandler, none, not_, object, opt, or_, self, unproxy, up, ___, _blame;
+
+  /*
+  contracts.coffee
+  http://disnetdev.com/contracts.coffee
+  
+  Copyright 2011, Tim Disney
+  Released under the MIT License
+  */
+
+  var Contract, ModuleName, Unproxy, Utils, and_, any, arr, blame, blameM, check, checkOptions, combinators, contracts, ctor, ctorSafe, enabled, findCallsite, fun, getModName, guard, idHandler, none, not_, object, opt, or_, root, self, unproxy, ___, _blame;
+
+  root = typeof global !== "undefined" && global !== null ? global : this;
+
   enabled = true;
-  up = [];
-  unproxy = (function() {
-    var weak;
-    if (typeof WeakMap !== "undefined" && WeakMap !== null) {
-      weak = true;
-      up = new WeakMap();
-    } else {
-      weak = false;
-      up = [];
+
+  Unproxy = (function() {
+
+    function Unproxy() {
+      if (typeof WeakMap !== "undefined" && WeakMap !== null) {
+        this.hasWeak = true;
+        this.unproxy = new WeakMap();
+      } else {
+        this.hasWeak = false;
+        this.unproxy = [];
+      }
     }
-    return {
-      set: function(p, c) {
-        if (weak) {
-          return up.set(p, c);
+
+    Unproxy.prototype.set = function(p, c) {
+      if (this.hasWeak) {
+        return this.unproxy.set(p, c);
+      } else {
+        return this.unproxy.push({
+          proxy: p,
+          contract: c
+        });
+      }
+    };
+
+    Unproxy.prototype.get = function(p) {
+      var pc;
+      if (this.hasWeak) {
+        if ((p !== null) && typeof p === "object" || typeof p === "function") {
+          return this.unproxy.get(p);
         } else {
-          return up.push({
-            proxy: p,
-            contract: c
-          });
+          return;
         }
-      },
-      get: function(p) {
-        var pc;
-        if (weak) {
-          if ((p !== null) && typeof p === "object" || typeof p === "function") {
-            return up.get(p);
-          } else {
-            return;
-          }
+      } else {
+        pc = this.unproxy.filter(function(el) {
+          return p === el.proxy;
+        });
+        if (pc.length > 1) {
+          throw "assumption failed: unproxy object stores multiple unique proxies";
+        }
+        if (pc.length === 1) {
+          return pc[0];
         } else {
-          pc = up.filter(function(el) {
-            return p === el.proxy;
-          });
-          if (pc.length > 1) {
-            throw "assumption failed: unproxy object stores multiple unique proxies";
-          }
-          if (pc.length === 1) {
-            return pc[0];
-          } else {
-            return;
-          }
+          return;
         }
       }
     };
+
+    return Unproxy;
+
   })();
+
+  unproxy = new Unproxy();
+
   Utils = {
     getPropertyDescriptor: function(obj, prop) {
       var desc, o;
@@ -115,6 +123,7 @@ root.Contracts = (function() {
       return ret;
     }
   };
+
   checkOptions = function(a, b) {
     var name, pOpt;
     pOpt = true;
@@ -130,6 +139,7 @@ root.Contracts = (function() {
     }
     return pOpt;
   };
+
   findCallsite = function(trace) {
     var match, re, t;
     t = trace[0];
@@ -141,6 +151,7 @@ root.Contracts = (function() {
       return null;
     }
   };
+
   _blame = function(toblame, other, msg, parents) {
     var callsite, err, m, ps, server, st;
     ps = parents.slice(0);
@@ -159,15 +170,18 @@ root.Contracts = (function() {
     }
     throw err;
   };
+
   blame = function(toblame, other, contract, value, parents) {
     var cname, msg;
     cname = contract.cname || contract;
     msg = "expected <" + cname + ">" + ", actual: " + (typeof value === "string" ? "\"" + value + "\"" : value);
     throw _blame(toblame, other, msg, parents);
   };
+
   blameM = function(toblame, other, msg, parents) {
     return _blame(toblame, other, msg, parents);
   };
+
   idHandler = function(obj) {
     return {
       getOwnPropertyDescriptor: function(name) {
@@ -229,14 +243,17 @@ root.Contracts = (function() {
       }
     };
   };
-  Contract = function(cname, ctype, handler) {
-    this.handler = handler;
-    this.cname = cname;
-    this.ctype = ctype;
-    return this.parent = null;
-  };
-  Contract.prototype = {
-    check: check = function(val, pos, neg, parentKs, stack) {
+
+  Contract = (function() {
+
+    function Contract(cname, ctype, handler) {
+      this.cname = cname;
+      this.ctype = ctype;
+      this.handler = handler;
+      this.parent = null;
+    }
+
+    Contract.prototype.check = function(val, pos, neg, parentKs, stack) {
       var c;
       c = unproxy.get(val);
       if (c && c.equals(this)) {
@@ -245,30 +262,47 @@ root.Contracts = (function() {
       } else {
         return this.handler(val, pos, neg, parentKs, stack);
       }
-    },
-    toContract: function() {
+    };
+
+    Contract.prototype.toContract = function() {
       return this;
-    },
-    toString: function() {
+    };
+
+    Contract.prototype.toString = function() {
       return this.cname;
-    },
-    equals: function(other) {
+    };
+
+    Contract.prototype.equals = function(other) {
       throw "Equality checking must be overridden";
+    };
+
+    return Contract;
+
+  })();
+
+  ModuleName = (function() {
+    var toString;
+
+    function ModuleName(filename, linenum, isServer) {
+      this.filename = filename;
+      this.linenum = linenum;
+      this.isServer = isServer;
     }
-  };
-  ModuleName = function(filename, linenum, isServer) {
-    this.filename = filename;
-    this.linenum = linenum;
-    return this.isServer = isServer;
-  };
-  ModuleName.prototype.toString = function() {
-    return this.filename + (this.linenum === "" ? "" : ":" + this.linenum);
-  };
+
+    toString = function() {
+      return this.filename + (this.linenum === "" ? "" : ":" + this.linenum);
+    };
+
+    return ModuleName;
+
+  })();
+
   Function.prototype.toContract = function() {
     var name;
     name = "<user defined: " + this.toString() + ">";
     return check(this, name);
   };
+
   check = function(p, name) {
     var c;
     c = new Contract(name, "check", function(val, pos, neg, parentKs, stack) {
@@ -283,6 +317,7 @@ root.Contracts = (function() {
     };
     return c;
   };
+
   fun = function(dom, rng, options) {
     var c, callOnly, calldom, callrng, cleanDom, contractName, domName, newOnly, newdom, newrng, optionsName;
     cleanDom = function(dom) {
@@ -332,12 +367,12 @@ root.Contracts = (function() {
       if (typeof f !== "function") blame(pos, neg, this, f, parents);
       parents.push(that);
       /*
-            options:
-              isNew: Bool   - make a constructor handler (to be called with new)
-              newSafe: Bool - make call handler that adds a call to new
-              pre: ({} -> Bool) - function to check preconditions
-              post: ({} -> Bool) - function to check postconditions
-              this: {...} - object contract to check 'this'
+          options:
+            isNew: Bool   - make a constructor handler (to be called with new)
+            newSafe: Bool - make call handler that adds a call to new
+            pre: ({} -> Bool) - function to check preconditions
+            post: ({} -> Bool) - function to check postconditions
+            this: {...} - object contract to check 'this'
       */
       makeHandler = function(dom, rng, options) {
         var functionHandler;
@@ -420,6 +455,7 @@ root.Contracts = (function() {
     };
     return c;
   };
+
   ctor = function(dom, rng, options) {
     var opt;
     opt = Utils.merge(options, {
@@ -427,6 +463,7 @@ root.Contracts = (function() {
     });
     return fun(dom, rng, opt);
   };
+
   ctorSafe = function(dom, rng, options) {
     var opt;
     opt = Utils.merge(options, {
@@ -434,6 +471,7 @@ root.Contracts = (function() {
     });
     return fun(dom, rng, opt);
   };
+
   object = function(objContract, options, name) {
     var c, objName, setSelfContracts;
     if (options == null) options = {};
@@ -663,6 +701,7 @@ root.Contracts = (function() {
     };
     return c;
   };
+
   arr = function(ks) {
     var i, name, oc, prefix, rangeContract, rangeIndex;
     oc = {};
@@ -690,11 +729,13 @@ root.Contracts = (function() {
       arrayRangeContract: rangeContract
     }, name);
   };
+
   ___ = function(k) {
     return function() {
       return k;
     };
   };
+
   or_ = function() {
     var c, flats, ho, ks, name;
     ks = [].slice.call(arguments);
@@ -740,6 +781,7 @@ root.Contracts = (function() {
     };
     return c;
   };
+
   and_ = function(k1, k2) {
     var c;
     c = new Contract("" + k1.cname + " and " + k2.cname, "and", function(val, pos, neg, parentKs) {
@@ -755,6 +797,7 @@ root.Contracts = (function() {
     };
     return c;
   };
+
   not_ = function(k) {
     var c;
     if (k.ctype === "fun" || k.ctype === "object") {
@@ -776,6 +819,7 @@ root.Contracts = (function() {
     };
     return c;
   };
+
   opt = function(k) {
     var c;
     c = new Contract("opt(" + k.cname + ")", "opt", function(val, pos, neg, parentKs) {
@@ -792,6 +836,7 @@ root.Contracts = (function() {
     };
     return c;
   };
+
   getModName = function(isServer) {
     var filename, guardedAt, linenum, match, st;
     st = printStackTrace({
@@ -808,6 +853,7 @@ root.Contracts = (function() {
     }
     return new ModuleName(filename, linenum, isServer);
   };
+
   guard = function(k, x, server, setup) {
     var stack;
     stack = [];
@@ -837,6 +883,7 @@ root.Contracts = (function() {
       }
     };
   };
+
   any = (function() {
     var c;
     c = new Contract("any", "any", function(val) {
@@ -847,6 +894,7 @@ root.Contracts = (function() {
     };
     return c;
   })();
+
   self = (function() {
     var c;
     c = new Contract("self", "self", function(val) {
@@ -857,6 +905,7 @@ root.Contracts = (function() {
     };
     return c;
   })();
+
   none = (function() {
     var c;
     c = new Contract("none", "none", function(val, pos, neg, parentKs) {
@@ -867,6 +916,7 @@ root.Contracts = (function() {
     };
     return c;
   })();
+
   combinators = {
     check: check,
     fun: fun,
@@ -883,51 +933,54 @@ root.Contracts = (function() {
     opt: opt,
     guard: guard
   };
+
   contracts = {
-    Undefined: combinators.check(function(x) {
+    Undefined: combinators.check((function(x) {
       return void 0 === x;
-    }, "Undefined"),
-    Null: combinators.check(function(x) {
+    }), "Undefined"),
+    Null: combinators.check((function(x) {
       return null === x;
-    }, "Null"),
-    Num: combinators.check(function(x) {
+    }), "Null"),
+    Num: combinators.check((function(x) {
       return typeof x === "number";
-    }, "Num"),
-    Bool: combinators.check(function(x) {
+    }), "Num"),
+    Bool: combinators.check((function(x) {
       return typeof x === "boolean";
-    }, "Bool"),
-    Str: combinators.check(function(x) {
+    }), "Bool"),
+    Str: combinators.check((function(x) {
       return typeof x === "string";
-    }, "Str"),
-    Odd: combinators.check(function(x) {
+    }), "Str"),
+    Odd: combinators.check((function(x) {
       return (x % 2) === 1;
-    }, "Odd"),
-    Even: combinators.check(function(x) {
+    }), "Odd"),
+    Even: combinators.check((function(x) {
       return (x % 2) !== 1;
-    }, "Even"),
-    Pos: combinators.check(function(x) {
+    }), "Even"),
+    Pos: combinators.check((function(x) {
       return x >= 0;
-    }, "Pos"),
-    Nat: combinators.check(function(x) {
+    }), "Pos"),
+    Nat: combinators.check((function(x) {
       return x > 0;
-    }, "Nat"),
-    Neg: combinators.check(function(x) {
+    }), "Nat"),
+    Neg: combinators.check((function(x) {
       return x < 0;
-    }, "Neg"),
+    }), "Neg"),
     Arr: combinators.object({
-      length: combinators.check(function(x) {
+      length: combinators.check((function(x) {
         return typeof x === "number";
-      }, "Number")
+      }), "Number")
     }),
     Self: self,
     Any: any,
     None: none
   };
-  return {
+
+  root.Contracts = {
     combinators: combinators,
     contracts: contracts,
     enabled: function(b) {
       return enabled = b;
     }
   };
-})();
+
+}).call(this);
