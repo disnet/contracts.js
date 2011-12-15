@@ -820,17 +820,17 @@ none = (->
 )()
 
 # contracts
-root.Undefined =  combinators.check ((x) -> undefined is x), "Undefined"
-root.Null      =  combinators.check ((x) -> null is x), "Null"
-root.Num       =  combinators.check ((x) -> typeof (x) is "number"), "Num"
-root.Bool      =  combinators.check ((x) -> typeof (x) is "boolean"), "Bool"
-root.Str       =  combinators.check ((x) -> typeof (x) is "string"), "Str"
-root.Odd       =  combinators.check ((x) -> (x % 2) is 1), "Odd"
-root.Even      =  combinators.check ((x) -> (x % 2) isnt 1), "Even"
-root.Pos       =  combinators.check ((x) -> x >= 0), "Pos"
-root.Nat       =  combinators.check ((x) -> x > 0), "Nat"
-root.Neg       =  combinators.check ((x) -> x < 0), "Neg"
-root.Arr       =  combinators.object(length: combinators.check ((x) -> typeof (x) is "number"), "Number")
+root.Undefined =  check ((x) -> undefined is x), "Undefined"
+root.Null      =  check ((x) -> null is x), "Null"
+root.Num       =  check ((x) -> typeof (x) is "number"), "Num"
+root.Bool      =  check ((x) -> typeof (x) is "boolean"), "Bool"
+root.Str       =  check ((x) -> typeof (x) is "string"), "Str"
+root.Odd       =  check ((x) -> (x % 2) is 1), "Odd"
+root.Even      =  check ((x) -> (x % 2) isnt 1), "Even"
+root.Pos       =  check ((x) -> x >= 0), "Pos"
+root.Nat       =  check ((x) -> x > 0), "Nat"
+root.Neg       =  check ((x) -> x < 0), "Neg"
+root.Arr       =  object(length: check ((x) -> typeof (x) is "number"), "Number")
 root.Self      =  self
 root.Any       =  any
 root.None      =  none
