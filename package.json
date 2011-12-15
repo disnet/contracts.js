@@ -1,0 +1,23 @@
+{
+  "name":         "contracts.js",
+  "description":  "A contract library for JavaScript",
+  "keywords":     ["javascript", "contracts"],
+  "author":       "Tim Disney",
+  "version":      "0.1.0",
+  "licenses":     [{
+    "type":       "MIT",
+    "url":        "https://raw.github.com/disnet/contracts.js/master/LICENSE"
+  }],
+  "engines":      {
+    "node":       "0.5.x"
+  },
+  "main": "./lib/contracts.js",
+  "directories" : {
+    "lib" : "./lib"
+  },
+  "homepage":     "http://disnetdev.com/contracts.js/",
+  "repository":   {
+    "type": "git",
+    "url": "git://github.com/disnet/contracts.js.git"
+  }
+}
