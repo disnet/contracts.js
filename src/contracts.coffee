@@ -335,9 +335,9 @@ fun = (dom, rng, options) ->
           res = new bf()
           res = clean_rng.check(res, pos, neg, parents, stack)
         else
-          if options["this"]
+          if options.this
             # blame is reversed
-            thisc = options["this"].check(this, neg, pos, parents, stack)
+            thisc = options.this.check(this, neg, pos, parents, stack)
           else
             thisc = this
           res = clean_rng.check(f.apply(thisc, args), pos, neg, parents, stack)
@@ -851,7 +851,7 @@ root.opt       =  opt
 root.guard     =  guard
 root.enabled   =  (b) -> enabled = b
 # puts every exported function onto the global scope
-root.autoload  = (obj) ->
+root.autoload  = ->
   globalObj = window ? global # browser or node
   globalObj[name] = root[name] for own name of root
   return

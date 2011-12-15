@@ -1,16 +1,5 @@
-var C = Contracts.combinators, 
-    K = Contracts.contracts; 
+Contracts.autoload();
 
-function load(obj) {
-    var name;
-    for(name in obj) {
-        if(obj.hasOwnProperty(name)) {
-            window[name] = obj[name];
-        }
-    }
-}
-load(Contracts.combinators);
-load(Contracts.contracts);
 var server = "server";
 var client = "client";
 
