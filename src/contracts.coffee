@@ -6,9 +6,10 @@ http://disnetdev.com/contracts.coffee
 Copyright 2011, Tim Disney
 Released under the MIT License
 ###
-root = global ? this
+root = exports ? this.Contracts = {}
 
 enabled = true
+
 
 class Unproxy
   constructor: ->
@@ -818,40 +819,43 @@ none = (->
   c
 )()
 
-combinators =
-  check: check
-  fun: fun
-  ctor: ctor
-  ctorSafe: ctorSafe
-  object: object
-  arr: arr
-  ___: ___
-  any: any
-  'or': or_
-  none: none
-  'not': not_
-  'and': and_
-  opt: opt
-  guard: guard
+# contracts
+root.Undefined =  combinators.check ((x) -> undefined is x), "Undefined"
+root.Null      =  combinators.check ((x) -> null is x), "Null"
+root.Num       =  combinators.check ((x) -> typeof (x) is "number"), "Num"
+root.Bool      =  combinators.check ((x) -> typeof (x) is "boolean"), "Bool"
+root.Str       =  combinators.check ((x) -> typeof (x) is "string"), "Str"
+root.Odd       =  combinators.check ((x) -> (x % 2) is 1), "Odd"
+root.Even      =  combinators.check ((x) -> (x % 2) isnt 1), "Even"
+root.Pos       =  combinators.check ((x) -> x >= 0), "Pos"
+root.Nat       =  combinators.check ((x) -> x > 0), "Nat"
+root.Neg       =  combinators.check ((x) -> x < 0), "Neg"
+root.Arr       =  combinators.object(length: combinators.check ((x) -> typeof (x) is "number"), "Number")
+root.Self      =  self
+root.Any       =  any
+root.None      =  none
+# combinators
+root.check     =  check
+root.fun       =  fun
+root.ctor      =  ctor
+root.ctorSafe  =  ctorSafe
+root.object    =  object
+root.arr       =  arr
+root.___       =  ___
+root.any       =  any
+root.or        =  or_
+root.none      =  none
+root.not       =  not_
+root.and       =  and_
+root.opt       =  opt
+root.guard     =  guard
+root.enabled   =  (b) -> enabled = b
+# puts every exported function onto the global scope
+root.autoload  = (obj) ->
+  globalObj = window ? global # browser or node
+  globalObj[name] = root[name] for own name of root
+  return
+    
 
-contracts =
-  Undefined: combinators.check ((x) -> undefined is x), "Undefined"
-  Null: combinators.check ((x) -> null is x), "Null"
-  Num: combinators.check ((x) -> typeof (x) is "number"), "Num"
-  Bool: combinators.check ((x) -> typeof (x) is "boolean"), "Bool"
-  Str: combinators.check ((x) -> typeof (x) is "string"), "Str"
-  Odd: combinators.check ((x) -> (x % 2) is 1), "Odd"
-  Even: combinators.check ((x) -> (x % 2) isnt 1), "Even"
-  Pos: combinators.check ((x) -> x >= 0), "Pos"
-  Nat: combinators.check ((x) -> x > 0), "Nat"
-  Neg: combinators.check ((x) -> x < 0), "Neg"
-  Arr: combinators.object(length: combinators.check ((x) -> typeof (x) is "number"), "Number")
-  Self: self
-  Any: any
-  None: none
 
-root.Contracts = 
-  combinators: combinators
-  contracts: contracts
-  enabled: (b) ->
-    enabled = b
+
