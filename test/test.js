@@ -10,7 +10,7 @@ module("Basic Contracts");
 test("checking id", function() {
     var id = guard(
         fun(Num, Num),
-        function(x) { return x; }).use();
+        function(x) { return x; });
 
     ok(id(3));
     raises(function() { id("foo"); });
@@ -31,13 +31,13 @@ test("multiple args for function contracts", function() {
     var f3 = function(a, b, c) { return c; };
     var f1c = guard(
         fun([Num, Str, Bool], Num),
-        f1).use();
+        f1);
     var f2c = guard(
         fun([Num, Str, Bool], Str),
-        f2).use();
+        f2);
     var f3c = guard(
         fun([Num, Str, Bool], Str),
-        f3).use();
+        f3);
 
     equal(f1c(1, "foo", false), 2);
     equal(f2c(1, "foo", false), "foofoo");
@@ -49,7 +49,7 @@ test("multiple args for function contracts", function() {
 test("optional args for functions", function() {
     var f = guard(
         fun([Num, opt(Str)], Num),
-        function(x, y) { return x; }).use();
+        function(x, y) { return x; });
 
     ok(f(42), "the one arg works");
     ok(f(42, "hello"), "can use the optional arg");
@@ -57,7 +57,7 @@ test("optional args for functions", function() {
 
     raises(function() {
         guard(fun([Num, opt(Str), Bool], Num),
-              function(x) { return x; }).use();
+              function(x) { return x; });
     }, "cannot guard with a required arg after an optional arg");
 });
 
@@ -65,33 +65,33 @@ test("higher order functions", function() {
     var id = function(x) { return x; };
     var pred = guard(
         fun([fun(Bool, Bool), Bool], Bool),
-        function(p, x) { return p(x); }).use();
+        function(p, x) { return p(x); });
 
     ok(pred(id, true), "higher order works");
     raises(function () { pred(id, 42); }, "client broke contract");
 
     var pred_client_ho = guard(
         fun([fun(Bool, Str), Bool], Bool),
-        function(p, x) { return p(x); }).use();
+        function(p, x) { return p(x); });
     raises(function () { pred_client_ho(id, true); }, "client broke contract");
     raises(function () { pred_client_ho(function(x) { return "foo"; }, true); }, "server broke contract");
 
     var pred_server_ho = guard(
         fun([fun(Str, Bool), Bool], Bool),
-        function(p, x) { return p(x); }).use();
+        function(p, x) { return p(x); });
     raises(function () { pred_server_ho(id, true); }, "server broke contract");
 });
 
 test("dependent functions", function() {
     var id = guard(
         fun(Str, function(arg) { return check(function(r) { return arg === r; }, "id===id"); }),
-        function(x) { return x; }).use();
+        function(x) { return x; });
 
     ok(id("foo"), "id really is id");
 
     var not_id = guard(
         fun(Str, function(arg) { return check(function(r) { return arg === r; }, "id===id"); }),
-        function(x) { return x + "foo"; }).use();
+        function(x) { return x + "foo"; });
     raises(function() { not_id("foo"); }, "violates dependent contract");
 });
 
@@ -99,7 +99,7 @@ test("dependent functions", function() {
 test("basic functions", function() {
     // some of this is duped from above
     var id = function(x) { return x; };
-    var idc = guard(fun(Num, Num), id).use();
+    var idc = guard(fun(Num, Num), id);
     same(idc(4), 4,
          "id obeys contract");
     raises(function() { idc("foo"); },
@@ -108,7 +108,7 @@ test("basic functions", function() {
 
     var id_nonew = guard(
         fun(Num, Num, {callOnly: true}),
-        id).use();
+        id);
     same(id_nonew(4), 4,
          "nonew obeys contract");
     raises(function() { new id_nonew(4); },
@@ -124,7 +124,7 @@ test("basic functions", function() {
 test("constructor contracts", function() {
     var good_ctor = guard(
         ctor(Str, object({a: Str, b: Num})),
-        function(s) { this.a = s; this.b = 42; }).use();
+        function(s) { this.a = s; this.b = 42; });
     raises(function() { good_ctor("foo"); },
            "onlynew obeys contract but not called with new");
     ok(new good_ctor("foo"),
@@ -132,11 +132,11 @@ test("constructor contracts", function() {
 
     var bad_ctor = guard(
         ctor(Num, object({a: Str, b: Num})),
-        function(s) { this.a = 42; this.b = s; }).use();
+        function(s) { this.a = 42; this.b = s; });
     raises(function() { new bad_ctor("foo"); } );
     var safe_ctor = guard(
         ctorSafe(Str, object({a: Str, b:Num})),
-        function(s) { this.a = s; this.b = 42; }).use();
+        function(s) { this.a = s; this.b = 42; });
     ok(new safe_ctor("foo"), "can call with new");
     ok((new safe_ctor("foo")).a, "can call with new and get prop");
     ok(safe_ctor("foo"), "can call without new");
@@ -157,7 +157,7 @@ test("call/new have different contracts", function() {
                 this.b = 42;
             }
             return this;
-        }).use();
+        });
     same(ctor_call(222).b, 222, "calling works for combined ctor/call");
     raises(function() { ctor_call("hello"); }, "broken contract for calling in combined ctor/call");
     same(new ctor_call("hello").a, "hello", "new works for combined ctor/call");
@@ -168,7 +168,7 @@ test("this contract on functions", function() {
     var f = guard(
         fun(Str, Str,
             { this: object({ a: Str, b: Num })}),
-        function(s) { return this.a + this.b; }).use();
+        function(s) { return this.a + this.b; });
 
     o = {a: "foo", b: 42, fun: f};
     same(o.fun("foo"), "foo42", "obeys contract");
@@ -184,7 +184,7 @@ test("can contract for both function + objects properties", function() {
         and(
             fun(Str, Str),
             object({ length: Str })),
-        id).use();
+        id);
     raises(function() { idc(4) === 4; });
     raises(function() { idc.length; });
 });
@@ -236,48 +236,48 @@ test("checking sealed/frozen objects", function() {
     var o = Object.seal({x:3});
     ok(guard(
         object({ x: Num }, {sealed: true}),
-        o).use(),
+        o),
        "can contract sealed object");
 
     raises(function() { guard(
         object({ x: Num }, {sealed: true}),
-        {x:3}).use();
+        {x:3});
     }, "object is not sealed");
 
     ok(guard(
         object({ x: Num }, {sealed: false}),
-        {x:3}).use(),
+        {x:3}),
        "object is not sealed");
 
     raises(function() { guard(
         object({ x: Num }, {sealed: false}),
-        o).use(); 
+        o); 
     }, "object is sealed");
 
     o = Object.freeze({x:3});
     ok(guard(
         object({ x: Num }, {frozen: true}),
-        o).use(),
+        o),
        "can contract frozen object");
 
     raises(function() { guard(
         object({ x: Num }, {frozen: true}),
-        {x:3}).use();
+        {x:3});
     }, "object is not frozen");
 
     ok(guard(
         object({ x: Num }, {frozen: false}),
-        {x:3}).use(),
+        {x:3}),
        "object is not frozen");
 
     raises(function() { guard(
         object({ x: Num }, {frozen: false}),
-        o).use()
+        o)
     }, "object is frozen");
 
     var fr = guard(
         object({ x: Num }, {frozen: true}),
-        o).use();
+        o);
         
     same(fr.x, 3, "can read frozen object");
     raises(function() { Object.defineProperty(fr, "y", {value: 42}); }, "adding property to frozen obj");
@@ -286,22 +286,22 @@ test("checking sealed/frozen objects", function() {
 
     raises(function() { guard(
         object({ x: Num }, {extesible: false}),
-        {}).use()
+        {})
     }, "object is not extensible");
     var noex = guard(
         object({ x: Num }, {extesible: false}),
-        Object.preventExtensions(o)).use();
+        Object.preventExtensions(o));
     raises(function() { noex.foo = 42; }, "can't set new property on non-extensible object");
 });
 
 test("object with optional properties", function() {
     raises(function() { guard(
         object({ a: opt(Num), b: Str }),
-        {a: 42}).use();
+        {a: 42});
     }, "missing required property");
     ok(guard(
         object({ a: opt(Num), b: Str }),
-        {b: "foo"}).use(),
+        {b: "foo"}),
        "missing optional property");
 
 });
@@ -319,7 +319,7 @@ test("property descriptors on an object's properties", function() {
             c: {value: opt(Bool), configurable: false},
             d: {value: Num, enumerable: false}
         }),
-        o).use(),
+        o),
        "all prop descriptors match the contract");
     o = {};
     Object.defineProperty(o, "a", { value: 42, writable: true });
@@ -333,7 +333,7 @@ test("property descriptors on an object's properties", function() {
             c: {value: opt(Bool), configurable: false},
             d: {value: Num, enumerable: false}
         }),
-        o).use();
+        o);
     }, "all prop descriptors match the contract");
 });
 
@@ -352,7 +352,7 @@ test("recursive object", function() {
                 s: Self
             })
         }),
-        o).use();
+        o);
 
     same(o.a, 42, "abides by contract");
     same(o.b.a, 42, "abides by contract");
@@ -380,7 +380,7 @@ test("objects with pre/post conditions", function() {
                 }
             })
         }),
-        withPre).use();
+        withPre);
     raises(function() { withPreC.dec(); }, "doesn't pass precondition");
     withPreC.x = 1;
     raises(function() { withPreC.dec(); }, "doesn't pass postcondition");
@@ -394,13 +394,13 @@ test("checking prototypes", function() {
     equals(A.a(), "foo");
     equals(A.b, 42);
 
-    var AC = guard(object({a: fun(any, Str), b: Num}), A).use();
+    var AC = guard(object({a: fun(any, Str), b: Num}), A);
     equals(AC.a(), "foo");
     equals(AC.b, 42);
     raises(function() { AC.b = "42"; }, "contract doesn't allow a string to flow to b");
     equals(AC.b, 42, "b was not changed in previous test");
 
-    var ABadC = guard(object({a: fun(any, Num), b: Str}), A).use();
+    var ABadC = guard(object({a: fun(any, Num), b: Str}), A);
     raises(function() { ABadC.a(); }, "contract says number but function give string");
     raises(function() { ABadC.b; }, "contract doesn't match value stored in b");
 
@@ -420,13 +420,13 @@ test("checking prototypes", function() {
 
     var BGoodAttemptC = guard(
         object({a: fun(any, Str), b: Num}),
-        BBadC).use();
+        BBadC);
     raises(function() { BGoodAttemptC.a(); }, "contract on prototype still says there is a problem");
     BBadC.a = function() { return "bar"; };
     equals(BBadC.a(), "bar", "ok now we are shadowning bad contract");
 
     var B_has_C_not_A = guard(object({a: fun(any, Str), b: Str}),
-                                Object.create(A)).use();
+                                Object.create(A));
     raises(function() { B_has_C_not_A.b; }, "blame even though contract is on object but prop is on proto");
 });
 
@@ -434,18 +434,18 @@ test("checking prototypes", function() {
 test("basic arrays", function() {
     var ar = guard(
         arr([Str, Bool]),
-        ["foo", false]).use();
+        ["foo", false]);
     same(ar[0], "foo", "tupel form of array");
     same(ar[1], false, "tupel form of array");
     ar = guard(
         arr([Str, Bool]),
-        [false, "foo", 42]).use();
+        [false, "foo", 42]);
     raises(function() { ar[0]; }, "brakes tuple form");
     raises(function() { ar[1]; }, "brakes tuple form");
     ok(ar[2], "not covered by contract");
     ar = guard(
         arr([___(Bool)]),
-        [true, "foo", true, false, true]).use();
+        [true, "foo", true, false, true]);
     ok(ar[2], "arbitrary number of bools ___(Bool)");
     ok(ar[4], "arbitrary number of bools ___(Bool)");
     raises(function() { ar[1]; }, "element doesn't match ___(Bool) contract");
@@ -453,7 +453,7 @@ test("basic arrays", function() {
 
     ar = guard(
         arr([Str, Num, ___(Bool)]),
-        [false, 42, true, false, true]).use();
+        [false, 42, true, false, true]);
     ok(ar[1], "arbitrary number of bools ___(Bool)");
     ok(ar[4], "arbitrary number of bools ___(Bool)");
     raises(function() { ar[0]; }, "element doesn't match ___(Bool) contract");
@@ -471,7 +471,7 @@ test("basic temporal contracts", function() {
         fun([NumC], NumC, {checkStack: function(stack) { return stack[0][0]; }}),
         function(x) { return x + 1; },
         false, 
-        function(stack) { stack.push(on); }).use();
+        function(stack) { stack.push(on); });
 
     same(incC(42), 43, "works when membrane is on");
     on[0] = false;
@@ -489,10 +489,10 @@ test("temporal contracts can do dependency", function() {
         }),
         incC = guard(
             fun([NumArg], NumRng),
-            function(x) { return x + 1; }).use(),
+            function(x) { return x + 1; }),
         incBadC = guard(
             fun([NumArg], NumRng),
-            function(x) { return x - 1; }).use();
+            function(x) { return x - 1; });
 
     same(incC(42), 43, "abides by contract");
     raises(function() { incBadC(42); }, "violates contract");
@@ -511,7 +511,7 @@ test("a basic temporal contract forbidding calling after return", function() {
             })), 
         function(cmp, x) { stolen_ref = cmp; return cmp(x); },
         false,
-        function(stack) { stack.push(true); }).use();
+        function(stack) { stack.push(true); });
 
     same(apply(function(x) { return x > 0; }, 42), true);
     raises(function() { stolen_ref(42); }, "attempted to call function after return");
@@ -522,13 +522,13 @@ test("can disable contract checking", function() {
     var id = guard(
         fun(Num, Num),
         function(x) { return x; }
-    ).use();
+    );
     same(id("foo"), "foo", "violates contract but ok since they are disabled");
     Contracts.enabled(true);
     id = guard(
         fun(Num, Num),
         function(x) { return x; }
-    ).use();
+    );
     raises(function() { id("foo"); }, "violates contract and now raises blame");
 });
 
@@ -587,4 +587,20 @@ test("contract equality", function() {
     ok(!o1.equals(o2), "different objects missing function props");
 
     ok(!c1.equals(o1), "different contracts completely");
+});
+
+test("exports object", function() {
+    var id, myid, exports, require;
+    exports = Contracts.makeContractsExports("id_provider");
+
+    id = guard(
+        fun(Num, Num),
+        function(x) { return x; }
+    );
+
+    exports.id = id;
+
+    myid = Contracts.use(exports, "id_consumer");
+    // should blame id_consumer
+    raises(function() { myid.id("foo"); });
 });

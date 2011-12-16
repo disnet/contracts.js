@@ -10,6 +10,10 @@ root = exports ? this.Contracts = {}
 
 enabled = true
 
+# contract_orig_map :: 
+#   set: (Any, OrigMap) -> Undefined
+#   get: (Any) -> OrigMap
+contract_orig_map = new WeakMap();
 
 class Unproxy
   constructor: ->
@@ -217,7 +221,7 @@ class Contract
 
 class ModuleName 
   constructor: (@filename, @linenum, @isServer) ->
-  toString = -> @filename + (if @linenum is "" then "" else (":" + @linenum))
+  toString: -> @filename + (if @linenum is "" then "" else (":" + @linenum))
 
 Function::toContract = ->
   name = "<user defined: " + @toString() + ">"
@@ -766,31 +770,23 @@ getModName = (isServer) ->
 guard = (k, x, server, setup) ->
   stack = []
   setup stack  if typeof setup is "function"
-  unless server
+  unless server?
     # if a server wasn't provied, guess if from the stacktrace
     server = getModName(true)
   else
     server = new ModuleName(server, "", true)
 
-  # (ModuleName?) -> any 
-  # technically the return is a contracted value but no way to 
-  # tell unless the contract is violated
-  use: (client, srvr) ->
-    if not client
-      client = getModName(false)
-    else
-      client = new ModuleName(client, "", false)
+  client = new ModuleName server.filename, "#{server.linenum} (caller)", false
+  server.linenum = "#{server.linenum} (value)"
 
-    server = new ModuleName(srvr, "", false)  if srvr
+  # unless k is just a first-order contract, c will be a proxy
+  c = k.check x, server, client, [], stack
+  
+  # in the future we can get back the uncontracted value and contract if
+  # given the contracted value (for use in module wrangling)
+  contract_orig_map.set c, {originalValue: x, originalContract: k, server: "", }
 
-    if (server.filename is client.filename) and (server.linenum is client.linenum)
-      server.linenum = server.linenum + " (server)"
-      client.linenum = client.linenum + " (client)"
-
-    if enabled
-      k.check x, server, client, [], stack
-    else
-      x
+  if not enabled then x else c
 
 any = (->
   c = new Contract("any", "any", (val) ->
@@ -820,42 +816,66 @@ none = (->
 )()
 
 # contracts
-root.Undefined =  check ((x) -> undefined is x), "Undefined"
-root.Null      =  check ((x) -> null is x), "Null"
-root.Num       =  check ((x) -> typeof (x) is "number"), "Num"
-root.Bool      =  check ((x) -> typeof (x) is "boolean"), "Bool"
-root.Str       =  check ((x) -> typeof (x) is "string"), "Str"
-root.Odd       =  check ((x) -> (x % 2) is 1), "Odd"
-root.Even      =  check ((x) -> (x % 2) isnt 1), "Even"
-root.Pos       =  check ((x) -> x >= 0), "Pos"
-root.Nat       =  check ((x) -> x > 0), "Nat"
-root.Neg       =  check ((x) -> x < 0), "Neg"
-root.Arr       =  object(length: check ((x) -> typeof (x) is "number"), "Number")
-root.Self      =  self
-root.Any       =  any
-root.None      =  none
+root.Undefined = check ((x) -> undefined is x), "Undefined"
+root.Null      = check ((x) -> null is x), "Null"
+root.Num       = check ((x) -> typeof (x) is "number"), "Num"
+root.Bool      = check ((x) -> typeof (x) is "boolean"), "Bool"
+root.Str       = check ((x) -> typeof (x) is "string"), "Str"
+root.Odd       = check ((x) -> (x % 2) is 1), "Odd"
+root.Even      = check ((x) -> (x % 2) isnt 1), "Even"
+root.Pos       = check ((x) -> x >= 0), "Pos"
+root.Nat       = check ((x) -> x > 0), "Nat"
+root.Neg       = check ((x) -> x < 0), "Neg"
+root.Arr       = object(length: check ((x) -> typeof (x) is "number"), "Number")
+root.Self      = self
+root.Any       = any
+root.None      = none
 # combinators
-root.check     =  check
-root.fun       =  fun
-root.ctor      =  ctor
-root.ctorSafe  =  ctorSafe
-root.object    =  object
-root.arr       =  arr
-root.___       =  ___
-root.any       =  any
-root.or        =  or_
-root.none      =  none
-root.not       =  not_
-root.and       =  and_
-root.opt       =  opt
-root.guard     =  guard
-root.enabled   =  (b) -> enabled = b
+root.check     = check
+root.fun       = fun
+root.ctor      = ctor
+root.ctorSafe  = ctorSafe
+root.object    = object
+root.arr       = arr
+root.___       = ___
+root.any       = any
+root.or        = or_
+root.none      = none
+root.not       = not_
+root.and       = and_
+root.opt       = opt
+root.guard     = guard
+# utility functios
+# root.makeContractExports :: (Str, {}?) -> {}
+root.makeContractsExports = (moduleName, original = {}) -> 
+  handler = idHandler original
+  handler.set = (r, name, value) ->
+    {originalValue, originalContract} = contract_orig_map.get value
+    if originalValue?
+      # make a note of the server's module name name in the map
+      contract_orig_map.set value, 
+        originalValue: originalValue
+        originalContract: originalContract
+        server: moduleName
+    original[name] = value
+    return
+  Proxy.create handler
+
+# root.use :: ({}, Str) -> {}
+root.use = (exportObj, moduleName) ->
+  res = {}
+  for own name, value of exportObj
+    orig = contract_orig_map.get value
+    if orig?
+      # apply the original contract with our client's module name
+      res[name] = orig.originalContract.check orig.originalValue, orig.server, moduleName, []
+    else
+      res[name] = value
+  res
+root.enabled = (b) -> enabled = b
 # puts every exported function onto the global scope
 root.autoload  = ->
   globalObj = window ? global # browser or node
   globalObj[name] = root[name] for own name of root
   return
     
-
-
-
