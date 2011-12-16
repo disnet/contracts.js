@@ -850,8 +850,10 @@ root.guard     = guard
 root.makeContractsExports = (moduleName, original = {}) -> 
   handler = idHandler original
   handler.set = (r, name, value) ->
-    {originalValue, originalContract} = contract_orig_map.get value
-    if originalValue?
+    if (value isnt null) and typeof value is "object" or typeof value is "function"
+      orig = contract_orig_map.get value
+    if orig?
+      {originalValue, originalContract} = orig
       # make a note of the server's module name name in the map
       contract_orig_map.set value, 
         originalValue: originalValue
@@ -865,7 +867,8 @@ root.makeContractsExports = (moduleName, original = {}) ->
 root.use = (exportObj, moduleName) ->
   res = {}
   for own name, value of exportObj
-    orig = contract_orig_map.get value
+    if (value isnt null) and typeof value is "object" or typeof value is "function"
+      orig = contract_orig_map.get value
     if orig?
       # apply the original contract with our client's module name
       res[name] = orig.originalContract.check orig.originalValue, orig.server, moduleName, []
