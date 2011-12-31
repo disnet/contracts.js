@@ -846,8 +846,8 @@ root.and       = and_
 root.opt       = opt
 root.guard     = guard
 # utility functios
-# root.makeContractExports :: (Str, {}?) -> {}
-root.makeContractsExports = (moduleName, original = {}) -> 
+# root.exports :: (Str, {}?) -> {}
+root.exports = (moduleName, original = {}) -> 
   handler = idHandler original
   handler.set = (r, name, value) ->
     if (value isnt null) and typeof value is "object" or typeof value is "function"
