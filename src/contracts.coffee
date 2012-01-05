@@ -1,4 +1,7 @@
 "use strict"
+
+
+
 ###
 contracts.coffee
 http://disnetdev.com/contracts.coffee
@@ -6,7 +9,7 @@ http://disnetdev.com/contracts.coffee
 Copyright 2011, Tim Disney
 Released under the MIT License
 ###
-root = exports ? this.Contracts = {}
+root = {}
 
 enabled = true
 
@@ -882,3 +885,12 @@ root.autoload  = ->
   globalObj[name] = root[name] for own name of root
   return
     
+# use either AMD, Node, or the global object
+((define) -> define 'contracts', (require) -> root
+)(if typeof define is 'function' and define.amd then define else (id, factory) ->
+  if typeof module isnt 'undefined' and module.exports
+    # in node
+    module.exports = factory require
+  else
+    window[id] = factory (value) -> window[value]
+)
