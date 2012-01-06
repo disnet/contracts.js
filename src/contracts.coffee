@@ -848,7 +848,12 @@ root.not       = not_
 root.and       = and_
 root.opt       = opt
 root.guard     = guard
-# utility functios
+
+# utility functions
+
+# for use with commonjs.
+# creates an exports object that records the
+# server module name whenever a contracted value is added.
 # root.exports :: (Str, {}?) -> {}
 root.exports = (moduleName, original = {}) -> 
   handler = idHandler original
@@ -857,7 +862,7 @@ root.exports = (moduleName, original = {}) ->
       orig = contract_orig_map.get value
     if orig?
       {originalValue, originalContract} = orig
-      # make a note of the server's module name name in the map
+      # make a note of the server's module name in the map
       contract_orig_map.set value, 
         originalValue: originalValue
         originalContract: originalContract
@@ -866,6 +871,27 @@ root.exports = (moduleName, original = {}) ->
     return
   Proxy.create handler
 
+# for use with AMD.
+# goes through each value on the export object and
+# if it is a contracted value sets the server name.
+# Similar to "exports" but does the work after values 
+# have been added to the object.
+# root.setExported :: ({}, Str) -> {}
+root.setExported = (exportObj, moduleName) ->
+  for own name, value of exportObj
+    if (value isnt null) and typeof value is "object" or typeof value is "function"
+      orig = contract_orig_map.get value
+    if orig?
+      {originalValue, originalContract} = orig
+      # make a note of the server's module name in the map
+      contract_orig_map.set value, 
+        originalValue: originalValue
+        originalContract: originalContract
+        server: moduleName
+  exportObj
+
+# takes an exports object and sets the client module name
+# for every contracted value.
 # root.use :: ({}, Str) -> {}
 root.use = (exportObj, moduleName) ->
   res = {}
