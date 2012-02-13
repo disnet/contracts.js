@@ -1,4 +1,4 @@
-Contracts.autoload();
+contracts.autoload();
 
 var server = "server";
 var client = "client";
