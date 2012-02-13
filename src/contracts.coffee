@@ -895,22 +895,26 @@ root.setExported = (exportObj, moduleName) ->
 # root.use :: ({}, Str) -> {}
 root.use = (exportObj, moduleName) ->
   res = {}
-  for own name, value of exportObj
-    if (value isnt null) and typeof value is "object" or typeof value is "function"
-      orig = contract_orig_map.get value
-    if orig?
-      # apply the original contract with our client's module name
-      res[name] = orig.originalContract.check orig.originalValue, orig.server, moduleName, []
-    else
-      res[name] = value
-  res
+  if typeof exportObj is "function"
+    # return early...don't support wrapping functions ATM
+    exportObj
+  else
+    for own name, value of exportObj
+      if (value isnt null) and typeof value is "object" or typeof value is "function"
+        orig = contract_orig_map.get value
+      if orig?
+        # apply the original contract with our client's module name
+        res[name] = orig.originalContract.check orig.originalValue, orig.server, moduleName, []
+      else
+        res[name] = value
+    res
 root.enabled = (b) -> enabled = b
 # puts every exported function onto the global scope
 root.autoload  = ->
   globalObj = window ? global # browser or node
   globalObj[name] = root[name] for own name of root
   return
-    
+
 # use either AMD, Node, or the global object
 ((define) -> define 'contracts', (require) -> root
 )(if typeof define is 'function' and define.amd then define else (id, factory) ->
