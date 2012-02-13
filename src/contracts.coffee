@@ -13,7 +13,7 @@ root = {}
 
 enabled = true
 
-# contract_orig_map :: 
+# contract_orig_map ::
 #   set: (Any, OrigMap) -> Undefined
 #   get: (Any) -> OrigMap
 contract_orig_map = new WeakMap();
@@ -121,7 +121,7 @@ findCallsite = (trace) ->
 _blame = (toblame, other, msg, parents) ->
   ps = parents.slice(0)
   server = (if toblame.isServer then toblame else other)
-  m = "Contract violation: " + msg + "\n" + 
+  m = "Contract violation: " + msg + "\n" +
       "Value guarded in: " + server + " -- blame is on: " + toblame + "\n"
 
   m += "Parent contracts:\n" + ps.reverse().join("\n")  if ps
@@ -142,7 +142,7 @@ _blame = (toblame, other, msg, parents) ->
 # (ModuleName, ModuleName, Contract, any, [Contract]) -> \bot
 blame = (toblame, other, contract, value, parents) ->
   cname = contract.cname or contract
-  msg = "expected <" + cname + ">" + 
+  msg = "expected <" + cname + ">" +
         ", actual: " + (if typeof (value) is "string" then "\"" + value + "\"" else value)
 
   throw _blame(toblame, other, msg, parents)
@@ -222,7 +222,7 @@ class Contract
   toString: -> @cname
   equals: (other) -> throw "Equality checking must be overridden"
 
-class ModuleName 
+class ModuleName
   constructor: (@filename, @linenum, @isServer) ->
   toString: -> @filename + (if @linenum is "" then "" else (":" + @linenum))
 
@@ -307,20 +307,20 @@ fun = (dom, rng, options) ->
         args = []
 
         if options and options.checkStack and not (options.checkStack(stack))
-          throw new Error("stack checking failed")  
+          throw new Error("stack checking failed")
 
         if typeof options.pre is "function" and not options.pre this
           # check pre condition
-          blame neg, pos, 
-            "precondition: " + options.pre.toString(), 
-            "[failed precondition]", parents  
+          blame neg, pos,
+            "precondition: " + options.pre.toString(),
+            "[failed precondition]", parents
 
         # check all the arguments
         i = 0
         while i < dom.length
           # might pass through undefined which is fine (opt will take
           # care of it if the argument is actually optional)
-          # 
+          #
           # blame is reversed
           args[i] = dom[i].check(arguments[i], neg, pos, parents, stack)
           # assigning back to args since we might be wrapping functions/objects
@@ -336,7 +336,7 @@ fun = (dom, rng, options) ->
         # apply the function and check its result
         if options.isNew or options.newSafe
           # null is in the 'this' argument position for bind...
-          # bind will ignore the supplied 'this' when we call it with new 
+          # bind will ignore the supplied 'this' when we call it with new
           boundArgs = [].concat.apply([ null ], args)
           bf = f.bind.apply(f, boundArgs)
           res = new bf()
@@ -351,9 +351,9 @@ fun = (dom, rng, options) ->
 
         # check post condition
         if typeof options.post is "function" and not options.post this
-          blame neg, pos, 
-            "failed postcondition: " + options.post.toString(), 
-            "[failed postcondition]", parents  
+          blame neg, pos,
+            "failed postcondition: " + options.post.toString(),
+            "[failed postcondition]", parents
         res
 
     if newOnly
@@ -428,25 +428,25 @@ object = (objContract, options = {}, name) ->
     parents.push this
 
     if not obj instanceof Object
-      blame pos, neg, this, obj, parentKs 
+      blame pos, neg, this, obj, parentKs
 
     if options.extensible is true and not Object.isExtensible(obj)
-      blame pos, neg, "[extensible object]", "[non-extensible object]", parents  
+      blame pos, neg, "[extensible object]", "[non-extensible object]", parents
 
     if options.extensible is false and Object.isExtensible(obj)
-      blame pos, neg, "[non-extensible]", "[extensible object]", parents  
+      blame pos, neg, "[non-extensible]", "[extensible object]", parents
 
     if options.sealed is true and not Object.isSealed(obj)
-      blame pos, neg, "[sealed object]", "[non-sealed object]", parents  
+      blame pos, neg, "[sealed object]", "[non-sealed object]", parents
 
     if options.sealed is false and Object.isSealed(obj)
-      blame pos, neg, "[non-sealed object]", "[sealed object]", parents  
+      blame pos, neg, "[non-sealed object]", "[sealed object]", parents
 
     if options.frozen is true and not Object.isFrozen(obj)
-      blame pos, neg, "[frozen object]", "[non-frozen object]", parents  
+      blame pos, neg, "[frozen object]", "[non-frozen object]", parents
 
     if options.frozen is false and Object.isFrozen(obj)
-      blame pos, neg, "[non-frozen object]", "[frozen object]", parents  
+      blame pos, neg, "[non-frozen object]", "[frozen object]", parents
 
     # do some cleaning of the object contract...
     # in particular wrap all object contract in a prop descriptor like object
@@ -454,9 +454,9 @@ object = (objContract, options = {}, name) ->
     # descriptors: object({ a: Num }) ==> object({ a: {value: Num} })
     for prop of @oc
       # todo: commenting out for now to allow us to have an object contract prototype chain
-      # only reason not too allow this is if the user puts something silly on the chain. 
+      # only reason not too allow this is if the user puts something silly on the chain.
       # if(!this.oc.hasOwnProperty(prop)) {
-      #     continue; 
+      #     continue;
       # }
       contractDesc = @oc[prop]
       objDesc = Utils.getPropertyDescriptor(obj, prop)
@@ -479,22 +479,22 @@ object = (objContract, options = {}, name) ->
           blame pos, neg, "[writable property: #{prop}]", "[read-only property: #{prop}]", parents
 
         if contractDesc.writable is false and objDesc.writable
-          blame pos, neg, "[read-only property: #{prop}]", "[writable property: #{prop}]", parents  
+          blame pos, neg, "[read-only property: #{prop}]", "[writable property: #{prop}]", parents
 
         if contractDesc.configurable is true and not objDesc.configurable
-          blame pos, neg, "[configurable property: #{prop}]", "[non-configurable property: #{prop}]", parents  
+          blame pos, neg, "[configurable property: #{prop}]", "[non-configurable property: #{prop}]", parents
 
         if contractDesc.configurable is false and objDesc.configurable
-          blame pos, neg, "[non-configurable property: #{prop}]", "[configurable property: #{prop}]", parents  
+          blame pos, neg, "[non-configurable property: #{prop}]", "[configurable property: #{prop}]", parents
 
         if contractDesc.enumerable is true and not objDesc.enumerable
-          blame pos, neg, "[enumerable property: #{prop}]", "[non-enumerable property: #{prop}]", parents  
+          blame pos, neg, "[enumerable property: #{prop}]", "[non-enumerable property: #{prop}]", parents
 
         if contractDesc.enumerable is false and objDesc.enumerable
-          blame pos, neg, "[non-enumerable property: #{prop}]", "[enumerable property: #{prop}]", parents  
+          blame pos, neg, "[non-enumerable property: #{prop}]", "[enumerable property: #{prop}]", parents
 
         # contract descriptors default to the descriptor on the value unless
-        # explicitly specified by the contrac 
+        # explicitly specified by the contrac
         @oc[prop] =
           value: value
           writable: contractDesc.writable or objDesc.writable
@@ -524,12 +524,12 @@ object = (objContract, options = {}, name) ->
       # for hopfully better error messaging
       if (options.extensible is false) or options.sealed or options.frozen
         # have to reverse blame since the client is the one calling defineProperty
-        blame neg, pos, "[non-extensible object]", 
-          "[attempted to change property descriptor of: #{name}]", parents  
+        blame neg, pos, "[non-extensible object]",
+          "[attempted to change property descriptor of: #{name}]", parents
 
       if not that.oc[name].configurable
-        blame neg, pos, "[non-configurable property: #{name}]", 
-          "[attempted to change the property descriptor of property: #{name}]", parents  
+        blame neg, pos, "[non-configurable property: #{name}]",
+          "[attempted to change the property descriptor of property: #{name}]", parents
 
       Object.defineProperty obj, name, desc
 
@@ -538,8 +538,8 @@ object = (objContract, options = {}, name) ->
       invariant = undefined
       # have to reverse blame since the client is the one calling delete
       if options.sealed or options.frozen
-        blame neg, pos, "#{if options.sealed then 'sealed' else 'frozen'} object", 
-          "[call to delete]", parents  
+        blame neg, pos, "#{if options.sealed then 'sealed' else 'frozen'} object",
+          "[call to delete]", parents
 
       res = delete obj[name]
 
@@ -557,14 +557,14 @@ object = (objContract, options = {}, name) ->
 
     handler.set = (receiver, name, val) ->
       if (options.extensible is false) and Object.getOwnPropertyDescriptor(obj, name) is undefined
-        blame neg, pos, "non-extensible object", "[attempted to set a new property: #{name}]", parents  
+        blame neg, pos, "non-extensible object", "[attempted to set a new property: #{name}]", parents
 
       if options.frozen
-        blame neg, pos, "frozen object", "[attempted to set: #{name}]", parents  
+        blame neg, pos, "frozen object", "[attempted to set: #{name}]", parents
 
       if that.oc.hasOwnProperty(name)
         if not that.oc[name].writable
-          blame neg, pos, "read-only property", "[attempted to set read-only property: #{name}]", parents  
+          blame neg, pos, "read-only property", "[attempted to set read-only property: #{name}]", parents
         # have to reverse blame since the client is the one calling set
         obj[name] = that.oc[name]["value"].check(val, neg, pos, parents)
       else if (options.arrayRangeContract and (options.arrayRange isnt undefined)) and (parseInt(name, 10) >= options.arrayRange)
@@ -608,7 +608,7 @@ object = (objContract, options = {}, name) ->
           c.oc[name] = toset
         # otherwise if it's a function contract then there might be nested
         # self contracts so dive into them with the original toset reference
-        else 
+        else
           setSelfContracts c.oc[name], toset  if c.oc[name].ctype isnt "object"
         # note that we don't dive into object contracts...each self contract
         # thus binds to its enclosing object contract
@@ -622,7 +622,7 @@ object = (objContract, options = {}, name) ->
             while i < c[cName].length
               if c[cName][i] is self
                 c[cName][i] = toset
-              else 
+              else
                 # dive into nested contracts with the original toset reference
                 setSelfContracts c[cName][i], toset  if c[cName][i].ctype isnt "object"
               i++
@@ -756,7 +756,7 @@ getModName = (isServer) ->
   st = printStackTrace(e: new Error())
   # in the stacktrace the frame above this one is where we were guarded/used
   guardedAt = st[2]
-  # pull out the filename (which will become our module) and line 
+  # pull out the filename (which will become our module) and line
   # number (the location in the module where the guard/use occured)
   # stack traces look like: {anonymous}()@file:///Path/to/file.js:4242
   match = /\/([^\/]*):(\d*)[\)]?$/.exec(guardedAt)
@@ -784,7 +784,7 @@ guard = (k, x, server, setup) ->
 
   # unless k is just a first-order contract, c will be a proxy
   c = k.check x, server, client, [], stack
-  
+
   # in the future we can get back the uncontracted value and contract if
   # given the contracted value (for use in module wrangling)
   contract_orig_map.set c, {originalValue: x, originalContract: k, server: "", }
@@ -855,7 +855,7 @@ root.guard     = guard
 # creates an exports object that records the
 # server module name whenever a contracted value is added.
 # root.exports :: (Str, {}?) -> {}
-root.exports = (moduleName, original = {}) -> 
+root.exports = (moduleName, original = {}) ->
   handler = idHandler original
   handler.set = (r, name, value) ->
     if (value isnt null) and typeof value is "object" or typeof value is "function"
@@ -863,7 +863,7 @@ root.exports = (moduleName, original = {}) ->
     if orig?
       {originalValue, originalContract} = orig
       # make a note of the server's module name in the map
-      contract_orig_map.set value, 
+      contract_orig_map.set value,
         originalValue: originalValue
         originalContract: originalContract
         server: moduleName
@@ -874,7 +874,7 @@ root.exports = (moduleName, original = {}) ->
 # for use with AMD.
 # goes through each value on the export object and
 # if it is a contracted value sets the server name.
-# Similar to "exports" but does the work after values 
+# Similar to "exports" but does the work after values
 # have been added to the object.
 # root.setExported :: ({}, Str) -> {}
 root.setExported = (exportObj, moduleName) ->
@@ -884,7 +884,7 @@ root.setExported = (exportObj, moduleName) ->
     if orig?
       {originalValue, originalContract} = orig
       # make a note of the server's module name in the map
-      contract_orig_map.set value, 
+      contract_orig_map.set value,
         originalValue: originalValue
         originalContract: originalContract
         server: moduleName
