@@ -518,13 +518,13 @@ test("a basic temporal contract forbidding calling after return", function() {
 });
 
 test("can disable contract checking", function() {
-    Contracts.enabled(false);
+    contracts.enabled(false);
     var id = guard(
         fun(Num, Num),
         function(x) { return x; }
     );
     same(id("foo"), "foo", "violates contract but ok since they are disabled");
-    Contracts.enabled(true);
+    contracts.enabled(true);
     id = guard(
         fun(Num, Num),
         function(x) { return x; }
@@ -591,7 +591,7 @@ test("contract equality", function() {
 
 test("exports object", function() {
     var id, myid, exports, require;
-    exports = Contracts.makeContractsExports("id_provider");
+    exports = contracts.exports("id_provider");
 
     id = guard(
         fun(Num, Num),
@@ -600,7 +600,7 @@ test("exports object", function() {
 
     exports.id = id;
 
-    myid = Contracts.use(exports, "id_consumer");
+    myid = contracts.use(exports, "id_consumer");
     // should blame id_consumer
     raises(function() { myid.id("foo"); });
 });
