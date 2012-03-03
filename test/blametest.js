@@ -1,4 +1,4 @@
-Contracts.autoload();
+contracts.autoload();
 
 function bt(msg, f) {
     var $t = $("body").append("<div class='test'></div>");
@@ -372,5 +372,70 @@ $(document).ready(function() {
             arr([Num, Bool, Str, ___(Num)]),
             [42, false, "foo", 444, 234, 100]);
         a[0] = "foo";
+    });
+    
+    bt("non-contracts error fun domain", function() {
+        var id = guard(
+            fun(String, Str),
+            function(x) { return x; }
+        );
+        id("foo");
+    });
+    bt("non-contracts error fun range", function() {
+        var id = guard(
+            fun(Str, String),
+            function(x) { return x; }
+        );
+        id("foo");
+    });
+    bt("non-contracts error obj direct", function() {
+        var id = guard(
+            object({o: String}),
+            {o : "foo"}
+        );
+        id("foo");
+    });
+    bt("non-contracts error obj property desc", function() {
+        var id = guard(
+            object({o: {value: String}}),
+            {o : "foo"}
+        );
+        id("foo");
+    });
+    bt("non-contracts error array", function() {
+        var id = guard(
+            arr([String]),
+            [42]
+        );
+        id[0];
+    });
+    bt("non-contracts error array deferred", function() {
+        var id = guard(
+            arr([___(String)]),
+            [42]
+        );
+        id[0];
+    });
+    
+    bt("non-contracts error or", function() {
+        var id = guard(
+            or(Num, String),
+            42
+        );
+        id;
+    });
+    bt("non-contracts error and", function() {
+        var id = guard(
+            and(Num, String),
+            42
+        );
+        id;
+    });
+    bt("non-contracts error not", function() {
+        var id = guard(
+            not(String),
+            42
+        );
+        id;
     });
 });

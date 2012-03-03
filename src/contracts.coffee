@@ -246,7 +246,10 @@ check = (p, name) ->
 fun = (dom, rng, options) ->
   cleanDom = (dom) ->
     # wrap the domain in array so we can be consistent
-    dom = [ dom ]  if dom instanceof Contract
+    dom = [ dom ]  if not Array.isArray dom
+    # make sure all of the arguments are contracts
+    if (dom.some (d) -> not (d instanceof Contract))
+      throw "domain argument to the function contract is not a contract"
     # don't allow required argument contracts to follow optional
     dom.reduce ((prevWasOpt, curr) ->
       if curr.ctype is "opt"
@@ -270,7 +273,7 @@ fun = (dom, rng, options) ->
     options = rng or {}
   else
     # rng/dom for call/new are the same
-    calldom = cleanDom(dom)
+    calldom = cleanDom dom
     callrng = rng
     newdom = calldom
     newrng = callrng
@@ -330,8 +333,12 @@ fun = (dom, rng, options) ->
         if typeof rng is "function"
           # send the arguments to the dependent range
           clean_rng = rng.apply(this, args)
+          if not (clean_rng instanceof Contract)
+            throw "range argument to function contract is not a contract"
         else
           clean_rng = rng
+          if not (clean_rng instanceof Contract)
+            throw "range argument to function contract is not a contract"
 
         # apply the function and check its result
         if options.isNew or options.newSafe
@@ -414,7 +421,7 @@ object = (objContract, options = {}, name) ->
         if obj[propName].cname
           propName + " : " + obj[propName].cname
         else
-          propName + " : " + obj[propName].value.cname
+          propName + " : " + obj[propName].value?.cname
       , this
 
       "{" + props.join(", ") + "}"
@@ -466,11 +473,11 @@ object = (objContract, options = {}, name) ->
         value = contractDesc
       else
         # case when defined as a contract property descriptor
-        if contractDesc["value"]
+        if contractDesc["value"] and contractDesc["value"] instanceof Contract
           value = contractDesc["value"]
         # something other than a descriptor
         else
-          blameM pos, neg, "contract property descriptor missing value property", parents
+          blameM pos, neg, "property #{prop} in the object contract was not a contract", parents
 
       if objDesc
         # check the contract descriptors agains what is actually on the object
@@ -639,6 +646,8 @@ object = (objContract, options = {}, name) ->
   c
 
 
+___ = (k) -> deferred: k
+
 arr = (ks) ->
   # todo might make sense to allow var args along with array arguments
   oc = {}
@@ -647,9 +656,10 @@ arr = (ks) ->
   i = 0
   while i < ks.length
     prefix = ", "  if i isnt 0
-    if typeof ks[i] is "function"
+    if ks[i].deferred
       throw "___() must be at the last position in the array"  if i isnt ks.length - 1
-      rangeContract = ks[i]()
+      throw "value given to ___ is not a contract" if not (ks[i].deferred instanceof Contract)
+      rangeContract = ks[i].deferred
       rangeIndex = i
       name += prefix + "..." + rangeContract.cname
     else
@@ -662,10 +672,13 @@ arr = (ks) ->
     arrayRangeContract: rangeContract
   , name
 
-___ = (k) -> (-> k)
 
 or_ = ->
   ks = [].slice.call(arguments)
+
+  ks.forEach (el, idx) ->
+    if not (el instanceof Contract)
+      throw "Argument #{idx} to the `or` contract is not a contract"
 
   flats = ks.filter (el) -> el.ctype is "check"
   ho = ks.filter (el) -> el.ctype isnt "check"
@@ -702,6 +715,11 @@ or_ = ->
   c
 
 and_ = (k1, k2) ->
+  if not (k1 instanceof Contract)
+    throw "Argument 0 to the `and` contract is not a contract"
+  if not (k2 instanceof Contract)
+    throw "Argument 1 to the `and` contract is not a contract"
+
   c = new Contract "#{k1.cname} and #{k2.cname}", "and", (val, pos, neg, parentKs) ->
     k1c = k1.check(val, pos, neg, parentKs)
     k2.check k1c, pos, neg, parentKs
@@ -716,6 +734,9 @@ and_ = (k1, k2) ->
   c
 
 not_ = (k) ->
+  if not (k instanceof Contract)
+    throw "Argument to the `not` contract is not a contract"
+
   throw "cannot construct a 'not' contract with a function or object contract"  if k.ctype is "fun" or k.ctype is "object"
 
   c = new Contract "not #{k.cname}", "not", (val, pos, neg, parentKs) ->
@@ -734,6 +755,9 @@ not_ = (k) ->
   c
 
 opt = (k) ->
+  if not (k instanceof Contract)
+    throw "Argument to the `optional` contract is not a contract"
+
   c = new Contract "opt(#{k.cname})", "opt", (val, pos, neg, parentKs) ->
     if val is undefined
       # unsuplied arguments are just passed through
