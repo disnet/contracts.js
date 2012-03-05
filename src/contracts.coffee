@@ -466,7 +466,20 @@ object = (objContract, options = {}, name) ->
       #     continue;
       # }
       contractDesc = @oc[prop]
-      objDesc = Utils.getPropertyDescriptor(obj, prop)
+      # this will throw exception if obj is string,num,etc.
+      # even though they still might have "properties"
+      if (typeof obj is 'object') or (typeof obj is 'function')
+        objDesc = Utils.getPropertyDescriptor(obj, prop)
+      else if typeof obj[prop] isnt 'undefined'
+        objDesc =
+          value: obj[prop]
+          writable: true
+          configurable: true
+          enumerable: true
+      else
+        objDesc = null
+
+
 
       # pull out the contract (might be direct or in a descriptor like {value: Str, writable: true})
       if contractDesc instanceof Contract
