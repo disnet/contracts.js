@@ -724,7 +724,13 @@ or_ = ->
     pFlats = (zipFlats.length isnt 0) and zipFlats.every((zf) ->
       zf[0].equals zf[1]
     )
-    pFlats and (@ho.equals(other.ho))
+
+    ho_eq = if (@ho.length is 1 and other.ho.length is 1)
+      @ho[0].equals other.ho[0]
+    else
+      true
+
+    pFlats and ho_eq
   c
 
 and_ = (k1, k2) ->
