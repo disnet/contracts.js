@@ -434,7 +434,13 @@ object = (objContract, options = {}, name) ->
     parents = parentKs.slice(0)
     parents.push this
 
-    if not obj instanceof Object
+    nonObject = [
+      "undefined"
+      "boolean"
+      "number"
+      "string"
+    ]
+    if typeof obj in nonObject
       blame pos, neg, this, obj, parentKs
 
     if options.extensible is true and not Object.isExtensible(obj)
