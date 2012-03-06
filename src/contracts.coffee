@@ -220,7 +220,7 @@ class Contract
 
   toContract: -> @
   toString: -> @cname
-  equals: (other) -> throw "Equality checking must be overridden"
+  equals: (other) -> throw new Error "Equality checking must be overridden"
 
 class ModuleName
   constructor: (@filename, @linenum, @isServer) ->
@@ -249,14 +249,14 @@ fun = (dom, rng, options) ->
     dom = [ dom ]  if not Array.isArray dom
     # make sure all of the arguments are contracts
     if (dom.some (d) -> not (d instanceof Contract))
-      throw "domain argument to the function contract is not a contract"
+      throw new Error "domain argument to the function contract is not a contract"
     # don't allow required argument contracts to follow optional
     dom.reduce ((prevWasOpt, curr) ->
       if curr.ctype is "opt"
         true
       else
         if prevWasOpt
-          throw "Illagal arguments: required argument following an optional argument."
+          throw new Error "Illagal arguments: required argument following an optional argument."
         else
           false
     ), false
@@ -282,8 +282,8 @@ fun = (dom, rng, options) ->
   callOnly = options and options.callOnly
   newOnly = options and options.newOnly
 
-  throw "Cannot have a function be both newOnly and newSafe"  if callOnly and newOnly
-  throw "Illegal arguments: cannot have both newOnly and a contract on 'this'"  if newOnly and options["this"]
+  throw new Error "Cannot have a function be both newOnly and newSafe"  if callOnly and newOnly
+  throw new Error "Illegal arguments: cannot have both newOnly and a contract on 'this'"  if newOnly and options["this"]
 
   domName = "(" + calldom.join(",") + ")"
   optionsName = (if options["this"] then "{this: " + options["this"].cname + "}" else "")
@@ -334,11 +334,11 @@ fun = (dom, rng, options) ->
           # send the arguments to the dependent range
           clean_rng = rng.apply(this, args)
           if not (clean_rng instanceof Contract)
-            throw "range argument to function contract is not a contract"
+            throw new Error "range argument to function contract is not a contract"
         else
           clean_rng = rng
           if not (clean_rng instanceof Contract)
-            throw "range argument to function contract is not a contract"
+            throw new Error "range argument to function contract is not a contract"
 
         # apply the function and check its result
         if options.isNew or options.newSafe
@@ -670,8 +670,8 @@ arr = (ks) ->
   while i < ks.length
     prefix = ", "  if i isnt 0
     if ks[i].deferred
-      throw "___() must be at the last position in the array"  if i isnt ks.length - 1
-      throw "value given to ___ is not a contract" if not (ks[i].deferred instanceof Contract)
+      throw new Error "___() must be at the last position in the array"  if i isnt ks.length - 1
+      throw new Error "value given to ___ is not a contract" if not (ks[i].deferred instanceof Contract)
       rangeContract = ks[i].deferred
       rangeIndex = i
       name += prefix + "..." + rangeContract.cname
@@ -691,11 +691,11 @@ or_ = ->
 
   ks.forEach (el, idx) ->
     if not (el instanceof Contract)
-      throw "Argument #{idx} to the `or` contract is not a contract"
+      throw new Error "Argument #{idx} to the `or` contract is not a contract"
 
   flats = ks.filter (el) -> el.ctype is "check"
   ho = ks.filter (el) -> el.ctype isnt "check"
-  throw "Cannot have more than 1 higher order contract in 'or'"  if ho.length > 1
+  throw new Error "Cannot have more than 1 higher order contract in 'or'"  if ho.length > 1
 
   name = ks.join(" or ")
   c = new Contract(name, "or", (val, pos, neg, parentKs) ->
@@ -735,9 +735,9 @@ or_ = ->
 
 and_ = (k1, k2) ->
   if not (k1 instanceof Contract)
-    throw "Argument 0 to the `and` contract is not a contract"
+    throw new Error "Argument 0 to the `and` contract is not a contract"
   if not (k2 instanceof Contract)
-    throw "Argument 1 to the `and` contract is not a contract"
+    throw new Error "Argument 1 to the `and` contract is not a contract"
 
   c = new Contract "#{k1.cname} and #{k2.cname}", "and", (val, pos, neg, parentKs) ->
     k1c = k1.check(val, pos, neg, parentKs)
@@ -754,9 +754,9 @@ and_ = (k1, k2) ->
 
 not_ = (k) ->
   if not (k instanceof Contract)
-    throw "Argument to the `not` contract is not a contract"
+    throw new Error "Argument to the `not` contract is not a contract"
 
-  throw "cannot construct a 'not' contract with a function or object contract"  if k.ctype is "fun" or k.ctype is "object"
+  throw new Error "cannot construct a 'not' contract with a function or object contract"  if k.ctype is "fun" or k.ctype is "object"
 
   c = new Contract "not #{k.cname}", "not", (val, pos, neg, parentKs) ->
     try
@@ -775,7 +775,7 @@ not_ = (k) ->
 
 opt = (k) ->
   if not (k instanceof Contract)
-    throw "Argument to the `optional` contract is not a contract"
+    throw new Error "Argument to the `optional` contract is not a contract"
 
   c = new Contract "opt(#{k.cname})", "opt", (val, pos, neg, parentKs) ->
     if val is undefined
