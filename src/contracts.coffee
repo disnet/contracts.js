@@ -440,6 +440,8 @@ object = (objContract, options = {}, name) ->
       "number"
       "string"
     ]
+    # proxies only work correctly for objects/functions so we will
+    # only accept "real" objects here
     if typeof obj in nonObject
       blame pos, neg, this, obj, parentKs
 
