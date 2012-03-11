@@ -135,6 +135,12 @@ $(document).ready(function() {
         var o = {a: "foo", b:"foo", f: idc};
         o.f("foo");
     });
+    
+    bt("function with optional argument before required argument", function() {
+        var idc = guard(
+            fun([Str, opt(Bool), Num], Str),
+            function() { return true; });
+    });
 
 
     // object blame messages
