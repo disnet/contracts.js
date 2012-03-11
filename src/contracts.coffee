@@ -806,7 +806,7 @@ opt = (k) ->
 getModName = (isServer) ->
   st = printStackTrace(e: new Error())
   # in the stacktrace the frame above this one is where we were guarded/used
-  guardedAt = st[2]
+  guardedAt = if st[0] is 'Error' then st[3] else st[2]
   # pull out the filename (which will become our module) and line
   # number (the location in the module where the guard/use occured)
   # stack traces look like: {anonymous}()@file:///Path/to/file.js:4242
