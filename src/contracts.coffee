@@ -256,7 +256,8 @@ fun = (dom, rng, options) ->
         true
       else
         if prevWasOpt
-          throw new Error "Illagal arguments: required argument following an optional argument."
+          throw new Error "Illagal arguments: required argument following an" +
+            "optional argument. #{curr}"
         else
           false
     ), false
