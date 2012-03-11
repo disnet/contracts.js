@@ -615,7 +615,8 @@ object = (objContract, options = {}, name) ->
         new bf()
       )
     else
-      op = Proxy.create(handler, Object::)
+      proto = obj?.constructor?.prototype or Object::
+      op = Proxy.create(handler, proto)
     unproxy.set op, this
     op
   )
