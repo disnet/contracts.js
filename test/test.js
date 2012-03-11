@@ -604,3 +604,28 @@ test("exports object", function() {
     // should blame id_consumer
     raises(function() { myid.id("foo"); });
 });
+
+test("instanceof works with contracts", function() {
+    function Foo() {
+        this.name = "foo";
+    }
+    function Bar() {
+        this.name = "bar";
+    }
+
+    var f = new Foo();
+        
+    var ftrue = guard(
+        fun(object({name: Str}), Bool),
+        function(o) {
+            return o instanceof Foo;
+        });
+    var ffalse = guard(
+        fun(object({name: Str}), Bool),
+        function(o) {
+            return o instanceof Bar;
+        });
+    
+    ok(ftrue(f), "instance of Foo");
+    ok(!ffalse(f), "not an instance of Bar");
+});
