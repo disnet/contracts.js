@@ -320,12 +320,17 @@ fun = (dom, rng, options) ->
 
         # check all the arguments
         i = 0
-        while i < dom.length
+        max_i = Math.max dom?.length, arguments.length
+        while i < max_i
           # might pass through undefined which is fine (opt will take
           # care of it if the argument is actually optional)
           #
           # blame is reversed
-          args[i] = dom[i].check(arguments[i], neg, pos, parents, stack)
+          checked = if dom[i]
+            dom[i].check arguments[i], neg, pos, parents, stack
+          else arguments[i]
+          if i < arguments.length
+            args[i] = checked
           # assigning back to args since we might be wrapping functions/objects
           # in delayed contracts
           i++
