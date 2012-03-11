@@ -56,11 +56,10 @@ Utils =
   # walk the proto chain to get the property descriptor
   getPropertyDescriptor: (obj, prop) ->
     o = obj
-    loop
+    while o isnt null
       desc = Object.getOwnPropertyDescriptor(o, prop)
       return desc  if desc isnt `undefined`
       o = Object.getPrototypeOf(o)
-      break unless o isnt null
     undefined
 
   # merges props of o2 into o1 return o1
@@ -577,11 +576,11 @@ object = (objContract, options = {}, name) ->
 
     handler["get"] = (receiver, name) ->
       if that.oc.hasOwnProperty(name)
-        that.oc[name].value.check obj[name], pos, neg, parents
+        obj and that.oc[name].value.check obj[name], pos, neg, parents
       else if (options.arrayRangeContract and (options.arrayRange isnt `undefined`)) and (parseInt(name, 10) >= options.arrayRange)
-        options.arrayRangeContract.check obj[name], pos, neg, parents
+        obj and options.arrayRangeContract.check obj[name], pos, neg, parents
       else
-        obj[name]
+        obj and obj[name]
 
     handler.set = (receiver, name, val) ->
       if (options.extensible is false) and Object.getOwnPropertyDescriptor(obj, name) is undefined
