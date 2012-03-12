@@ -424,7 +424,7 @@ object = (objContract, options = {}, name) ->
           propName + " : " + obj[propName].value?.cname
       , this
 
-      "{" + props.join(", ") + "}"
+      "{\n  " + props.join(",\n  ") + "\n}"
     else
       name
 
