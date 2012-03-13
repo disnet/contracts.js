@@ -337,7 +337,7 @@ fun = (dom, rng, options) ->
 
         if typeof rng is "function"
           # send the arguments to the dependent range
-          clean_rng = rng.apply(this, args)
+          clean_rng = rng.call(this, args)
           if not (clean_rng instanceof Contract)
             throw new Error "range argument to function contract is not a contract"
         else
