@@ -3,7 +3,7 @@
   "description":  "A contract library for JavaScript",
   "keywords":     ["javascript", "contracts"],
   "author":       "Tim Disney",
-  "version":      "0.2.2",
+  "version":      "0.3.0",
   "licenses":     [{
     "type":       "MIT",
     "url":        "https://raw.github.com/disnet/contracts.js/master/LICENSE"
