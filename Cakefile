@@ -1,5 +1,5 @@
 fs   = require 'fs'
-path = require 'path' 
+path = require 'path'
 {spawn} = require 'child_process'
 
 run = (args, cb) ->
@@ -10,7 +10,7 @@ run = (args, cb) ->
     cb() if typeof cb is 'function'
 
 task 'build', (options) ->
-  fs.mkdirSync "build", 0777 if not path.existsSync "build"
+  fs.mkdirSync "build", 0o777 if not path.existsSync "build"
   run ['-c', '-o', 'build/', 'src/contracts.coffee'], ->
     stacktrace = fs.readFileSync 'src/stacktrace.js', 'utf8'
     contracts = fs.readFileSync 'build/contracts.js', 'utf8'
