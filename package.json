@@ -9,7 +9,7 @@
     "url":        "https://raw.github.com/disnet/contracts.js/master/LICENSE"
   }],
   "engines":      {
-    "node":       "0.5.x"
+    "node":       "0.5.x && 0.7.x"
   },
   "main": "./lib/contracts.js",
   "directories" : {
