@@ -580,6 +580,7 @@ object = (objContract, options = {}, name) ->
       if options.invariant
         invariant = options.invariant.bind(obj)
         blame neg, pos, "invariant: #{options.invariant.toString()}", obj, parents  unless invariant()
+      res
 
     handler["get"] = (receiver, name) ->
       if that.oc.hasOwnProperty(name)
