@@ -1,3 +1,4 @@
+[![build status](https://secure.travis-ci.org/disnet/contracts.js.png)](http://travis-ci.org/disnet/contracts.js)
 Contracts.js
 ============
 
