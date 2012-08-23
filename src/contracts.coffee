@@ -1,7 +1,6 @@
 "use strict"
 
 
-
 ###
 contracts.coffee
 http://disnetdev.com/contracts.coffee
@@ -622,7 +621,7 @@ object = (objContract, options = {}, name) ->
         new bf()
       )
     else
-      proto = obj?.constructor?.prototype or Object::
+      proto = Object.getPrototypeOf obj
       op = Proxy.create(handler, proto)
     unproxy.set op, this
     op
