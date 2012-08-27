@@ -12,6 +12,8 @@ root = {}
 
 enabled = true
 
+show_parent_contracts = true
+
 # contract_orig_map ::
 #   set: (Any, OrigMap) -> Undefined
 #   get: (Any) -> OrigMap
@@ -122,7 +124,7 @@ _blame = (toblame, other, msg, parents) ->
   m = "Contract violation: " + msg + "\n" +
       "Value guarded in: " + server + " -- blame is on: " + toblame + "\n"
 
-  m += "Parent contracts:\n" + ps.reverse().join("\n")  if ps
+  m += "Parent contracts:\n" + ps.reverse().join("\n")  if ps and show_parent_contracts
 
   err = new Error(m)
   st = printStackTrace(e: err)
@@ -970,8 +972,10 @@ root.enabled = (b) -> enabled = b
 # puts every exported function onto the global scope
 root.autoload  = ->
   globalObj = window ? global # browser or node
-  globalObj[name] = root[name] for own name of root
+  globalObj[name] = root[name] for own name of root when (name isnt "use") and (name isnt "exports")
   return
+
+root.show_parent_contracts = (b) -> show_parent_contracts = b
 
 # use either AMD, Node, or the global object
 ((define) -> define 'contracts', (require) -> root
