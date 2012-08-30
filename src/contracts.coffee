@@ -508,28 +508,29 @@ object = (objContract, options = {}, name) ->
           blameM pos, neg, "property #{prop} in the object contract was not a contract", parents
 
       if objDesc
-        # check the contract descriptors agains what is actually on the object
-        # and blame where apropriate
-        if contractDesc.writable is true and not objDesc.writable
-          blame pos, neg, "[writable property: #{prop}]", "[read-only property: #{prop}]", parents
+        if not contractDesc instanceof Contract
+          # check the contract descriptors against what is actually on the object
+          # and blame where apropriate
+          if contractDesc.writable is true and not objDesc.writable
+            blame pos, neg, "[writable property: #{prop}]", "[read-only property: #{prop}]", parents
 
-        if contractDesc.writable is false and objDesc.writable
-          blame pos, neg, "[read-only property: #{prop}]", "[writable property: #{prop}]", parents
+          if contractDesc.writable is false and objDesc.writable
+            blame pos, neg, "[read-only property: #{prop}]", "[writable property: #{prop}]", parents
 
-        if contractDesc.configurable is true and not objDesc.configurable
-          blame pos, neg, "[configurable property: #{prop}]", "[non-configurable property: #{prop}]", parents
+          if contractDesc.configurable is true and not objDesc.configurable
+            blame pos, neg, "[configurable property: #{prop}]", "[non-configurable property: #{prop}]", parents
 
-        if contractDesc.configurable is false and objDesc.configurable
-          blame pos, neg, "[non-configurable property: #{prop}]", "[configurable property: #{prop}]", parents
+          if contractDesc.configurable is false and objDesc.configurable
+            blame pos, neg, "[non-configurable property: #{prop}]", "[configurable property: #{prop}]", parents
 
-        if contractDesc.enumerable is true and not objDesc.enumerable
-          blame pos, neg, "[enumerable property: #{prop}]", "[non-enumerable property: #{prop}]", parents
+          if contractDesc.enumerable is true and not objDesc.enumerable
+            blame pos, neg, "[enumerable property: #{prop}]", "[non-enumerable property: #{prop}]", parents
 
-        if contractDesc.enumerable is false and objDesc.enumerable
-          blame pos, neg, "[non-enumerable property: #{prop}]", "[enumerable property: #{prop}]", parents
+          if contractDesc.enumerable is false and objDesc.enumerabl
+            blame pos, neg, "[non-enumerable property: #{prop}]", "[enumerable property: #{prop}]", parents
 
         # contract descriptors default to the descriptor on the value unless
-        # explicitly specified by the contrac
+        # explicitly specified by the contract
         @oc[prop] =
           value: value
           writable: contractDesc.writable or objDesc.writable
