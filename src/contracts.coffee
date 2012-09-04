@@ -832,6 +832,8 @@ getModName = (isServer) ->
   new ModuleName(filename, linenum, isServer)
 
 guard = (k, x, server, setup) ->
+  return x if not enabled
+  
   stack = []
   setup stack  if typeof setup is "function"
   unless server?
