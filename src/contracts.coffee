@@ -1,6 +1,5 @@
 "use strict"
 
-
 ###
 contracts.coffee
 http://disnetdev.com/contracts.coffee
@@ -623,6 +622,11 @@ object = (objContract, options = {}, name) ->
         bf = obj.bind.apply(obj, boundArgs)
         new bf()
       )
+    else if Array.isArray obj
+      # due to bugs in the current proxy implementations of SpiderMonkey and V8
+      # we can't wrap an array with a contract (proxies break Array.isArray and [].concat).
+      # this should be resolved when direct proxies are implemented
+      op = obj
     else
       proto = Object.getPrototypeOf obj
       op = Proxy.create(handler, proto)
