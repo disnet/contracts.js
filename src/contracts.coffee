@@ -97,7 +97,7 @@ checkOptions = (a, b) ->
   pOpt = true
   for name of a
     if a[name] instanceof Contract
-      pOpt = false  unless a[name].equals(b[name])
+      pOpt = false unless (b[name] instanceof Contract) and (a[name].equals b[name])
     else pOpt = false  if a[name] isnt b[name]
   for name of b
     pOpt = false  unless name of a
