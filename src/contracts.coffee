@@ -628,7 +628,7 @@ object = (objContract, options = {}, name) ->
       # this should be resolved when direct proxies are implemented
       op = obj
     else
-      proto = Object.getPrototypeOf obj
+      proto = if obj is null then null else Object.getPrototypeOf obj
       op = Proxy.create(handler, proto)
     unproxy.set op, this
     op
