@@ -5,7 +5,7 @@ Contracts.js is a contract library for JavaScript that allows you to specify inv
 
 It is used in the CoffeeScript dialect [contracts.coffee](http://disnetdev.com/contracts.coffee/) but can also be used directly in normal JavaScript programs if you don't want to or can't use CoffeeScript.
 
-This library is possible because of and requires [Proxies](https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Proxy) which is a new feature of JavaScript that is currently only implemented in Firefox 4+ and bleeding edge V8 (not yet in Chrome but they are in Node.js (0.5.8+) with the `--harmony_proxies` flag). 
+This library is possible because of and requires [Proxies](https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Proxy) which is a new feature of JavaScript that is currently only implemented in Firefox 4+ and bleeding edge V8 (not yet in Chrome but they are in Node.js (0.5.8+) with the `--harmony` flag). 
 
 Use
 ===
