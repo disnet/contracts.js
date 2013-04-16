@@ -1,5 +1,5 @@
 {
-  "name":         "contracts.js",
+  "name":         "contracts-js",
   "description":  "A contract library for JavaScript",
   "keywords":     ["javascript", "contracts"],
   "author":       "Tim Disney",
