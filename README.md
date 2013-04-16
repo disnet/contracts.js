@@ -5,7 +5,8 @@ Contracts.js is a contract library for JavaScript that allows you to specify inv
 
 It is used in the CoffeeScript dialect [contracts.coffee](http://disnetdev.com/contracts.coffee/) but can also be used directly in normal JavaScript programs if you don't want to or can't use CoffeeScript.
 
-This library is possible because of and requires [Proxies](https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Proxy) which is a new feature of JavaScript that is currently only implemented in Firefox 4+ and bleeding edge V8 (not yet in Chrome but they are in Node.js (0.5.8+) with the `--harmony` flag). 
+This library is possible because of and requires [Proxies](https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Proxy) which is a new feature of JavaScript that is currently only implemented in Firefox 4+ and chrome/V8 with the experimental javascript flag enabled 
+(in about:flags or use the `--harmony` flag on the command line). 
 
 Use
 ===
@@ -19,41 +20,39 @@ This adds a `Contracts` object to the global scope that has two properties `Cont
 
 We can now wrap a function in a contract like so:
 
-    var C = Contracts.contracts,
-    	K = Contracts.combinators,
-    	id = K.guard(
-              K.fun(C.Num, C.Num),
+    var C = contracts,
+    	id = C.guard(
+              C.fun(C.Num, C.Num),
               function(x) { return x; });
 
-    id = id.use();
     id("foo"); // contract violation!
 
-If you would like to load all of the contracts and combinators into the global scope, just include `src/autoload.js`.
+If you would like to load all of the combinators into the global scope, just run `contracts.autoload()`.
 
 More documentation and rational can be found at the sister project [contracts.coffee](http://disnetdev.com/contracts.coffee/).
 
-Contracts.combinators.guard
+Contracts.guard
 ===========================
 
 Guards a value with a contract
 
-	Contracts.combinators.guard :: (Contract, Any, Str?, Str?) -> { use: () -> Any }
-    Contracts.combinators.guard(contract, value [, server[, client]])
+	Contracts.guard :: (Contract, Any, Str?, Str?) -> { use: () -> Any }
+    Contracts.guard(contract, value [, server[, client]])
 
   * _contract_ the contract to apply to the value
   * _value_ value to be wrapped in a contract
   * _server_ optional name of the server "module"
   * _client_ optional name of the client "module"
 
-Returns an object with a `.use` function that must be called before the contracted value can be used (this is done to correctly setup "module" names when they are not supplied to `guard`).
 
-Contracts.combinators.check
+
+Contracts.check
 ===========================
 
 Creates a contract that checks first-order values (i.e. not functions or objects).
 
-	Contracts.combinators.check :: ((Any) -> Bool, Str) -> Contract
-	Contracts.combinators.check(predicate, name)
+	Contracts.check :: ((Any) -> Bool, Str) -> Contract
+	Contracts.check(predicate, name)
 
   * _predicate_ function that takes a value and return true if the contract should pass or false otherwise
   * _name_ name of the contract. Displayed in contract violation messages.
@@ -62,14 +61,14 @@ This is used to build contracts that get applied to values via the `guard` funct
 
 An example of a contract to check for numbers:
 	
-	Contracts.combinators.check(function(x) { 
+	Contracts.check(function(x) { 
 		return typeof(x) === 'number'; 
 	}, 'Number')
 
-Contracts.combinators.fun
+Contracts.fun
 =========================
 
-	Contracts.combinators.fun :: (Contract or [...Contract], 
+	Contracts.fun :: (Contract or [...Contract], 
 								 	((Any) -> Contract) or Contract,
 								 	{
 								 		callOnly: Bool
@@ -78,7 +77,7 @@ Contracts.combinators.fun
 								 		post: (Any) -> Bool
 								 		this: {...}
 								 	}) -> Contract
-	Contracts.combinators.fun(domain, range, options)
+	Contracts.fun(domain, range, options)
 
   * _domain_ Either a single contract or an array of contracts for each argument to the function
   * _range_ Either a single contract for the function's result or a function that returns a contract.
@@ -93,11 +92,11 @@ Dependent function contracts (where the result depends on the argument values) a
 
 As a contrived example:
 
-	Contracts.combinators.fun(Str, function(x) { 
+	Contracts.fun(Str, function(x) { 
 		if(x === 42) {
-			return Contracts.contracts.Num;
+			return Contracts.Num;
 		} else {
-			return Contracts.contracts.Str;
+			return Contracts.Str;
 		}
 	})
 
@@ -105,18 +104,18 @@ If the function contracted is called with `42` then its result must be a `Num` o
 
 Note that arguments are potentially mutable (they might be one value at the beginning of the function and different when the function returns) so keep that in mind when using dependent contracts.
 
-Contracts.combinators.object
+Contracts.object
 ============================
 
 
-	Contracts.combinators.object :: ({ ... }, 
+	Contracts.object :: ({ ... }, 
 										{ 
 											extensible: Bool
 											sealed: Bool
 											frozen: Bool
 											invariant: (Any) -> Bool
 										}) -> Contract
-	Contracts.combinators.object(object, options)
+	Contracts.object(object, options)
 
   * _object_ An object with properties mapping to contracts that should be present in the contracted object
   * _options_ An objects object:
@@ -127,7 +126,7 @@ Contracts.combinators.object
 
 Object contracts are built with an object that maps properties to objects. Example:
 
-	Contracts.combinators.object({
+	Contracts.object({
 		foo: Str,
 		bar: Num
 	})
