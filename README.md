@@ -14,7 +14,7 @@ Use
 To use include these files:
 
   * src/stacktrace.js
-  * src/contracts.js
+  * lib/contracts.js
 
 This adds a `Contracts` object to the global scope that has two properties `Contracts.contracts` (which contains some prebuilt contracts to use) and `Contracts.combinators` (which contains utility functions to build new contracts).
 
