@@ -16,7 +16,7 @@ show_parent_contracts = true
 # contract_orig_map ::
 #   set: (Any, OrigMap) -> Undefined
 #   get: (Any) -> OrigMap
-contract_orig_map = new WeakMap();
+contract_orig_map = if WeakMap? then new WeakMap() else {}
 
 class Unproxy
   constructor: ->
