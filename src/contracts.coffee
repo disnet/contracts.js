@@ -837,7 +837,7 @@ getModName = (isServer) ->
 
 guard = (k, x, server, setup) ->
   return x if not enabled
-  
+
   stack = []
   setup stack  if typeof setup is "function"
   unless server?
@@ -985,7 +985,7 @@ root.autoload  = ->
 root.show_parent_contracts = (b) -> show_parent_contracts = b
 
 # use either AMD, Node, or the global object
-((define) -> define 'contracts', (require) -> root
+((define) -> define 'contracts-js', (require) -> root
 )(if typeof define is 'function' and define.amd then define else (id, factory) ->
   if typeof module isnt 'undefined' and module.exports
     # in node
