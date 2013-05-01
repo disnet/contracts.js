@@ -615,21 +615,24 @@ object = (objContract, options = {}, name) ->
     # making this a function proxy if object is also a
     # function to preserve typeof checks
     if typeof obj is "function"
-      op = Proxy.createFunction(handler, (args) ->
-        obj.apply this, arguments
-      , (args) ->
-        boundArgs = [].concat.apply([ null ], arguments)
-        bf = obj.bind.apply(obj, boundArgs)
-        new bf()
-      )
-    else if Array.isArray obj
-      # due to bugs in the current proxy implementations of SpiderMonkey and V8
-      # we can't wrap an array with a contract (proxies break Array.isArray and [].concat).
-      # this should be resolved when direct proxies are implemented
-      op = obj
+      try
+        op = new Proxy(obj, handler)
+      catch e
+        op = Proxy.createFunction(handler, (args) ->
+          obj.apply this, arguments
+        , (args) ->
+          boundArgs = [].concat.apply([ null ], arguments)
+          bf = obj.bind.apply(obj, boundArgs)
+          new bf()
+        )
     else
       proto = if obj is null then null else Object.getPrototypeOf obj
-      op = Proxy.create(handler, proto)
+      try
+        op = new Proxy(obj, handler)
+      catch e
+        # V8 hasn't implemented direct proxies yet so failback to old api
+        op = Proxy.create(handler, proto)
+
     unproxy.set op, this
     op
   )

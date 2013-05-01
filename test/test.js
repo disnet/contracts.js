@@ -1,3 +1,4 @@
+var contracts = window["contracts-js"];
 contracts.autoload();
 
 var server = "server";
@@ -251,7 +252,7 @@ test("checking sealed/frozen objects", function() {
 
     raises(function() { guard(
         object({ x: Num }, {sealed: false}),
-        o); 
+        o);
     }, "object is sealed");
 
     o = Object.freeze({x:3});
@@ -278,7 +279,7 @@ test("checking sealed/frozen objects", function() {
     var fr = guard(
         object({ x: Num }, {frozen: true}),
         o);
-        
+
     same(fr.x, 3, "can read frozen object");
     raises(function() { Object.defineProperty(fr, "y", {value: 42}); }, "adding property to frozen obj");
     raises(function() { fr.x = 55;}, "writing to frozen object");
@@ -457,20 +458,25 @@ test("basic arrays", function() {
     ok(ar[1], "arbitrary number of bools ___(Bool)");
     ok(ar[4], "arbitrary number of bools ___(Bool)");
     raises(function() { ar[0]; }, "element doesn't match ___(Bool) contract");
+
+    ar = guard(
+        arr([Str]),
+        ["foo"]);
+    ok(Array.isArray(ar), "Array.isArray should still work with proxied arrays");
 });
 
 module("temporal contracts");
 
 test("basic temporal contracts", function() {
     var on = [true],
-        NumC = check(function(x, stack) { 
+        NumC = check(function(x, stack) {
             if(stack[0][0]) { return typeof x === 'number'; }
             else { return false; }
         });
     var incC = guard(
         fun([NumC], NumC, {checkStack: function(stack) { return stack[0][0]; }}),
         function(x) { return x + 1; },
-        false, 
+        false,
         function(stack) { stack.push(on); });
 
     same(incC(42), 43, "works when membrane is on");
@@ -482,7 +488,7 @@ test("temporal contracts can do dependency", function() {
     var NumArg = check(function(x, stack) {
             stack.push(x);
             return typeof x === 'number';
-        }), 
+        }),
         NumRng = check(function(x, stack) {
             var arg = stack.pop();
             return (typeof x === 'number') && (x > arg);
@@ -508,7 +514,7 @@ test("a basic temporal contract forbidding calling after return", function() {
             check(function(x, stack) {
                 stack.pop(); stack.push(false);
                 return typeof x === 'boolean';
-            })), 
+            })),
         function(cmp, x) { stolen_ref = cmp; return cmp(x); },
         false,
         function(stack) { stack.push(true); });
@@ -537,7 +543,7 @@ test("contract equality", function() {
         c2 = fun(Num, Num),
         o1 = object({a: Num}),
         o2 = object({a: Num});
-    
+
 
     ok(c1.equals(c1), "function is eq to itself");
     ok(c1.equals(c2), "same fun contracts");
@@ -614,7 +620,7 @@ test("instanceof works with contracts", function() {
     }
 
     var f = new Foo();
-        
+
     var ftrue = guard(
         fun(object({name: Str}), Bool),
         function(o) {
@@ -625,7 +631,8 @@ test("instanceof works with contracts", function() {
         function(o) {
             return o instanceof Bar;
         });
-    
+
     ok(ftrue(f), "instance of Foo");
     ok(!ffalse(f), "not an instance of Bar");
 });
+
