@@ -9,7 +9,7 @@ Released under the MIT License
 ###
 root = {}
 
-enabled = true
+enabled = if Proxy? then true else false
 
 show_parent_contracts = true
 
