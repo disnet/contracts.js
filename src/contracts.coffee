@@ -473,7 +473,7 @@ object = (objContract, options = {}, name) ->
     # in particular wrap all object contract in a prop descriptor like object
     # for symmetry with user defined contract property
     # descriptors: object({ a: Num }) ==> object({ a: {value: Num} })
-    for prop of @oc
+    for own prop of @oc
       # todo: commenting out for now to allow us to have an object contract prototype chain
       # only reason not too allow this is if the user puts something silly on the chain.
       # if(!this.oc.hasOwnProperty(prop)) {
