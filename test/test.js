@@ -135,12 +135,6 @@ test("constructor contracts", function() {
         ctor(Num, object({a: Str, b: Num})),
         function(s) { this.a = 42; this.b = s; });
     raises(function() { new bad_ctor("foo"); } );
-    var safe_ctor = guard(
-        ctorSafe(Str, object({a: Str, b:Num})),
-        function(s) { this.a = s; this.b = 42; });
-    ok(new safe_ctor("foo"), "can call with new");
-    ok((new safe_ctor("foo")).a, "can call with new and get prop");
-    ok(safe_ctor("foo"), "can call without new");
 });
 
 test("call/new have different contracts", function() {
