@@ -5,10 +5,21 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('grunt-contrib-copy');
   grunt.loadNpmTasks('grunt-contrib-watch');
+  grunt.loadNpmTasks('grunt-sweet.js');
 
   // Project configuration.
   grunt.initConfig({
     // Task configuration.
+    sweetjs: {
+      options: {
+        readableNames: true,
+        modules: ["./macros/index.js"]
+      },
+      tests: {
+        src: "test/test_macros.js",
+        dest: "build/test_macros.js"
+      }
+    },
     jshint: {
       options: {
         curly: true,
@@ -43,9 +54,8 @@ module.exports = function(grunt) {
     },
     watch: {
       scripts: {
-        files: ["src/*"],
-        tasks: ["copy"]
-
+        files: ["src/*", "test/*", "macros/*"],
+        tasks: ["copy", "sweetjs"]
       }
     }
   });

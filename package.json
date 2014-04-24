@@ -17,8 +17,8 @@
   },
   "homepage":     "http://disnetdev.com/contracts.js/",
   "dependencies": {
-    "harmony-reflect": "~0.0.13",
-  }
+    "harmony-reflect": "~0.0.13"
+  },
   "repository":   {
     "type": "git",
     "url": "git://github.com/disnet/contracts.js.git"
