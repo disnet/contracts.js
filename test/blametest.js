@@ -1,3 +1,6 @@
+
+var contracts = window["contracts-js"];
+contracts.autoload();
 contracts.autoload();
 
 function bt(msg, f) {
