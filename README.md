@@ -1,43 +1,80 @@
-Contracts.js
-============
+# Contracts.js
 
 Contracts.js is a contract library for JavaScript that allows you to specify invariants between parts of your code and have them checked at runtime for violations. 
 
-It is used in the CoffeeScript dialect [contracts.coffee](http://disnetdev.com/contracts.coffee/) but can also be used directly in normal JavaScript programs if you don't want to or can't use CoffeeScript.
+# Use
 
-This library is possible because of and requires [Proxies](https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Proxy) which is a new feature of JavaScript that is currently only implemented in Firefox 4+ and chrome/V8 with the experimental javascript flag enabled 
-(in about:flags or use the `--harmony` flag on the command line). 
+If you are loading in the browser directly or using AMD, include `lib/reflect.js` (contract.js depends on the ES6 reflect module which this [shims](https://github.com/tvcutsem/harmony-reflect)) and `contracts.js`. You'll need a harmony (ES6-ish) environment which means things only work for FF 4+, chrome with the harmony flag enabled, and node v0.7.8+ with `node --harmony`.
 
-Use
-===
+# Using macros
 
-To use include these files:
+[Sweet.js](http://sweetjs.org) support is currently being added. The contract macros are defined in `macros/index.js` so to expand a file using contracts.js macros with sweet.js you can do `sjs -m macros/index.js my_file.js`. 
 
-  * src/stacktrace.js
-  * lib/contracts.js
+```js
+// import the library 
+var c = require("contacts-js");
 
-This adds a `Contracts` object to the global scope that has two properties `Contracts.contracts` (which contains some prebuilt contracts to use) and `Contracts.combinators` (which contains utility functions to build new contracts).
+// the `c` in `@c` need to match the imported name
+@c { (Num, Num) -> Num }
+function add(x, y) { return x + y; } 
 
-We can now wrap a function in a contract like so:
+add(42, 24);         // 66
+add(42, "a string"); // throws error
 
-    var C = contracts,
-    	id = C.guard(
-              C.fun(C.Num, C.Num),
-              function(x) { return x; });
+// higher order functions
+@c { ((Num) -> Num, Num) -> Num}
+function twice(f, x) { return f(f(x)) }
 
-    id("foo"); // contract violation!
+// still to implement:
 
-If you would like to load all of the combinators into the global scope, just run `contracts.autoload()`.
+// optional arguments
+@c { (Num, Num, Str?) -> Num }
+// call only
+@c { (Num) --> Num }
+// constructor only
+@c { (Num) ==> Num }
+// dependent functions
+@c { (Num) -> !{
+    function(result, args) { return result > args[0] } 
+}}
+function inc(x) { return x + 1; }
+// !{ ... } means to escape from the contract language into JavaScript
+// `this` contract
+@c { (Num, @{name: Str}) -> Num }
 
-More documentation and rational can be found at the sister project [contracts.coffee](http://disnetdev.com/contracts.coffee/).
+// naming a contract
+@c NumId { (Num) -> Num }
+// naming a contact and escaping out of the contract language
+@c Num {!{
+    function(x) { return typeof x === "number" }
+}}
+// objects
+// ...
+// arrays
+// ...
+```
 
-Contracts.guard
-===========================
+# Using the library directly
 
-Guards a value with a contract
+The basic idea is to use `guard` to wrap your value with contracts. For example:
 
-	Contracts.guard :: (Contract, Any, Str?, Str?) -> { use: () -> Any }
-    Contracts.guard(contract, value [, server[, client]])
+```js
+var c  = require("contracts-js");
+var id = c.guard(c.fun(c.Num, c.Num),
+                 function(x) { return x; });
+id(42);     // 42
+id("foo");  // contract violation!
+```
+
+# API
+
+## `guard`
+
+
+Guards a value with a contract.
+
+	guard :: (Contract, Any, Str?, Str?) -> { use: () -> Any }
+    guard(contract, value [, server[, client]])
 
   * _contract_ the contract to apply to the value
   * _value_ value to be wrapped in a contract
@@ -46,13 +83,13 @@ Guards a value with a contract
 
 
 
-Contracts.check
-===========================
+## `check`
+
 
 Creates a contract that checks first-order values (i.e. not functions or objects).
 
-	Contracts.check :: ((Any) -> Bool, Str) -> Contract
-	Contracts.check(predicate, name)
+	check :: ((Any) -> Bool, Str) -> Contract
+	check(predicate, name)
 
   * _predicate_ function that takes a value and return true if the contract should pass or false otherwise
   * _name_ name of the contract. Displayed in contract violation messages.
@@ -65,19 +102,18 @@ An example of a contract to check for numbers:
 		return typeof(x) === 'number'; 
 	}, 'Number')
 
-Contracts.fun
-=========================
+## `fun`
 
-	Contracts.fun :: (Contract or [...Contract], 
-								 	((Any) -> Contract) or Contract,
-								 	{
-								 		callOnly: Bool
-								 		newOnly: Bool
-								 		pre: (Any) -> Bool
-								 		post: (Any) -> Bool
-								 		this: {...}
-								 	}) -> Contract
-	Contracts.fun(domain, range, options)
+	fun :: (Contract or [...Contract], 
+			 	((Any) -> Contract) or Contract,
+			 	{
+			 		callOnly: Bool
+			 		newOnly: Bool
+			 		pre: (Any) -> Bool
+			 		post: (Any) -> Bool
+			 		this: {...}
+			 	}) -> Contract
+	fun(domain, range, options)
 
   * _domain_ Either a single contract or an array of contracts for each argument to the function
   * _range_ Either a single contract for the function's result or a function that returns a contract.
@@ -104,18 +140,17 @@ If the function contracted is called with `42` then its result must be a `Num` o
 
 Note that arguments are potentially mutable (they might be one value at the beginning of the function and different when the function returns) so keep that in mind when using dependent contracts.
 
-Contracts.object
-============================
+## `object`
 
 
-	Contracts.object :: ({ ... }, 
-										{ 
-											extensible: Bool
-											sealed: Bool
-											frozen: Bool
-											invariant: (Any) -> Bool
-										}) -> Contract
-	Contracts.object(object, options)
+	object :: ({ ... }, 
+				{ 
+					extensible: Bool
+					sealed: Bool
+					frozen: Bool
+					invariant: (Any) -> Bool
+				}) -> Contract
+	object(object, options)
 
   * _object_ An object with properties mapping to contracts that should be present in the contracted object
   * _options_ An objects object:

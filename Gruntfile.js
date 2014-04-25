@@ -62,6 +62,6 @@ module.exports = function(grunt) {
 
 
   // Default task.
-  grunt.registerTask('default', ['copy']);
+  grunt.registerTask('default', ['copy', "sweetjs"]);
 
 };

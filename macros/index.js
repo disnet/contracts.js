@@ -21,7 +21,6 @@ macro toLibrary {
 	}
 }
 
-
 let @ = macro {
 	case {_
 		$lib { $contracts ... } 

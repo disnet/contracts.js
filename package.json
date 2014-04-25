@@ -11,10 +11,7 @@
   "engines":      {
     "node":       ">=0.8.0"
   },
-  "main": "./lib/contracts.js",
-  "directories" : {
-    "lib" : "./lib"
-  },
+  "main": "./contracts.js",
   "homepage":     "http://disnetdev.com/contracts.js/",
   "dependencies": {
     "harmony-reflect": "~0.0.13"
