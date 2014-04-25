@@ -41,7 +41,7 @@ module.exports = function(grunt) {
         src: 'Gruntfile.js'
       },
       lib_test: {
-        src: ['lib/**/*.js', 'test/**/*.js']
+        src: ['contracts.js', 'test/**/*.js']
       }
     },
     copy: {
@@ -49,7 +49,7 @@ module.exports = function(grunt) {
         expand: true,
         flatten: true,
         src: "src/contracts.js",
-        dest: "lib/"
+        dest: "./"
       }
     },
     watch: {

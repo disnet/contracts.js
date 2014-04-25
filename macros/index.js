@@ -28,9 +28,8 @@ let @ = macro {
 		function $name ($params ...) { $body ...}
 	} => { 
 
-
 		return #{
-			$lib.guard(
+			var $name = $lib.guard(
 				toLibrary $lib { $contracts ... },
 				function $name ($params ...) { $body ...}
 			);
