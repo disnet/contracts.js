@@ -14,7 +14,7 @@ If you are loading in the browser directly or using AMD, include `lib/reflect.js
 // import the library 
 var c = require("contacts-js");
 
-// the `c` in `@c` need to match the imported name
+// the `c` in `@c` needs to match the imported name
 @c { (Num, Num) -> Num }
 function add(x, y) { return x + y; } 
 

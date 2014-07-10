@@ -43,8 +43,15 @@ test("functions as return", function() {
 	@c { (Num) -> (Num) -> Num }
 	function makeAddr(x) {
 		return function(y) { return x + y }
-	}	
+	}
 
 	var add = makeAddr(10);
 	same(add(5), 15);
 });
+
+test("objects as the first parameter", function() {
+    // @c { ({name: Str}) -> Str }
+    function getName(o) {
+        return o.name;
+    }
+})

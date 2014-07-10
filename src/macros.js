@@ -1,16 +1,7 @@
 var _c;
 let import = macro {
     rule { @ from $lib:lit } => {
-        _c = (function () {
-    return {
-        Num: function (val$2270) {
-            return val$2270;
-        },
-        fun: function (val$2271) {
-            return val$2271;
-        }
-    };
-}());
+        _c = <%= lib %>
     }
     rule { $rest ... } => {
         import $rest ...
@@ -59,7 +50,10 @@ let @ = macro {
         letstx $client = [makeValue("function " + nameStr, #{here})];
         letstx $server = [makeValue(filename, #{here})];
 		return #{
-            var $guardedName = (toLibrary { $contracts ... }).check(function $name ($params ...) { $body ...}, $client, $server);
+            var $guardedName = (toLibrary { $contracts ... }).check(
+                function $name ($params ...) { $body ...},
+                $client,
+                $server);
             function $name ($params ...) {
                 return $guardedName.apply(this, arguments);
             }
