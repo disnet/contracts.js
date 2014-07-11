@@ -1,4 +1,6 @@
+var expect = require("expect.js");
 import @ from "contracts.js";
+
 
 
 describe("contracts", function() {
@@ -8,5 +10,6 @@ describe("contracts", function() {
 
         expect(numId(42)).to.be(42);
         expect(function() { numId("string"); }).to.throwError();
+        numId('foo');
     });
 });

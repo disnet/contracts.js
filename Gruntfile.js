@@ -16,6 +16,7 @@ module.exports = function(grunt) {
         sweetjs: {
             contracts: {
                 options: {
+                    readableNames: true,
                     modules: ["sparkler/macros", "es6-macros"]
                 },
                 src: "src/contracts.js",
@@ -23,6 +24,7 @@ module.exports = function(grunt) {
             },
             tests: {
                 options: {
+                    readableNames: true,
                     modules: ["./macros/index.js"]
                 },
                 src: "test/test_contracts.js",
