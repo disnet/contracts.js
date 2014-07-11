@@ -48,7 +48,7 @@ let @ = macro {
         var nameStr = unwrapSyntax(#{$name});
         letstx $guardedName = [makeIdent("inner_" + nameStr, #{here})];
         letstx $client = [makeValue("function " + nameStr, #{here})];
-        letstx $server = [makeValue(filename, #{here})];
+        letstx $server = [makeValue("(calling context)", #{here})];
 		return #{
             var $guardedName = (toLibrary { $contracts ... }).check(
                 function $name ($params ...) { $body ...},

@@ -12,7 +12,7 @@ describe("contracts", function() {
         expect(function() { numId("string"); }).to.throwError(function(e) {
             expect(/.*numId.*/.test(e.neg.toString())).to.be(true);
         });
-        // numId('foo');
+        numId('foo');
     });
 
     it("should blame function when it goes wrong", function() {
@@ -22,10 +22,20 @@ describe("contracts", function() {
         expect(function() { numId(42); }).to.throwError(function(e) {
             expect(/.*numId.*/.test(e.pos.toString())).to.be(true);
         });
-        // numId(42);
+        numId(42);
     });
 
     it("should correctly blame in the higher-order case", function() {
+        @ ((Num) -> Num) -> Num
+        function numApp(f) {
+            return f(42);
+        }
 
+        expect(numApp(function(x) {
+            return x;
+        })).to.be(42);
+        numApp(function(x) {
+            return "string";
+        });
     });
 });

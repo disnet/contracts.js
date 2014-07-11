@@ -102,7 +102,6 @@
                     blame(pos, neg, this, f, parents);
                 }
 
-                parents.push(this);
                 /* options:
                    pre: ({} -> Bool) - function to check preconditions
                    post: ({} -> Bool) - function to check postconditions
@@ -115,9 +114,9 @@
                     for (var i = 0; i < args.length; i++) {
                         if (dom[i]) {
                             try {
-                                checkedArgs.push(dom[i].check(args[i], neg, pos, parents));
+                                checkedArgs.push(dom[i].check(args[i], neg, pos, parents.concat(this)));
                             } catch (b) {
-                                blameDom(dom[i], contractName, neg, pos, args[i], i+1, parents);
+                                blameDom(dom[i], contractName, neg, pos, args[i], i+1, parents.concat(this));
                             }
                         }
                         checkedArgs.push(args[i]);
@@ -128,9 +127,9 @@
                     var result;
                     var rawResult = target.apply(thisVal, checkedArgs);
                     try {
-                        result = rng.check(rawResult, pos, neg, parents);
+                        result = rng.check(rawResult, pos, neg, parents.concat(this));
                     } catch (b) {
-                        blameRng(rng, contractName, pos, neg, rawResult, parents);
+                        blameRng(rng, contractName, pos, neg, rawResult, parents.concat(this));
                     }
 
                     return result;
