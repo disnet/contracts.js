@@ -28,15 +28,14 @@ let import = macro {
         var promisedContract;
         var msg = toblame + ': broke its contract\n' + 'promised: ' + contract + '\n' + 'produced: ' + value + '\n' + 'which is not: ' + contract + '\n' + 'in: ' + other + '\n' + 'blaming: ' + toblame;
         var e = new Error(msg);
-        e.toblame = toblame;
-        // other properties on the error object to aid in testing
         throw e;
     }
     function blameRng(violatedContract, funContract, pos, neg, value, parents) {
         var valueStr = typeof value === 'string' ? '\'' + value + '\'' : value;
         var msg = pos + ': broke its contract\n' + 'promised: ' + violatedContract + '\n' + 'produced: ' + valueStr + '\n' + 'in the range of:\n' + funContract + '\n' + 'contract from: ' + pos + '\n' + 'blaming: ' + pos;
         var e = new Error(msg);
-        // other properties on the error object to aid in testing
+        e.pos = pos;
+        e.neg = neg;
         throw e;
     }
     function blameDom(violatedContract, funContract, pos, neg, value, position, parents) {
@@ -44,7 +43,8 @@ let import = macro {
         var valueStr = typeof value === 'string' ? '\'' + value + '\'' : value;
         var msg = neg + ': contract violation\n' + 'expected: ' + violatedContract + '\n' + 'given: ' + valueStr + '\n' + 'in the ' + positionStr + ' argument of:\n' + funContract + '\n' + 'contract from: ' + neg + '\n' + 'blaming: ' + pos;
         var e = new Error(msg);
-        // other properties on the error object to aid in testing
+        e.pos = pos;
+        e.neg = neg;
         throw e;
     }
     function check(predicate, name) {

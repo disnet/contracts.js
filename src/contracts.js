@@ -37,10 +37,9 @@
             "in: " + other + "\n" +
             "blaming: " + toblame;
         var e = new Error(msg);
-        e.toblame = toblame;
-        // other properties on the error object to aid in testing
         throw e;
     }
+
 
     function blameRng(violatedContract, funContract, pos, neg, value, parents) {
         var valueStr = typeof value === "string" ? "'" + value + "'" : value;
@@ -52,7 +51,8 @@
             "contract from: " + pos + "\n" +
             "blaming: " + pos;
         var e = new Error(msg);
-        // other properties on the error object to aid in testing
+        e.pos = pos;
+        e.neg = neg;
         throw e;
     }
 
@@ -70,7 +70,8 @@
             "contract from: " + neg + "\n" +
             "blaming: " + pos;
         var e = new Error(msg);
-        // other properties on the error object to aid in testing
+        e.pos = pos;
+        e.neg = neg;
         throw e;
 
     }
