@@ -4,14 +4,11 @@ import @ from "contracts.js";
 
 
 describe("contracts", function() {
-    it("should blame the context when call wrong", function() {
+    it("should blame the context when called wrong", function() {
         @ (Num) -> Num
         function numId(x) { return x; }
 
         expect(numId(42)).to.be(42);
-        expect(function() { numId("string"); }).to.throwError(function(e) {
-            expect(/.*numId.*/.test(e.neg.toString())).to.be(true);
-        });
         numId('foo');
     });
 
@@ -19,9 +16,6 @@ describe("contracts", function() {
         @ (Num) -> Num
         function numId(x) { return "foo"; }
 
-        expect(function() { numId(42); }).to.throwError(function(e) {
-            expect(/.*numId.*/.test(e.pos.toString())).to.be(true);
-        });
         numId(42);
     });
 
@@ -34,8 +28,22 @@ describe("contracts", function() {
         expect(numApp(function(x) {
             return x;
         })).to.be(42);
-        numApp(function(x) {
-            return "string";
-        });
+        expect(function() {
+            numApp(function(x) {
+                return "string";
+            });
+        }).to.throwError();
+    });
+
+    it("should blame the context for object contracts", function() {
+        @ ({age: Num}) -> Num
+        function f(o) { return o.age; }
+
+        f({age: "foo"});
+    });
+
+    it("should blame when using a polymorphic type variable", function() {
+        @ (a) -> a
+        function f(x) { return x; }
     });
 });

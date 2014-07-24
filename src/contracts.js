@@ -1,8 +1,26 @@
 (function() {
+    "use strict";
     if (typeof require === "function") {
         // importing patches Proxy to be in line with the new direct proxies
         require("harmony-reflect");
     }
+
+    var Blame = {
+        create: function(pos, neg) {
+            var o = new BlameObj(pos, neg);
+            Object.freeze(o);
+            return o;
+        }
+    };
+
+    function BlameObj(pos, neg) {
+        this.pos = pos;
+        this.neg = neg;
+    }
+    BlameObj.prototype.swap = function() {
+        return Blame.create(this.neg, this.pos);
+    };
+
 
     function assert(cond, msg) {
         if(!cond) {
@@ -13,22 +31,18 @@
     var unproxy = new WeakMap();
 
     class Contract {
-        constructor(name, type, handler) {
+        constructor(name, type, proj) {
             this.name = name;
             this.type = type;
-            this.handler = handler;
-            this.parent = null;
+            this.proj = proj;
         }
 
-        check(val, pos, neg, parents) {
-            return this.handler.call(this, val, pos, neg, parents ? parents : []);
-        }
         toString() {
             return this.name;
         }
     }
 
-    function blame(toblame, other, contract, value, parents) {
+    function blame(toblame, other, contract, value) {
         var promisedContract;
         var msg = toblame + ": broke its contract\n" +
             "promised: " + contract + "\n" +
@@ -41,7 +55,7 @@
     }
 
 
-    function blameRng(violatedContract, funContract, pos, neg, value, parents) {
+    function blameRng(violatedContract, funContract, pos, neg, value) {
         var valueStr = typeof value === "string" ? "'" + value + "'" : value;
 
         var msg = pos + ": broke its contract\n" +
@@ -56,7 +70,7 @@
         throw e;
     }
 
-    function blameDom(violatedContract, funContract, pos, neg, value, position, parents) {
+    function blameDom(violatedContract, funContract, pos, neg, value, position) {
         var positionStr = position === 1 ? "1st" :
                           position === 2 ? "2nd" :
                           position === 3 ? "3rd" : position + "th";
@@ -76,30 +90,50 @@
 
     }
 
+    function blameObj(violatedContract, objContract, pos, neg, key, value) {
+        var valueStr = typeof value === "string" ? "'" + value + "'" : value;
+
+        var msg = neg + ": contract violation\n" +
+            "expected: " + violatedContract + "\n" +
+            "in property: " + key  +"\n" +
+            "but actually: " + valueStr + "\n" +
+            "in the contract:\n" + objContract + "\n" +
+            "contract from: " + neg + "\n" +
+            "blaming: " + pos;
+        var e = new Error(msg);
+        e.pos = pos;
+        e.neg = neg;
+        throw e;
+
+    }
+
+    function raiseBlame() {
+        return blameDom.apply(this, arguments);
+    }
+
+
     function check(predicate, name) {
-        var c = new Contract(name, "check", function(val, pos, neg, parents) {
-            if (predicate(val)) {
-                return val;
-            } else {
-                return blame(pos, neg, this, val, parents);
-            }
+        var c = new Contract(name, "check", function(blame) {
+            return function(val) {
+                if (predicate(val)) {
+                    return val;
+                } else {
+                    raiseBlame(blame, null, this, val);
+                }
+            };
         });
         return c;
     }
 
+    function fun(dom, rng, options) {
 
-    return {
-        Num: check(function(val) { return typeof val === "number"; }, "Num"),
+        var domName = "(" + dom.join(",") + ")";
+        var contractName = domName + " -> " + rng;
 
-        fun: function(dom, rng, options) {
-
-            var domName = "(" + dom.join(",") + ")";
-            var contractName = domName + " -> " + rng;
-
-            var c = new Contract(contractName, "fun", function(f, pos, neg, parents) {
-
+        var c = new Contract(contractName, "fun", function(blame) {
+            return function(f) {
                 if (typeof f !== "function") {
-                    blame(pos, neg, this, f, parents);
+                    raiseBlame(blame, this, f);
                 }
 
                 /* options:
@@ -113,38 +147,82 @@
 
                     for (var i = 0; i < args.length; i++) {
                         if (dom[i]) {
-                            try {
-                                checkedArgs.push(dom[i].check(args[i], neg, pos, parents.concat(this)));
-                            } catch (b) {
-                                blameDom(dom[i], contractName, neg, pos, args[i], i+1, parents.concat(this));
-                            }
+                            var domProj = dom[i].proj(blame.swap());
+                            checkedArgs.push(domProj(args[i]));
+                        } else {
+                            checkedArgs.push(args[i]);
                         }
-                        checkedArgs.push(args[i]);
                     }
 
                     assert(rng instanceof Contract, "The range is not a contract");
 
-                    var result;
                     var rawResult = target.apply(thisVal, checkedArgs);
-                    try {
-                        result = rng.check(rawResult, pos, neg, parents.concat(this));
-                    } catch (b) {
-                        blameRng(rng, contractName, pos, neg, rawResult, parents.concat(this));
-                    }
-
-                    return result;
+                    var rngProj = rng.proj(blame);
+                    return rngProj(rawResult);
                 }
 
 
-                p = new Proxy(f, {
+                var p = new Proxy(f, {
                     apply: applyTrap
                 });
 
                 unproxy.set(p, this);
                 return p;
-            });
 
-            return c;
-        }
+            };
+        });
+
+        return c;
+    }
+
+    function object(objContract, options) {
+        var contractKeys = Object.keys(objContract);
+        var contractName = "{" + contractKeys.map(function(prop) {
+            return prop + ": " + objContract[prop];
+        }).join(", ") + "}";
+
+        var c = new Contract(contractName, "object", function(blame) {
+            return function(obj) {
+                contractKeys.forEach(function(key) {
+                    var propProj = objContract[key].proj(blame);
+                    var checkedProperty = propProj(obj[key]);
+                    obj[key] = checkedProperty;
+                });
+                return obj;
+            };
+        });
+
+        return c;
+    }
+
+
+    return {
+        Num: check(function(val)       { return typeof val === "number"; }, "Num"),
+        Str: check(function(val)       { return typeof val === "string"; }, "Str"),
+        Bool: check(function(val)      { return typeof val === "boolean"; }, "Bool"),
+        Odd: check(function(val)       { return (val % 2) === 1; }, "Odd"),
+        Even: check(function(val)      { return (val % 2) !== 1; }, "Even"),
+        Pos: check(function(val)       { return val >= 0; }, "Pos"),
+        Nat: check(function(val)       { return val > 0; }, "Nat"),
+        Neg: check(function(val)       { return val < 0; }, "Neg"),
+        Any: check(function(val)       { return true; }, "Any"),
+        None: check(function(val)      { return false; }, "None"),
+        Null: check(function(val)      { return null === val; }, "Null"),
+        Undefined: check(function(val) { return void 0 === val; }, "Null"),
+        Void: check(function(val)      { return null == val; }, "Null"),
+
+        // "type" variables
+        // a: seal("a"),
+        // b: seal("b"),
+        // c: seal("c"),
+        // d: seal("d"),
+        // e: seal("e"),
+        // f: seal("f"),
+        // g: seal("g"),
+
+        fun: fun,
+        object: object,
+        Blame: Blame
+
     };
 })();
