@@ -10,14 +10,16 @@ let import = macro {
 export import;
 
 macro toLibrary {
+    // function
     rule { {
 		($args ...) -> $rest ...
 	} } => {
         _c.fun(
             [toLibrary { $args ... }],
              toLibrary {$rest ...})
-	}
+    }
 
+    // object
     rule { {
         { $($key $[:] $contract ...) (,) ... }
     } } => {
@@ -27,6 +29,7 @@ macro toLibrary {
 
     }
 
+    // proxied object
     rule { {
         !{ $($key $[:] $contract ...) (,) ... }
     } } => {
@@ -36,10 +39,18 @@ macro toLibrary {
 
     }
 
+    // array
     rule { {
-		$contract , $rest ...
+        [ $contracts ... ]
+    } } => {
+        _c.array([toLibrary { $contracts ...} ])
+
+    }
+
+    rule { {
+        $contract ... , $rest ...
 	} } => {
-        toLibrary { $contract } , toLibrary { $rest ... }
+        toLibrary { $contract ... } , toLibrary { $rest ... }
 	}
 
     rule { {

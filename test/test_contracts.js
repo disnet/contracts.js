@@ -95,4 +95,18 @@ describe("contracts", function() {
 
         f({age: 42});
     });
+
+    it("should blame an array with the wrong field", function() {
+        @ ([Str]) -> Num
+        function f(arr) { return arr[0]; }
+
+        f([1]);
+    });
+
+    it("should blame an array with missing fields", function() {
+        @ ([Str, Num]) -> Num
+        function f(arr) { return arr[0]; }
+
+        f(["string"]);
+    });
 });

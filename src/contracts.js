@@ -176,6 +176,33 @@
         return c;
     }
 
+    function array(arrContract, options) {
+        var contractName = "[" + arrContract.map(function(c) {
+            return c;
+        }).join(", ") + "]";
+
+        var contractNum = arrContract.length;
+
+        var c = new Contract(contractName, "array", function(blame) {
+            return function(arr) {
+                if (typeof arr === "number" ||
+                    typeof arr === "string" ||
+                    typeof arr === "boolean") {
+                    raiseBlame(blame.addGiven(arr)
+                                    .addExpected("an array with at least " +
+                                                 contractNum + pluralize(contractNum, " fields")));
+                }
+                for (var i = 0; i < arrContract.length; i++) {
+                    var fieldProj = arrContract[i].proj(blame.addLocation("the " + addTh(i) + " field of"));
+                    var checkedField = fieldProj(arr[i]);
+                    arr[i] = checkedField;
+                }
+                return arr;
+            };
+        });
+        return c;
+    }
+
     function object(objContract, options) {
         var contractKeys = Object.keys(objContract);
         var contractName = "{" + contractKeys.map(function(prop) {
@@ -203,8 +230,9 @@
                     return new Proxy(obj, {
                         set: function(target, key, value) {
                             if (objContract.hasOwnProperty(key)) {
-                                var propProj = objContract[key].proj(blame.swap().addLocation("setting the " +
-                                                                                              key + " property of"));
+                                var propProj = objContract[key].proj(blame.swap()
+                                                                     .addLocation("setting the " +
+                                                                                  key + " property of"));
                                 var checkedProperty = propProj(value);
                                 target[key] = checkedProperty;
                             }
@@ -253,6 +281,7 @@
 
         fun: fun,
         object: object,
+        array: array,
         Blame: Blame,
         guard: guard
     };
