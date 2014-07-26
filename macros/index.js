@@ -8,18 +8,45 @@ let import = macro {
         require('harmony-reflect');
     }
     var Blame = {
-            create: function (pos, neg) {
-                var o = new BlameObj(pos, neg);
+            create: function (name, pos, neg) {
+                var o = new BlameObj(name, pos, neg);
+                Object.freeze(o);
+                return o;
+            },
+            clone: function (old, props) {
+                var propsObj = {};
+                for (var prop in props) {
+                    if (props.hasOwnProperty(prop)) {
+                        propsObj[prop] = { value: props[prop] };
+                    }
+                }
+                var o = Object.create(old, propsObj);
                 Object.freeze(o);
                 return o;
             }
         };
-    function BlameObj(pos, neg) {
+    function BlameObj(name, pos, neg, expected, given) {
+        this.name = name;
         this.pos = pos;
         this.neg = neg;
     }
     BlameObj.prototype.swap = function () {
-        return Blame.create(this.neg, this.pos);
+        return Blame.clone(this, {
+            pos: this.neg,
+            neg: this.pos
+        });
+    };
+    BlameObj.prototype.addExpected = function (expected) {
+        return Blame.clone(this, { expected: expected });
+    };
+    BlameObj.prototype.addGiven = function (given) {
+        return Blame.clone(this, { given: given });
+    };
+    BlameObj.prototype.addLocation = function (loc) {
+        return Blame.clone(this, { loc: this.loc != null ? this.loc.concat(loc) : [loc] });
+    };
+    BlameObj.prototype.addParents = function (parent) {
+        return Blame.clone(this, { parents: this.parents != null ? this.parents.concat(parent) : [parent] });
     };
     function assert(cond, msg) {
         if (!cond) {
@@ -35,59 +62,65 @@ let import = macro {
     Contract.prototype.toString = function toString() {
         return this.name;
     };
-    function blame(toblame, other, contract, value) {
-        var promisedContract;
-        var msg = toblame + ': broke its contract\n' + 'promised: ' + contract + '\n' + 'produced: ' + value + '\n' + 'which is not: ' + contract + '\n' + 'in: ' + other + '\n' + 'blaming: ' + toblame;
-        var e = new Error(msg);
-        throw e;
+    function addQuotes(val) {
+        if (typeof val === 'string') {
+            return '\'' + val + '\'';
+        }
+        return val;
     }
-    function blameRng(violatedContract, funContract, pos, neg, value) {
-        var valueStr = typeof value === 'string' ? '\'' + value + '\'' : value;
-        var msg = pos + ': broke its contract\n' + 'promised: ' + violatedContract + '\n' + 'produced: ' + valueStr + '\n' + 'in the range of:\n' + funContract + '\n' + 'contract from: ' + pos + '\n' + 'blaming: ' + pos;
-        var e = new Error(msg);
-        e.pos = pos;
-        e.neg = neg;
-        throw e;
-    }
-    function blameDom(violatedContract, funContract, pos, neg, value, position) {
-        var positionStr = position === 1 ? '1st' : position === 2 ? '2nd' : position === 3 ? '3rd' : position + 'th';
-        var valueStr = typeof value === 'string' ? '\'' + value + '\'' : value;
-        var msg = neg + ': contract violation\n' + 'expected: ' + violatedContract + '\n' + 'given: ' + valueStr + '\n' + 'in the ' + positionStr + ' argument of:\n' + funContract + '\n' + 'contract from: ' + neg + '\n' + 'blaming: ' + pos;
-        var e = new Error(msg);
-        e.pos = pos;
-        e.neg = neg;
-        throw e;
-    }
-    function blameObj(violatedContract, objContract, pos, neg, key, value) {
-        var valueStr = typeof value === 'string' ? '\'' + value + '\'' : value;
-        var msg = neg + ': contract violation\n' + 'expected: ' + violatedContract + '\n' + 'in property: ' + key + '\n' + 'but actually: ' + valueStr + '\n' + 'in the contract:\n' + objContract + '\n' + 'contract from: ' + neg + '\n' + 'blaming: ' + pos;
-        var e = new Error(msg);
-        e.pos = pos;
-        e.neg = neg;
-        throw e;
-    }
-    function raiseBlame() {
-        return blameDom.apply(this, arguments);
+    function raiseBlame(blame) {
+        var msg = blame.name + ': contract violation\n' + 'expected: ' + blame.expected + '\n' + 'given: ' + addQuotes(blame.given) + '\n' + 'in: ' + blame.loc.slice().reverse().join('\n    ') + '\n' + '    ' + blame.parents[0] + '\n' + 'blaming: ' + blame.pos + '\n';
+        throw new Error(msg);
     }
     function check(predicate, name) {
-        var c = new Contract(name, 'check', function (blame$2) {
+        var c = new Contract(name, 'check', function (blame) {
                 return function (val) {
                     if (predicate(val)) {
                         return val;
                     } else {
-                        raiseBlame(blame$2, null, this, val);
+                        raiseBlame(blame.addExpected(name).addGiven(val));
                     }
                 };
             });
         return c;
     }
+    function addTh(a0) {
+        if (a0 === 0) {
+            return '0th';
+        }
+        if (a0 === 1) {
+            return '1st';
+        }
+        if (a0 === 2) {
+            return '2nd';
+        }
+        if (a0 === 3) {
+            return '3rd';
+        }
+        var x = a0;
+        return x + 'th';
+    }
+    function pluralize(a0, a1) {
+        if (a0 === 0) {
+            var str = a1;
+            return str + 's';
+        }
+        if (a0 === 1) {
+            var str = a1;
+            return str;
+        }
+        var n = a0;
+        var str = a1;
+        return str + 's';
+    }
     function fun(dom, rng, options) {
-        var domName = '(' + dom.join(',') + ')';
+        var domName = '(' + dom.join(', ') + ')';
         var contractName = domName + ' -> ' + rng;
-        var c = new Contract(contractName, 'fun', function (blame$2) {
+        var c = new Contract(contractName, 'fun', function (blame) {
                 return function (f) {
+                    blame = blame.addParents(contractName);
                     if (typeof f !== 'function') {
-                        raiseBlame(blame$2, this, f);
+                        raiseBlame(blame.addExpected('a function that takes ' + dom.length + pluralize(dom.length, ' argument')).addGiven(f));
                     }
                     /* options:
                    pre: ({} -> Bool) - function to check preconditions
@@ -98,7 +131,7 @@ let import = macro {
                         var checkedArgs = [];
                         for (var i = 0; i < args.length; i++) {
                             if (dom[i]) {
-                                var domProj = dom[i].proj(blame$2.swap());
+                                var domProj = dom[i].proj(blame.swap().addLocation('the ' + addTh(i + 1) + ' argument of'));
                                 checkedArgs.push(domProj(args[i]));
                             } else {
                                 checkedArgs.push(args[i]);
@@ -106,7 +139,7 @@ let import = macro {
                         }
                         assert(rng instanceof Contract, 'The range is not a contract');
                         var rawResult = target.apply(thisVal, checkedArgs);
-                        var rngProj = rng.proj(blame$2);
+                        var rngProj = rng.proj(blame.addLocation('the return of'));
                         return rngProj(rawResult);
                     }
                     var p = new Proxy(f, { apply: applyTrap });
@@ -121,10 +154,10 @@ let import = macro {
         var contractName = '{' + contractKeys.map(function (prop) {
                 return prop + ': ' + objContract[prop];
             }).join(', ') + '}';
-        var c = new Contract(contractName, 'object', function (blame$2) {
+        var c = new Contract(contractName, 'object', function (blame) {
                 return function (obj) {
                     contractKeys.forEach(function (key) {
-                        var propProj = objContract[key].proj(blame$2);
+                        var propProj = objContract[key].proj(blame.addLocation('the ' + key + ' property of'));
                         var checkedProperty = propProj(obj[key]);
                         obj[key] = checkedProperty;
                     });
@@ -195,10 +228,10 @@ macro toLibrary {
 	}
 
     rule { {
-        { $($key $[:] $contract) (,) ... }
+        { $($key $[:] $contract ...) (,) ... }
     } } => {
         _c.object({
-            $($key $[:] toLibrary { $contract }) (,) ...
+            $($key $[:] toLibrary { $contract ...}) (,) ...
         })
 
     }
@@ -227,8 +260,9 @@ let @ = macro {
         letstx $guardedName = [makeIdent("inner_" + nameStr, #{here})];
         letstx $client = [makeValue("function " + nameStr, #{here})];
         letstx $server = [makeValue("(calling context for " + nameStr + ")", #{here})];
+        letstx $fnName = [makeValue(nameStr, #{here})];
 		return #{
-            var $guardedName = (toLibrary { $contracts ... }).proj(_c.Blame.create($client, $server))(function $name ($params ...) { $body ...});
+            var $guardedName = (toLibrary { $contracts ... }).proj(_c.Blame.create($fnName, $client, $server))(function $name ($params ...) { $body ...});
             function $name ($params ...) {
                 return $guardedName.apply(this, arguments);
             }

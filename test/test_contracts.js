@@ -19,20 +19,39 @@ describe("contracts", function() {
         numId(42);
     });
 
-    it("should correctly blame in the higher-order case", function() {
+    it("should blame the correct argument in a multiple argument function", function() {
+        @(Num, Str) -> Num
+        function f(x, y) { return x; }
+
+        f(42, 42);
+    });
+
+    it("should blame when not given a function for a function contract", function() {
+        @((Num) -> Num) -> Num
+        function f(g) { return g(42); }
+
+        f(42);
+    });
+
+    it("should correctly blame context in the higher-order case", function() {
         @ ((Num) -> Num) -> Num
         function numApp(f) {
             return f(42);
         }
 
-        expect(numApp(function(x) {
-            return x;
-        })).to.be(42);
-        expect(function() {
-            numApp(function(x) {
-                return "string";
-            });
-        }).to.throwError();
+        numApp(function(x) {
+            return "string";
+        });
+
+    });
+
+    it("should correctly blame the function in the higher-order case", function() {
+        @ ((Num) -> Num) -> Num
+        function bad(f) {
+            return f("string");
+        }
+
+        bad(function(x) { return x; });
     });
 
     it("should blame the context for object contracts", function() {
@@ -42,8 +61,12 @@ describe("contracts", function() {
         f({age: "foo"});
     });
 
-    it("should blame when using a polymorphic type variable", function() {
-        @ (a) -> a
-        function f(x) { return x; }
+    it("should blame the context for functions in an object contract", function() {
+        @ ({g: (Num) -> Num}) -> Num
+        function f(o) {
+            return o.g(42);
+        }
+
+        f({g: function(x) {return "string";}});
     });
 });

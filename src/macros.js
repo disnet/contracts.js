@@ -19,10 +19,10 @@ macro toLibrary {
 	}
 
     rule { {
-        { $($key $[:] $contract) (,) ... }
+        { $($key $[:] $contract ...) (,) ... }
     } } => {
         _c.object({
-            $($key $[:] toLibrary { $contract }) (,) ...
+            $($key $[:] toLibrary { $contract ...}) (,) ...
         })
 
     }
@@ -51,8 +51,9 @@ let @ = macro {
         letstx $guardedName = [makeIdent("inner_" + nameStr, #{here})];
         letstx $client = [makeValue("function " + nameStr, #{here})];
         letstx $server = [makeValue("(calling context for " + nameStr + ")", #{here})];
+        letstx $fnName = [makeValue(nameStr, #{here})];
 		return #{
-            var $guardedName = (toLibrary { $contracts ... }).proj(_c.Blame.create($client, $server))(function $name ($params ...) { $body ...});
+            var $guardedName = (toLibrary { $contracts ... }).proj(_c.Blame.create($fnName, $client, $server))(function $name ($params ...) { $body ...});
             function $name ($params ...) {
                 return $guardedName.apply(this, arguments);
             }
