@@ -69,4 +69,30 @@ describe("contracts", function() {
 
         f({g: function(x) {return "string";}});
     });
+
+    it("should blame the context when not given an object", function() {
+        @ ({s: Str}) -> Str
+        function f(o) { return o.s; }
+
+        f(42);
+    });
+
+    it("should blame a proxied object after it has been created", function() {
+        @ (Num) -> !{age: Num}
+        function makePerson(age) {
+            return {age: age};
+        }
+        var p = makePerson(42);
+        p.age = "string";
+    });
+
+    it("should blame the function when it uses a proxied object wrong", function() {
+        @ (!{age: Num}) -> Num
+        function f(o) {
+            o.age = "42";
+            return o.age;
+        }
+
+        f({age: 42});
+    });
 });

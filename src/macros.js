@@ -28,6 +28,15 @@ macro toLibrary {
     }
 
     rule { {
+        !{ $($key $[:] $contract ...) (,) ... }
+    } } => {
+        _c.object({
+            $($key $[:] toLibrary { $contract ...}) (,) ...
+        }, {proxy: true})
+
+    }
+
+    rule { {
 		$contract , $rest ...
 	} } => {
         toLibrary { $contract } , toLibrary { $rest ... }

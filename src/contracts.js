@@ -181,19 +181,49 @@
         var contractName = "{" + contractKeys.map(function(prop) {
             return prop + ": " + objContract[prop];
         }).join(", ") + "}";
+        var keyNum = contractKeys.length;
 
         var c = new Contract(contractName, "object", function(blame) {
             return function(obj) {
+                if (typeof obj === "number" ||
+                    typeof obj === "string" ||
+                    typeof obj === "boolean") {
+                    raiseBlame(blame.addGiven(obj)
+                                    .addExpected("an object with at least " +
+                                                 keyNum + pluralize(keyNum, " key")));
+                }
+
                 contractKeys.forEach(function(key) {
                     var propProj = objContract[key].proj(blame.addLocation("the " + key + " property of"));
                     var checkedProperty = propProj(obj[key]);
                     obj[key] = checkedProperty;
                 });
-                return obj;
+
+                if (options.proxy) {
+                    return new Proxy(obj, {
+                        set: function(target, key, value) {
+                            if (objContract.hasOwnProperty(key)) {
+                                var propProj = objContract[key].proj(blame.swap().addLocation("setting the " +
+                                                                                              key + " property of"));
+                                var checkedProperty = propProj(value);
+                                target[key] = checkedProperty;
+                            }
+                        }
+                    });
+                } else {
+                    return obj;
+                }
             };
         });
 
         return c;
+    }
+
+    function guard(contract, value, name) {
+        var proj = contract.proj(Blame.create(name,
+                                              "function " + name,
+                                              "(calling context for " + name + ")"));
+        return proj(value);
     }
 
 
@@ -223,7 +253,7 @@
 
         fun: fun,
         object: object,
-        Blame: Blame
-
+        Blame: Blame,
+        guard: guard
     };
 })();
