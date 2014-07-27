@@ -11,3 +11,5 @@ src/.tern-port
 
 test/.tern-port
 /macros/.tern-port
+
+.tern-port

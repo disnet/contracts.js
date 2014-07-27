@@ -66,7 +66,7 @@ import @ from "contracts.js"
 
 This looks like ES6 modules but it's not really and will work with
 whatever module system you are using (if any). See
-[here](#what-is-up-with-the-import) for details.
+[here](http://disnetdev.com/contracts.js/doc/main/contracts.html#what-is-up-with-the-import) for details.
 
 
 Compile your JavaScript file with sweet.js using the contracts.js module:
@@ -83,4 +83,4 @@ recent version of Firefox is fine along with node.js/V8 with the
 
 # Documentation
 
-Contracts.js is documented [here]().
+Contracts.js is documented [here](http://disnetdev.com/contracts.js/doc/main/contracts.html).
