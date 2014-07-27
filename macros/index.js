@@ -149,6 +149,9 @@ let import = macro {
             });
         return c;
     }
+    function repeat(contract, options) {
+        return contract;
+    }
     function array(arrContract, options) {
         var contractName = '[' + arrContract.map(function (c$2) {
                 return c$2;
@@ -259,6 +262,7 @@ let import = macro {
             return null == val;
         }, 'Null'),
         fun: fun,
+        repeat: repeat,
         object: object,
         array: array,
         Blame: Blame,
@@ -322,7 +326,13 @@ macro toLibrary {
         $contract ... , $rest ...
 	} } => {
         toLibrary { $contract ... } , toLibrary { $rest ... }
-	}
+    }
+
+    rule { {
+        $[...] $contract ...
+    } } => {
+        _c.repeat(toLibrary { $contract ... })
+    }
 
     rule { {
 		$contract

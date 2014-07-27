@@ -59,7 +59,13 @@ macro toLibrary {
         $contract ... , $rest ...
 	} } => {
         toLibrary { $contract ... } , toLibrary { $rest ... }
-	}
+    }
+
+    rule { {
+        $[...] $contract ...
+    } } => {
+        _c.repeat(toLibrary { $contract ... })
+    }
 
     rule { {
 		$contract

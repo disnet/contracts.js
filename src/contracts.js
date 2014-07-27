@@ -176,6 +176,10 @@
         return c;
     }
 
+    function repeat(contract, options) {
+        return contract;
+    }
+
     function array(arrContract, options) {
         var contractName = "[" + arrContract.map(function(c) {
             return c;
@@ -294,6 +298,7 @@
         // g: seal("g"),
 
         fun: fun,
+        repeat: repeat,
         object: object,
         array: array,
         Blame: Blame,

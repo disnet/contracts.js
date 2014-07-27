@@ -117,4 +117,10 @@ describe("contracts", function() {
         var a = makeArr(42);
         a[0] = "string";
     });
+
+    it("should blame an var length array", function() {
+        @ ([...Num]) -> Num
+        function f(arr) { return 42; }
+
+    });
 });
