@@ -2,7 +2,9 @@
 
 Contracts.js is a contract library for JavaScript that allows you to
 specify invariants between parts of your code and have them checked at
-runtime for violations.
+runtime for violations. It's heavily inspired by the contract system
+found in [Racket](http://docs.racket-lang.org/guide/contracts.html) and
+tracks blame correctly for higher-order values.
 
 For example, you can specify the that following function takes two
 arguments, one that is an object with a string `name` field and the
