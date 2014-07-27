@@ -136,24 +136,23 @@
                                     .addGiven(f));
                 }
 
-                /* options:
-                   pre: ({} -> Bool) - function to check preconditions
-                   post: ({} -> Bool) - function to check postconditions
-                   this: {...} - object contract to check 'this'
-                */
                 function applyTrap(target, thisVal, args) {
 
                     var checkedArgs = [];
 
-                    for (var i = 0; i < args.length; i++) {
-                        if (dom[i]) {
-                            var domProj = dom[i].proj(blame.swap()
-                                                           .addLocation("the " + addTh(i+1) + " argument of"));
-                            checkedArgs.push(domProj(args[i]));
+                    for (var i = 0; i < dom.length; i++) {
+                        if (dom[i].type === "optional" && args[i] === undefined) {
+                            continue;
                         } else {
-                            checkedArgs.push(args[i]);
+                            var domProj = dom[i].proj(blame.swap()
+                                                           .addLocation("the " +
+                                                                        addTh(i+1) +
+                                                                        " argument of"));
+                            checkedArgs.push(domProj(args[i]));
+
                         }
                     }
+                    checkedArgs = checkedArgs.concat(args.slice(i));
 
                     assert(rng instanceof Contract, "The range is not a contract");
 
@@ -174,6 +173,16 @@
         });
 
         return c;
+    }
+
+    function optional(contract, options) {
+        var contractName = "opt " + contract;
+        return new Contract(contractName, "optional", function(blame) {
+            return function(val) {
+                var proj = contract.proj(blame);
+                return proj(val);
+            };
+        });
     }
 
     function repeat(contract, options) {
@@ -330,6 +339,7 @@
 
         fun: fun,
         repeat: repeat,
+        optional: optional,
         object: object,
         array: array,
         Blame: Blame,

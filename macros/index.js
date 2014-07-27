@@ -122,21 +122,17 @@ let import = macro {
                     if (typeof f !== 'function') {
                         raiseBlame(blame.addExpected('a function that takes ' + dom.length + pluralize(dom.length, ' argument')).addGiven(f));
                     }
-                    /* options:
-                   pre: ({} -> Bool) - function to check preconditions
-                   post: ({} -> Bool) - function to check postconditions
-                   this: {...} - object contract to check 'this'
-                */
                     function applyTrap(target, thisVal, args) {
                         var checkedArgs = [];
-                        for (var i = 0; i < args.length; i++) {
-                            if (dom[i]) {
+                        for (var i = 0; i < dom.length; i++) {
+                            if (dom[i].type === 'optional' && args[i] === undefined) {
+                                continue;
+                            } else {
                                 var domProj = dom[i].proj(blame.swap().addLocation('the ' + addTh(i + 1) + ' argument of'));
                                 checkedArgs.push(domProj(args[i]));
-                            } else {
-                                checkedArgs.push(args[i]);
                             }
                         }
+                        checkedArgs = checkedArgs.concat(args.slice(i));
                         assert(rng instanceof Contract, 'The range is not a contract');
                         var rawResult = target.apply(thisVal, checkedArgs);
                         var rngProj = rng.proj(blame.addLocation('the return of'));
@@ -148,6 +144,15 @@ let import = macro {
                 };
             });
         return c;
+    }
+    function optional(contract, options) {
+        var contractName = 'opt ' + contract;
+        return new Contract(contractName, 'optional', function (blame) {
+            return function (val) {
+                var proj = contract.proj(blame);
+                return proj(val);
+            };
+        });
     }
     function repeat(contract, options) {
         var contractName = '....' + contract;
@@ -286,6 +291,7 @@ let import = macro {
         }, 'Null'),
         fun: fun,
         repeat: repeat,
+        optional: optional,
         object: object,
         array: array,
         Blame: Blame,
@@ -351,10 +357,18 @@ macro toLibrary {
         toLibrary { $contract ... } , toLibrary { $rest ... }
     }
 
+    // repeat
     rule { {
         $[...] $contract ...
     } } => {
         _c.repeat(toLibrary { $contract ... })
+    }
+
+    // optional
+    rule { {
+        opt $contract ...
+    } } => {
+        _c.optional(toLibrary { $contract ... })
     }
 
     rule { {

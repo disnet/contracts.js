@@ -20,10 +20,28 @@ describe("contracts", function() {
     });
 
     it("should blame the correct argument in a multiple argument function", function() {
-        @(Num, Str) -> Num
+        @ (Num, Str) -> Num
         function f(x, y) { return x; }
 
         f(42, 42);
+    });
+
+    it("should not blame when optional arguments are omitted", function() {
+        @ (Num, opt Str) -> Num
+        function f(x, s) {
+            return x;
+        }
+
+        f(100);
+    });
+
+    it("should blame when optional arguments are wrong", function() {
+        @ (Num, opt Str) -> Num
+        function f(x, s) {
+            return x;
+        }
+
+        f(100, 100);
     });
 
     it("should blame when not given a function for a function contract", function() {

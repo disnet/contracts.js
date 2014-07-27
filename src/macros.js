@@ -61,10 +61,18 @@ macro toLibrary {
         toLibrary { $contract ... } , toLibrary { $rest ... }
     }
 
+    // repeat
     rule { {
         $[...] $contract ...
     } } => {
         _c.repeat(toLibrary { $contract ... })
+    }
+
+    // optional
+    rule { {
+        opt $contract ...
+    } } => {
+        _c.optional(toLibrary { $contract ... })
     }
 
     rule { {
