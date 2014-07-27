@@ -89,13 +89,15 @@ let @ = macro {
         $contracts ...
 		function $name ($params ...) { $body ...}
     } => {
-        var nameStr = unwrapSyntax(#{$name});
+        var nameStx = #{$name}[0];
+        var nameStr = unwrapSyntax(nameStx);
         letstx $guardedName = [makeIdent("inner_" + nameStr, #{here})];
         letstx $client = [makeValue("function " + nameStr, #{here})];
         letstx $server = [makeValue("(calling context for " + nameStr + ")", #{here})];
         letstx $fnName = [makeValue(nameStr, #{here})];
+        letstx $lineNumber = [makeValue(nameStx.token.sm_lineNumber, #{here})];
 		return #{
-            var $guardedName = (toLibrary { $contracts ... }).proj(_c.Blame.create($fnName, $client, $server))(function $name ($params ...) { $body ...});
+            var $guardedName = (toLibrary { $contracts ... }).proj(_c.Blame.create($fnName, $client, $server, $lineNumber))(function $name ($params ...) { $body ...});
             function $name ($params ...) {
                 return $guardedName.apply(this, arguments);
             }

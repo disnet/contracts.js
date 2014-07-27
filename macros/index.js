@@ -8,8 +8,8 @@ let import = macro {
         require('harmony-reflect');
     }
     var Blame = {
-            create: function (name, pos, neg) {
-                var o = new BlameObj(name, pos, neg);
+            create: function (name, pos, neg, lineNumber) {
+                var o = new BlameObj(name, pos, neg, lineNumber);
                 Object.freeze(o);
                 return o;
             },
@@ -25,10 +25,11 @@ let import = macro {
                 return o;
             }
         };
-    function BlameObj(name, pos, neg, expected, given) {
+    function BlameObj(name, pos, neg, lineNumber) {
         this.name = name;
         this.pos = pos;
         this.neg = neg;
+        this.lineNumber = lineNumber;
     }
     BlameObj.prototype.swap = function () {
         return Blame.clone(this, {
@@ -68,7 +69,8 @@ let import = macro {
         return val;
     }
     function raiseBlame(blame) {
-        var msg = blame.name + ': contract violation\n' + 'expected: ' + blame.expected + '\n' + 'given: ' + addQuotes(blame.given) + '\n' + 'in: ' + blame.loc.slice().reverse().join('\n    ') + '\n' + '    ' + blame.parents[0] + '\n' + 'blaming: ' + blame.pos + '\n';
+        var lineMessage = blame.lineNumber !== undefined ? 'function ' + blame.name + ' guarded at line: ' + blame.lineNumber + '\n' : '';
+        var msg = blame.name + ': contract violation\n' + 'expected: ' + blame.expected + '\n' + 'given: ' + addQuotes(blame.given) + '\n' + 'in: ' + blame.loc.slice().reverse().join('\n    ') + '\n' + '    ' + blame.parents[0] + '\n' + lineMessage + 'blaming: ' + blame.pos + '\n';
         throw new Error(msg);
     }
     function check(predicate, name) {
@@ -400,13 +402,15 @@ let @ = macro {
         $contracts ...
 		function $name ($params ...) { $body ...}
     } => {
-        var nameStr = unwrapSyntax(#{$name});
+        var nameStx = #{$name}[0];
+        var nameStr = unwrapSyntax(nameStx);
         letstx $guardedName = [makeIdent("inner_" + nameStr, #{here})];
         letstx $client = [makeValue("function " + nameStr, #{here})];
         letstx $server = [makeValue("(calling context for " + nameStr + ")", #{here})];
         letstx $fnName = [makeValue(nameStr, #{here})];
+        letstx $lineNumber = [makeValue(nameStx.token.sm_lineNumber, #{here})];
 		return #{
-            var $guardedName = (toLibrary { $contracts ... }).proj(_c.Blame.create($fnName, $client, $server))(function $name ($params ...) { $body ...});
+            var $guardedName = (toLibrary { $contracts ... }).proj(_c.Blame.create($fnName, $client, $server, $lineNumber))(function $name ($params ...) { $body ...});
             function $name ($params ...) {
                 return $guardedName.apply(this, arguments);
             }

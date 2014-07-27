@@ -6,8 +6,8 @@
     }
 
     var Blame = {
-        create: function(name, pos, neg) {
-            var o = new BlameObj(name, pos, neg);
+        create: function(name, pos, neg, lineNumber) {
+            var o = new BlameObj(name, pos, neg, lineNumber);
             Object.freeze(o);
             return o;
         },
@@ -24,10 +24,11 @@
         }
     };
 
-    function BlameObj(name, pos, neg, expected, given) {
+    function BlameObj(name, pos, neg, lineNumber) {
         this.name = name;
         this.pos = pos;
         this.neg = neg;
+        this.lineNumber = lineNumber;
     }
     BlameObj.prototype.swap = function() {
         return Blame.clone(this, {
@@ -84,11 +85,15 @@
     }
 
     function raiseBlame(blame) {
+        var lineMessage = blame.lineNumber !== undefined ?
+                          "function " + blame.name + " guarded at line: " + blame.lineNumber + "\n"
+                          : "";
         var msg = blame.name + ": contract violation\n" +
             "expected: " + blame.expected + "\n" +
             "given: " + addQuotes(blame.given) + "\n" +
             "in: " + blame.loc.slice().reverse().join("\n    ") + "\n" +
             "    " + blame.parents[0] + "\n" +
+            lineMessage +
             "blaming: " + blame.pos + "\n";
         throw new Error(msg);
     }
