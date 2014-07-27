@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Contracts.js Documentation</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <!--[if lt IE 9]>
+    <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+  <link href='http://fonts.googleapis.com/css?family=Lato:100' rel='stylesheet' type='text/css'>
+  <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro' rel='stylesheet' type='text/css'>
+  <link rel="stylesheet" href="style/sweetprism.css">
+  <script type='text/javascript'>
+  window.onload = function() {
+  	document.body.className = "language-javascript";
+  	Prism.highlightAll();
+  }
+  </script>
+  <link href='style/prism.css' rel='stylesheet' />
+  <script src="style/prism.js"></script>
+  <style>
+  body {
+    margin: 0;
+    padding: 0;
+  }
+  
+  body {
+    width: 600px;
+    margin: 0 auto;
+    position: relative;
+    top: 75px;
+  }
+  
+  #logo {
+    float: left;
+    width: 275px;
+  }
+  
+  #content {
+    float: left;
+    width: 650px;
+    padding-bottom:50px;
+  }
+  
+  h1,h2,h3 {
+    font-family: Helvetica Neue;
+    font-weight: 100;
+    color: #222;
+    position: relative;
+    text-transform: uppercase;
+    color: #444;
+    font-family: 'Lato', Helvetica Neue, Helvetica, Arial, sans-serif;
+    font-weight: 100;
+    border-bottom: solid 1px #eee;
+  }
+  h1 {
+    font-size: 200%;
+  }
+  h2 {
+    font-size: 150%;
+  }
+  h3 {
+    font-size: 120%;
+  }
+  
+  p, li {
+    font-family: 'Source Sans Pro', sans-serif;
+    /*font-weight: 400;*/
+    font-size: large;
+  }
+  
+  
+  p code {
+    font-size: 14px;
+  }
+  li code {
+    font-size: 14px;
+  }
+  
+  a {
+  	text-decoration: none;
+  }
+  a:hover, a:focus {
+      text-decoration: underline;
+  }
+  
+  .editor { display : none }
+  
+  /* to display output of macro expansions */
+  .console {
+    -moz-border-radius: 6px;
+    -webkit-border-radius: 6px;
+    border-radius: 6px;
+    padding: 1em;
+    margin-top:1em;
+    white-space: pre;
+    background: #f5f2f0;
+    resize: vertical;
+    max-height: 700px;
+    overflow: auto;
+    font-family: Consolas, Monaco, "Andale Mono", monospace;
+    text-shadow:0 1px white;
+    display:none;
+  }
+  
+  </style>
+</head>
+<body>
+<header>
+<h1 class="title">Contracts.js Documentation</h1>
+</header>
+<nav id="TOC">
+<ul>
+<li><a href="#introduction"><span class="toc-section-number">1</span> Introduction</a></li>
+<li><a href="#installation"><span class="toc-section-number">2</span> Installation</a></li>
+<li><a href="#using"><span class="toc-section-number">3</span> Using</a></li>
+<li><a href="#contracts"><span class="toc-section-number">4</span> Contracts</a><ul>
+<li><a href="#basic-contracts"><span class="toc-section-number">4.1</span> Basic Contracts</a><ul>
+<li><a href="#num"><span class="toc-section-number">4.1.1</span> <code>Num</code></a></li>
+<li><a href="#str"><span class="toc-section-number">4.1.2</span> <code>Str</code></a></li>
+<li><a href="#bool"><span class="toc-section-number">4.1.3</span> <code>Bool</code></a></li>
+<li><a href="#odd"><span class="toc-section-number">4.1.4</span> <code>Odd</code></a></li>
+<li><a href="#even"><span class="toc-section-number">4.1.5</span> <code>Even</code></a></li>
+<li><a href="#pos"><span class="toc-section-number">4.1.6</span> <code>Pos</code></a></li>
+<li><a href="#nat"><span class="toc-section-number">4.1.7</span> <code>Nat</code></a></li>
+<li><a href="#neg"><span class="toc-section-number">4.1.8</span> <code>Neg</code></a></li>
+<li><a href="#any"><span class="toc-section-number">4.1.9</span> <code>Any</code></a></li>
+<li><a href="#none"><span class="toc-section-number">4.1.10</span> <code>None</code></a></li>
+<li><a href="#null"><span class="toc-section-number">4.1.11</span> <code>Null</code></a></li>
+<li><a href="#undefined"><span class="toc-section-number">4.1.12</span> <code>Undefined</code></a></li>
+<li><a href="#void"><span class="toc-section-number">4.1.13</span> <code>Void</code></a></li>
+</ul></li>
+<li><a href="#function-contracts"><span class="toc-section-number">4.2</span> Function Contracts</a><ul>
+<li><a href="#optional-arguments"><span class="toc-section-number">4.2.1</span> Optional Arguments</a></li>
+<li><a href="#higher-order-arguments"><span class="toc-section-number">4.2.2</span> Higher-Order Arguments</a></li>
+</ul></li>
+<li><a href="#object-contracts"><span class="toc-section-number">4.3</span> Object Contracts</a><ul>
+<li><a href="#optional-properties"><span class="toc-section-number">4.3.1</span> Optional Properties</a></li>
+<li><a href="#proxied-objects"><span class="toc-section-number">4.3.2</span> Proxied Objects</a></li>
+</ul></li>
+<li><a href="#array-contracts"><span class="toc-section-number">4.4</span> Array Contracts</a><ul>
+<li><a href="#repeated-fields"><span class="toc-section-number">4.4.1</span> Repeated Fields</a></li>
+<li><a href="#proxied-arrays"><span class="toc-section-number">4.4.2</span> Proxied Arrays</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#faq"><span class="toc-section-number">5</span> FAQ</a><ul>
+<li><a href="#do-i-have-to-use-macros"><span class="toc-section-number">5.1</span> Do I have to use macros?</a></li>
+<li><a href="#what-is-up-with-the-import"><span class="toc-section-number">5.2</span> What is up with the import?</a></li>
+<li><a href="#what-about-blaming-modules"><span class="toc-section-number">5.3</span> What about blaming modules?</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="introduction"><span class="header-section-number">1</span> Introduction</h1>
+<p>Contracts.js is a contract library for JavaScript that allows you to specify invariants between parts of your code and have them checked at runtime for violations.</p>
+<h1 id="installation"><span class="header-section-number">2</span> Installation</h1>
+<p>Requires <a href="http://sweetjs.org">sweet.js</a> which you can install via npm:</p>
+<pre><code>npm install -g sweet.js
+npm install contracts.js</code></pre>
+<h1 id="using"><span class="header-section-number">3</span> Using</h1>
+<p>At the top of your file you will need to use some special syntax to import contracts.js:</p>
+<pre class="js"><code>import @ from &quot;contracts.js&quot;
+
+// rest of your code goes here...</code></pre>
+<p>This looks like ES6 modules but it's not really and will work with whatever module system you are using (if any). See <a href="#what-is-up-with-the-import">here</a> for details.</p>
+<p>Compile your JavaScript file with sweet.js using the contracts.js module:</p>
+<pre><code>sjs --module contracts.js -o output.js input.js</code></pre>
+<p>Then run your <code>output.js</code> file in any JavaScript environment. Some features of contracts.js (eg. proxied objects and arrays) require ES6 features which not every JavaScript engine supports right now (any recent version of Firefox is fine along with node.js/V8 with the <code>--harmony</code> flag enabled).</p>
+<h1 id="contracts"><span class="header-section-number">4</span> Contracts</h1>
+<p>Put a contract on a function like this:</p>
+<pre class="js"><code>@ (Num) -&gt; Num
+function id(x) {
+    return x;
+}</code></pre>
+<p>Then when the function's contract is violated you'll get a really nice error message:</p>
+<pre class="js"><code>id(&quot;a string&quot;);
+/*
+Error: id: contract violation
+expected: Num
+given: &#39;a string&#39;
+in: the 1st argument of
+    (Num) -&gt; Num
+blaming: (calling context for id)
+*/</code></pre>
+<h2 id="basic-contracts"><span class="header-section-number">4.1</span> Basic Contracts</h2>
+<h3 id="num"><span class="header-section-number">4.1.1</span> <code>Num</code></h3>
+<p>A value that is <code>typeof</code> number.</p>
+<h3 id="str"><span class="header-section-number">4.1.2</span> <code>Str</code></h3>
+<p>A value that is <code>typeof</code> string.</p>
+<h3 id="bool"><span class="header-section-number">4.1.3</span> <code>Bool</code></h3>
+<p>A value that is <code>typeof</code> boolean.</p>
+<h3 id="odd"><span class="header-section-number">4.1.4</span> <code>Odd</code></h3>
+<p>A number that is odd (<code>val % 2 === 1</code>).</p>
+<h3 id="even"><span class="header-section-number">4.1.5</span> <code>Even</code></h3>
+<p>A number that is even (<code>val % 2 !== 1</code>).</p>
+<h3 id="pos"><span class="header-section-number">4.1.6</span> <code>Pos</code></h3>
+<p>A positive number (<code>val &gt;= 0</code>).</p>
+<h3 id="nat"><span class="header-section-number">4.1.7</span> <code>Nat</code></h3>
+<p>A natural number (<code>val &gt; 0</code>).</p>
+<h3 id="neg"><span class="header-section-number">4.1.8</span> <code>Neg</code></h3>
+<p>A negative number (<code>val &lt; 0</code>).</p>
+<h3 id="any"><span class="header-section-number">4.1.9</span> <code>Any</code></h3>
+<p>Any value.</p>
+<h3 id="none"><span class="header-section-number">4.1.10</span> <code>None</code></h3>
+<p>No value (not terribly useful).</p>
+<h3 id="null"><span class="header-section-number">4.1.11</span> <code>Null</code></h3>
+<p>The <code>null</code> value.</p>
+<h3 id="undefined"><span class="header-section-number">4.1.12</span> <code>Undefined</code></h3>
+<p>The <code>undefined</code> value.</p>
+<h3 id="void"><span class="header-section-number">4.1.13</span> <code>Void</code></h3>
+<p>Either <code>null</code> or <code>undefined</code>.</p>
+<h2 id="function-contracts"><span class="header-section-number">4.2</span> Function Contracts</h2>
+<p>Function contracts take a comma delimited list of argument contracts and a single return value contract:</p>
+<pre class="js"><code>@ (Str, Num, Bool) -&gt; Bool
+function foo(s, n, b) { return b; }</code></pre>
+<h3 id="optional-arguments"><span class="header-section-number">4.2.1</span> Optional Arguments</h3>
+<p>You can make an argument optional with the <code>opt</code> prefix:</p>
+<pre class="js"><code>@ (Str, opt Bool) -&gt; Str
+function foo(s, b) { return s; }
+
+foo(&quot;foo&quot;);        // fine
+foo(&quot;foo&quot;, false); // fine
+foo(&quot;foo&quot;, &quot;bar&quot;); // error</code></pre>
+<h3 id="higher-order-arguments"><span class="header-section-number">4.2.2</span> Higher-Order Arguments</h3>
+<p>You can put contracts on functions to functions. And blaming the correct party at fault even works! <a href="what-about-blaming-modules">Mostly</a>.</p>
+<pre class="js"><code>@ (Num, (Num, Num) -&gt; Num) -&gt; Num
+function (x, f) { return f(x, x); }</code></pre>
+<h2 id="object-contracts"><span class="header-section-number">4.3</span> Object Contracts</h2>
+<p>Object contracts are built using familiar object literal syntax:</p>
+<pre class="js"><code>@ (Str, Num) -&gt; {name: Str, age: Num}
+function makePerson(name, age) {
+    return {
+        name: name,
+        age: age
+    };
+}</code></pre>
+<p>Note that objects are checked against their contract only once when they cross the contract barrier (in the above example this is when the <code>makePerson</code> function returns). Basic contracts (like <code>Str</code> and <code>Num</code>) are checked immediately while method contracts are deferred until the method is invoked.</p>
+<p>If you want to maintain the contract invariants throughout the object's lifetime, use <a href="#proxied-objects">proxied object contracts</a>.</p>
+<h3 id="optional-properties"><span class="header-section-number">4.3.1</span> Optional Properties</h3>
+<p>The <code>opt</code> prefix makes a property optional:</p>
+<pre class="js"><code>@ ({name: Str, age: opt Num}) -&gt; Str
+function get Name(o) { return o.name; }</code></pre>
+<h3 id="proxied-objects"><span class="header-section-number">4.3.2</span> Proxied Objects</h3>
+<p>To maintain the object contract invariant for the entire lifetime of an object, use the <code>!</code> notation:</p>
+<pre class="js"><code>@ (Str, Num) -&gt; !{name: Str, age: Num}
+function makePerson(name, age) {
+    return {
+        name: name,
+        age: age
+    };
+}
+
+var o = makePerson(&quot;Bob&quot;, 42);
+o.age = &quot;100&quot;;  // error</code></pre>
+<p>This is more expensive than normal object contracts since the contract must be checked on every property set but this can help to maintain tricky invariants.</p>
+<h2 id="array-contracts"><span class="header-section-number">4.4</span> Array Contracts</h2>
+<p>Contracts on arrays use the familiar array literal notation:</p>
+<pre class="js"><code>@ ([Num, Str]) -&gt; Void
+function foo(arr) { /* ... */ }
+
+foo([42, &quot;foo&quot;]);  // fine
+foo([42]);         // error missing field</code></pre>
+<h3 id="repeated-fields"><span class="header-section-number">4.4.1</span> Repeated Fields</h3>
+<p>Arrays filled with homogeneous data can use the <code>...</code> notation:</p>
+<pre class="js"><code>@ ([...Num]) -&gt; Void
+function foo(arr) { /* ... */ }
+
+foo([]);                      // fine
+foo([42, 100, 10000, 99]);    // fine
+foo([42, &quot;foo&quot;, 10000, 99]);  // error wrong type</code></pre>
+<p>You can even mix <code>...</code> with a prefix of normal contracts:</p>
+<pre class="js"><code>@ ([Str, Bool, ...Num]) -&gt; Void
+function foo(arr) { /* ... */ }
+
+foo([&quot;foo&quot;, true, 100, 99]);  // fine
+foo([100, true, 100, 99]);    // error wrong type</code></pre>
+<p>The <code>...</code> contract must be the last contract in the array.</p>
+<h3 id="proxied-arrays"><span class="header-section-number">4.4.2</span> Proxied Arrays</h3>
+<p>Just like objects, arrays can be proxied with the <code>!</code> notation:</p>
+<pre class="js"><code>@ (Num, Str) -&gt; ![Num, Str]
+function foo(a, b) { return [a, b]; }
+
+var arr = foo(100, &quot;foo&quot;);
+
+arr[0] = &quot;string&quot;;          // error wrong type</code></pre>
+<h1 id="faq"><span class="header-section-number">5</span> FAQ</h1>
+<h2 id="do-i-have-to-use-macros"><span class="header-section-number">5.1</span> Do I have to use macros?</h2>
+<p>No, as a matter of fact. If you'd like to just use the library in vanilla JavaScript you can. Load contracts.js and then use the <code>guard</code> function:</p>
+<pre class="js"><code>var id = guard(fun([Num], Num),
+               function id(x) { return x; },
+               &quot;id&quot;);</code></pre>
+<h2 id="what-is-up-with-the-import"><span class="header-section-number">5.2</span> What is up with the import?</h2>
+<pre class="js"><code>import @ from &quot;contracts.js&quot;</code></pre>
+<p>The short answer is that it's a hack until sweet.js provides proper module support.</p>
+<p>This line is actually a macro that expands into contracts.js library code that each contracted function will refer to.</p>
+<h2 id="what-about-blaming-modules"><span class="header-section-number">5.3</span> What about blaming modules?</h2>
+<p>At the moment contracts.js just supports guarding the interaction of a contracted value and its context rather than tracking blame at the module level. This is because the module story in JavaScript is a bit fractured and incompatible in various ways (CommonJS, Node, AMD, ES6, rolling by hand). Earlier versions of contracts.js had hacky support that only kind of worked but this has been temporarily simplified to what we have right now.</p>
+<p>Once sweet.js has good ES6 module support we will do the right thing and track blame at the module level.</p>
+</body>
+</html>

@@ -1,0 +1,49 @@
+{
+  "name": "contracts-js",
+  "description": "A contract library for JavaScript",
+  "keywords": [
+    "javascript",
+    "contracts"
+  ],
+  "author": "Tim Disney",
+  "version": "0.4.0-pre",
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "https://raw.github.com/disnet/contracts.js/master/LICENSE"
+    }
+  ],
+  "scripts": {
+    "test": "node --harmony ./node_modules/.bin/grunt --stack",
+    "debug": "node-debug --harmony ./node_modules/.bin/grunt --stack"
+  },
+  "engines": {
+    "node": ">=0.8.0"
+  },
+  "main": "./contracts.js",
+  "homepage": "http://disnetdev.com/contracts.js/",
+  "dependencies": {
+    "harmony-reflect": "~0.0.13",
+    "sweet.js": "mozilla/sweet.js"
+  },
+  "devDependencies": {
+    "es6-macros": "0.0.7",
+    "expect.js": "^0.3.1",
+    "grunt-cli": "0.1.x",
+    "grunt-contrib-copy": "0.4.x",
+    "grunt-contrib-jshint": "0.7.x",
+    "grunt-contrib-watch": "^0.6.1",
+    "grunt-mocha": "^0.4.11",
+    "grunt-mocha-test": "^0.11.0",
+    "grunt-sweet.js": "^0.1.4",
+    "grunt-template": "^0.2.3",
+    "harmony-reflect": "^1.0.0",
+    "mocha": "^1.20.1",
+    "sparkler": "^0.3.3",
+    "should": "^4.0.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/disnet/contracts.js.git"
+  }
+}

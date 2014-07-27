@@ -1,0 +1,13 @@
+build/
+node_modules/
+
+.DS_Store
+
+*.sublime-project
+
+contracts.js.sublime-workspace
+
+src/.tern-port
+
+test/.tern-port
+/macros/.tern-port
