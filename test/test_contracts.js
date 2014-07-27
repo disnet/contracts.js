@@ -182,5 +182,11 @@ describe("contracts", function() {
         f([42]);
     });
 
+    it("should allow objects of objects contracts", function() {
+        @ ({o : {name: Str}}) -> Str
+        function f(obj) { return obj.o.name; }
+
+        f({o: {name: 42}});
+    });
 
 });
