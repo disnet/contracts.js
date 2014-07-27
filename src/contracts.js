@@ -63,7 +63,6 @@
         }
     }
 
-    var unproxy = new WeakMap();
 
     class Contract {
         constructor(name, type, proj) {
@@ -169,7 +168,6 @@
                         }
                     });
 
-                    unproxy.set(p, this);
                     return p;
 
                 } else {

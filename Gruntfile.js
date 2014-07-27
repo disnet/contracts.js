@@ -1,6 +1,9 @@
 /*global module:false*/
 module.exports = function(grunt) {
 
+    var path = require("path");
+    var exec = require("child_process").exec;
+
     // These plugins provide necessary tasks.
     grunt.loadNpmTasks('grunt-contrib-jshint');
     grunt.loadNpmTasks('grunt-contrib-copy');
@@ -68,6 +71,22 @@ module.exports = function(grunt) {
                 src: ['contracts.js', 'test/**/*.js']
             }
         },
+        pandoc: {
+            options: {
+                pandocOptions: ["--to=html5",
+                                "--standalone",
+                                "--toc",
+                                "--number-sections",
+                                "--include-in-header=doc/main/style/main.css"]
+            },
+            files: {
+                expand: true,
+                flatten: true,
+                src: "doc/main/*.md",
+                dest: "doc/main/",
+                ext: ".html"
+            }
+        },
         mochaTest: {
             contracts: {
                 src: ["build/tests/*.js"]
@@ -77,12 +96,32 @@ module.exports = function(grunt) {
             scripts: {
                 files: ["src/*", "test/*"],
                 tasks: ["sweetjs:contracts", "template", "sweetjs:tests", "mochaTest"]
+            },
+            docs: {
+                files: ["doc/main/*"],
+                tasks: ["docs"]
             }
         }
     });
 
 
+    grunt.registerMultiTask("pandoc", function() {
+        var cb = this.async();
+        var options = this.options({});
+        var pandocOpts = options.pandocOptions.join(" ");
+        this.files.forEach(function(f) {
+
+            f.src.forEach(function(file) {
+                var args = ["-o " + f.dest].concat(pandocOpts.slice())
+                                          .concat(file);
+                exec("pandoc " + args.join(" "), cb);
+            });
+        });
+    });
+
     // Default task.
     grunt.registerTask('default', ["sweetjs:contracts", "template", "sweetjs:tests", "mochaTest"]);
+
+    grunt.registerTask("docs", ["pandoc"]);
 
 };

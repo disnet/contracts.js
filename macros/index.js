@@ -53,7 +53,6 @@ let import = macro {
             throw new Error(msg);
         }
     }
-    var unproxy = new WeakMap();
     function Contract(name, type, proj) {
         this.name = name;
         this.type = type;
@@ -145,7 +144,6 @@ let import = macro {
                                     return applyTrap(target, thisVal, args);
                                 }
                             });
-                        unproxy.set(p, this);
                         return p;
                     } else {
                         return function () {
