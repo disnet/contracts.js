@@ -3,7 +3,8 @@
   "description": "A contract library for JavaScript",
   "keywords": [
     "javascript",
-    "contracts"
+    "contracts",
+    "sweet-macros"
   ],
   "author": "Tim Disney",
   "version": "0.4.0",
