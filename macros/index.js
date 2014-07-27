@@ -138,9 +138,19 @@ let import = macro {
                         var rngProj = rng.proj(blame.addLocation('the return of'));
                         return rngProj(rawResult);
                     }
-                    var p = new Proxy(f, { apply: applyTrap });
-                    unproxy.set(p, this);
-                    return p;
+                    if (options && options.needs_proxy) {
+                        var p = new Proxy(f, {
+                                apply: function (target, thisVal, args) {
+                                    return applyTrap(target, thisVal, args);
+                                }
+                            });
+                        unproxy.set(p, this);
+                        return p;
+                    } else {
+                        return function () {
+                            return applyTrap(f, this, Array.prototype.slice.call(arguments));
+                        };
+                    }
                 };
             });
         return c;

@@ -145,9 +145,9 @@
                             continue;
                         } else {
                             var domProj = dom[i].proj(blame.swap()
-                                                           .addLocation("the " +
-                                                                        addTh(i+1) +
-                                                                        " argument of"));
+                                                      .addLocation("the " +
+                                                                   addTh(i+1) +
+                                                                   " argument of"));
                             checkedArgs.push(domProj(args[i]));
 
                         }
@@ -161,13 +161,22 @@
                     return rngProj(rawResult);
                 }
 
+                if (options && options.needs_proxy) {
+                    var p = new Proxy(f, {
+                        apply: function(target, thisVal, args) {
+                            return applyTrap(target, thisVal, args);
+                        }
+                    });
 
-                var p = new Proxy(f, {
-                    apply: applyTrap
-                });
+                    unproxy.set(p, this);
+                    return p;
 
-                unproxy.set(p, this);
-                return p;
+                } else {
+                    return function() {
+                        return applyTrap(f, this, Array.prototype.slice.call(arguments));
+                    };
+                }
+
 
             };
         });
