@@ -38,7 +38,7 @@ sjs --module contracts.js -o output.js input.js
 ```
 
 Then run your `output.js` file in any JavaScript environment. Some
-features of contracts.js (proxied objects and arrays) require ES6
+features of contracts.js (eg. proxied objects and arrays) require ES6
 features which not every JavaScript engine supports right now (any
 recent version of Firefox is fine along with node.js/V8 with the
 `--harmony` flag enabled).
@@ -301,4 +301,5 @@ rolling by hand). Earlier versions of contracts.js had hacky support
 that only kind of worked but this has been temporarily simplified to
 what we have right now.
 
-Once sweet.js has good ES6 module support we will do the right thing.
+Once sweet.js has good ES6 module support we will do the right thing
+and track blame at the module level.

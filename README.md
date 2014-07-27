@@ -1,171 +1,86 @@
 # Contracts.js
 
-Contracts.js is a contract library for JavaScript that allows you to specify invariants between parts of your code and have them checked at runtime for violations. 
+Contracts.js is a contract library for JavaScript that allows you to
+specify invariants between parts of your code and have them checked at
+runtime for violations.
 
-# Use
-
-If you are loading in the browser directly or using AMD, include `lib/reflect.js` (contract.js depends on the ES6 reflect module which this [shims](https://github.com/tvcutsem/harmony-reflect)) and `contracts.js`. You'll need a harmony (ES6-ish) environment which means things only work for FF 4+, chrome with the harmony flag enabled, and node v0.7.8+ with `node --harmony`.
-
-# Using macros
-
-[Sweet.js](http://sweetjs.org) support is currently being added. The contract macros are defined in `macros/index.js` so to expand a file using contracts.js macros with sweet.js you can do `sjs -m macros/index.js my_file.js`. 
-
-```js
-// import the library 
-var c = require("contacts-js");
-
-// the `c` in `@c` needs to match the imported name
-@c { (Num, Num) -> Num }
-function add(x, y) { return x + y; } 
-
-add(42, 24);         // 66
-add(42, "a string"); // throws error
-
-// higher order functions
-@c { ((Num) -> Num, Num) -> Num}
-function twice(f, x) { return f(f(x)) }
-
-// still to implement:
-
-// optional arguments
-@c { (Num, Num, Str?) -> Num }
-// call only
-@c { (Num) --> Num }
-// constructor only
-@c { (Num) ==> Num }
-// dependent functions
-@c { (Num) -> !{
-    function(result, args) { return result > args[0] } 
-}}
-function inc(x) { return x + 1; }
-// !{ ... } means to escape from the contract language into JavaScript
-// `this` contract
-@c { (Num, @{name: Str}) -> Num }
-
-// naming a contract
-@c NumId { (Num) -> Num }
-// naming a contact and escaping out of the contract language
-@c Num {!{
-    function(x) { return typeof x === "number" }
-}}
-// objects
-// ...
-// arrays
-// ...
-```
-
-# Using the library directly
-
-The basic idea is to use `guard` to wrap your value with contracts. For example:
+For example, you can specify the that following function takes two
+arguments, one that is an object with a string `name` field and the
+other that is an array filled with objects that have a `loc` number
+field, and returns a string.
 
 ```js
-var c  = require("contracts-js");
-var id = c.guard(c.fun(c.Num, c.Num),
-                 function(x) { return x; });
-id(42);     // 42
-id("foo");  // contract violation!
+import @ from "contracts.js"
+
+@ ({name: Str}, [...{loc: Num}]) -> Str
+function calcAverageLoc(person, locArr) {
+    var sum = locArr.reduce(function (l1, l2) {
+        return l1.loc + l2.loc;
+    });
+    return "Average lines of code for " +
+           person.name + " was " +
+           sum / locArr.length;
+}
+
 ```
 
-# API
+If you call the function with a bad argument:
 
-## `guard`
+```js
+var typoPerson = {nam: "Bob"};
+calcAverageLoc(typoPerson, [{loc: 1000}, {loc: 789}, {loc: 9001}]);
+```
 
+you will get a helpful error message pin pointing what went wrong:
 
-Guards a value with a contract.
+<pre style="color:red">
+calcAverageLoc: contract violation
+expected: Str
+given: undefined
+in: the name property of
+    the 1st argument of
+    ({name: Str}, [....{loc: Num}]) -> Str
+function calcAverageLoc guarded at line: 4
+blaming: (calling context for calcAverageLoc)
+</pre>
 
-	guard :: (Contract, Any, Str?, Str?) -> { use: () -> Any }
-    guard(contract, value [, server[, client]])
+# Installation
 
-  * _contract_ the contract to apply to the value
-  * _value_ value to be wrapped in a contract
-  * _server_ optional name of the server "module"
-  * _client_ optional name of the client "module"
+Uses [sweet.js](http://sweetjs.org) which you can install via npm:
 
+```
+npm install -g sweet.js
+npm install contracts.js
+```
 
+# Using
 
-## `check`
+At the top of your file you will need to use some special syntax to
+import contracts.js:
 
+```js
+import @ from "contracts.js"
 
-Creates a contract that checks first-order values (i.e. not functions or objects).
+// rest of your code goes here...
+```
 
-	check :: ((Any) -> Bool, Str) -> Contract
-	check(predicate, name)
-
-  * _predicate_ function that takes a value and return true if the contract should pass or false otherwise
-  * _name_ name of the contract. Displayed in contract violation messages.
-
-This is used to build contracts that get applied to values via the `guard` function. The `guard` function handles calling the predicate supplied to `check` at the appropriate time.
-
-An example of a contract to check for numbers:
-	
-	Contracts.check(function(x) { 
-		return typeof(x) === 'number'; 
-	}, 'Number')
-
-## `fun`
-
-	fun :: (Contract or [...Contract], 
-			 	((Any) -> Contract) or Contract,
-			 	{
-			 		callOnly: Bool
-			 		newOnly: Bool
-			 		pre: (Any) -> Bool
-			 		post: (Any) -> Bool
-			 		this: {...}
-			 	}) -> Contract
-	fun(domain, range, options)
-
-  * _domain_ Either a single contract or an array of contracts for each argument to the function
-  * _range_ Either a single contract for the function's result or a function that returns a contract.
-  * _options_ An options object:
-	* _callOnly_ Signal a contract violation if `new` is used with the function
-	* _newOnly_ Signal a contract violation if `new` is _not_ used with the function
-	* _pre_ A predicate to run _before_ the function is run
-	* _post_ A predicate to run _after_ the function is run
-	* _this_ An object contract to guard the `this` object
-
-Dependent function contracts (where the result depends on the argument values) are handled by using a function as the `range`. When the function returns its argument values are first passed to the `range` function which should return a contract. This contract is then used to check the original function's result.
-
-As a contrived example:
-
-	Contracts.fun(Str, function(x) { 
-		if(x === 42) {
-			return Contracts.Num;
-		} else {
-			return Contracts.Str;
-		}
-	})
-
-If the function contracted is called with `42` then its result must be a `Num` otherwise it must be a `Str`.
-
-Note that arguments are potentially mutable (they might be one value at the beginning of the function and different when the function returns) so keep that in mind when using dependent contracts.
-
-## `object`
+This looks like ES6 modules but it's not really and will work with
+whatever module system you are using (if any). See
+[here](#what-is-up-with-the-import) for details.
 
 
-	object :: ({ ... }, 
-				{ 
-					extensible: Bool
-					sealed: Bool
-					frozen: Bool
-					invariant: (Any) -> Bool
-				}) -> Contract
-	object(object, options)
+Compile your JavaScript file with sweet.js using the contracts.js module:
 
-  * _object_ An object with properties mapping to contracts that should be present in the contracted object
-  * _options_ An objects object:
-    * _extensible_ Object should be extensible
-    * _sealed_ Object should be sealed
-    * _frozen_ Object should be frozen
-    * _invariant_ Predicate to run each time the contracted object changes
+```
+sjs --module contracts.js -o output.js input.js
+```
 
-Object contracts are built with an object that maps properties to objects. Example:
+Then run your `output.js` file in any JavaScript environment. Some
+features of contracts.js (eg. proxied objects and arrays) require ES6
+features which not every JavaScript engine supports right now (any
+recent version of Firefox is fine along with node.js/V8 with the
+`--harmony` flag enabled).
 
-	Contracts.object({
-		foo: Str,
-		bar: Num
-	})
+# Documentation
 
-In this case the contracted object must have both the `foo` and `bar` properties (if missing, a contract violation is thrown at contract application time) and these properties must abide by their respective contracts (which are checked each time the property is changed).
-
-Object invariants can be checked with the invariant option. Whenever any property is changed the invariant function is called with a reference to the object. If the invariant returns false a contract violation is thrown.
+Contracts.js is documented [here]().

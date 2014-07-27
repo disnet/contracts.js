@@ -166,7 +166,7 @@ npm install contracts.js</code></pre>
 <p>This looks like ES6 modules but it's not really and will work with whatever module system you are using (if any). See <a href="#what-is-up-with-the-import">here</a> for details.</p>
 <p>Compile your JavaScript file with sweet.js using the contracts.js module:</p>
 <pre><code>sjs --module contracts.js -o output.js input.js</code></pre>
-<p>Then run your <code>output.js</code> file in any JavaScript environment. Some features of contracts.js (proxied objects and arrays) require ES6 features which not every JavaScript engine supports right now (any recent version of Firefox is fine along with node.js/V8 with the <code>--harmony</code> flag enabled).</p>
+<p>Then run your <code>output.js</code> file in any JavaScript environment. Some features of contracts.js (eg. proxied objects and arrays) require ES6 features which not every JavaScript engine supports right now (any recent version of Firefox is fine along with node.js/V8 with the <code>--harmony</code> flag enabled).</p>
 <h1 id="contracts"><span class="header-section-number">4</span> Contracts</h1>
 <p>Put a contract on a function like this:</p>
 <pre class="js"><code>@ (Num) -&gt; Num
@@ -296,6 +296,6 @@ arr[0] = &quot;string&quot;;          // error wrong type</code></pre>
 <p>This line is actually a macro that expands into contracts.js library code that each contracted function will refer to.</p>
 <h2 id="what-about-blaming-modules"><span class="header-section-number">5.3</span> What about blaming modules?</h2>
 <p>At the moment contracts.js just supports guarding the interaction of a contracted value and its context rather than tracking blame at the module level. This is because the module story in JavaScript is a bit fractured and incompatible in various ways (CommonJS, Node, AMD, ES6, rolling by hand). Earlier versions of contracts.js had hacky support that only kind of worked but this has been temporarily simplified to what we have right now.</p>
-<p>Once sweet.js has good ES6 module support we will do the right thing.</p>
+<p>Once sweet.js has good ES6 module support we will do the right thing and track blame at the module level.</p>
 </body>
 </html>

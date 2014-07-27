@@ -91,7 +91,7 @@
         var msg = blame.name + ": contract violation\n" +
             "expected: " + blame.expected + "\n" +
             "given: " + addQuotes(blame.given) + "\n" +
-            "in: " + blame.loc.slice().reverse().join("\n    ") + "\n" +
+           "in: " + blame.loc.slice().reverse().join("\n    ") + "\n" +
             "    " + blame.parents[0] + "\n" +
             lineMessage +
             "blaming: " + blame.pos + "\n";

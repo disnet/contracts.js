@@ -387,4 +387,29 @@ blaming: (calling context for f)
 `
     });
 
+    it("should work with the loc example", function() {
+        @ ({name: Str}, [...{loc: Num}]) -> Str
+        function calcAverageLoc(person, locArr) {
+            var sum = locArr.reduce(function (l1, l2) {
+                return l1.loc + l2.loc;
+            });
+            return "Average lines of code for " +
+                person.name + " was " +
+                sum / locArr.length;
+        }
+
+        var typoPerson = {nam: "Bob"};
+        blame of {
+            calcAverageLoc(typoPerson, [{loc: 1000}, {loc: 789}, {loc: 9001}]);
+        } should be `calcAverageLoc: contract violation
+expected: Str
+given: undefined
+in: the name property of
+    the 1st argument of
+    ({name: Str}, [....{loc: Num}]) -> Str
+function calcAverageLoc guarded at line: 392
+blaming: (calling context for calcAverageLoc)
+`
+    });
+
 });
