@@ -44,6 +44,9 @@ function calcAverageLoc guarded at line: 4
 blaming: (calling context for calcAverageLoc)
 </pre>
 
+You can play around with this and other examples on the
+[homepage](http://disnetdev.com/contracts.js).
+
 # Installation
 
 Uses [sweet.js](http://sweetjs.org) which you can install via npm:
