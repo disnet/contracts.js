@@ -122,5 +122,30 @@ describe("contracts", function() {
         @ ([...Num]) -> Num
         function f(arr) { return 42; }
 
+        f([42, 100, 60000, "foo"]);
+    });
+
+    it("should not blame an empty var length array", function() {
+        @ ([...Num]) -> Num
+        function f(arr) { return 42; }
+
+        f([]);
+    });
+
+    it("should blame a var length array with the repeat that comes first", function() {
+        @ ([...Num, Str]) -> Str
+        function f(arr) { return "str"; }
+
+        f([100, 1000, "str"]);
+    });
+
+    it("should blame a proxied var length array", function() {
+        @ (![...Num]) -> Num
+        function f(arr) {
+            arr[100] = "string";
+            return 42;
+        }
+
+        f([42]);
     });
 });

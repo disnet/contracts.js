@@ -177,7 +177,14 @@
     }
 
     function repeat(contract, options) {
-        return contract;
+        var contractName = "...." + contract;
+
+        return new Contract(contractName, "repeat", function(blame) {
+            return function (val) {
+                var proj = contract.proj(blame);
+                return proj(val);
+            };
+        });
     }
 
     function array(arrContract, options) {
@@ -196,20 +203,44 @@
                                     .addExpected("an array with at least " +
                                                  contractNum + pluralize(contractNum, " fields")));
                 }
-                for (var i = 0; i < arrContract.length; i++) {
-                    var fieldProj = arrContract[i].proj(blame.addLocation("the " + addTh(i) + " field of"));
-                    var checkedField = fieldProj(arr[i]);
-                    arr[i] = checkedField;
+                for (var ctxIdx = 0, arrIdx = 0; ctxIdx < arrContract.length; ctxIdx++) {
+                    if (arrContract[ctxIdx].type === "repeat" && arr.length <= ctxIdx) {
+                        break;
+                    }
+                    var fieldProj = arrContract[ctxIdx].proj(blame.addLocation("the " +
+                                                                               addTh(arrIdx) +
+                                                                               " field of"));
+                    var checkedField = fieldProj(arr[arrIdx]);
+                    arr[arrIdx] = checkedField;
+
+                    if (arrContract[ctxIdx].type === "repeat") {
+                        if (ctxIdx !== arrContract.length - 1) {
+                            throw new Error("The repeated contract must come last in " + contractName);
+                        }
+                        for (; arrIdx < arr.length; arrIdx++) {
+                            var repeatProj = arrContract[ctxIdx].proj(blame.addLocation("the " +
+                                                                                        addTh(arrIdx) +
+                                                                                        " field of"));
+                            arr[arrIdx] = repeatProj(arr[arrIdx]);
+                        }
+                    }
+                    arrIdx++;
                 }
-                if (options.proxy) {
+                if (options && options.proxy) {
                     return new Proxy(arr, {
                         set: function(target, key, value) {
-                            if (arrContract[key] !== undefined) {
-                                var fieldProj = arrContract[key].proj(blame.swap()
+                            var lastContract = arrContract[arrContract.length - 1];
+                            var fieldProj;
+                            if (arrContract[key] !== undefined && arrContract[key].type !== "repeat") {
+                                fieldProj = arrContract[key].proj(blame.swap()
                                                                            .addLocation("the " + addTh(key) +
                                                                                         " field of"));
-                                var checkedField = fieldProj(value);
-                                target[key] = checkedField;
+                                target[key] = fieldProj(value);
+                            } else if (lastContract && lastContract.type === "repeat") {
+                                fieldProj = lastContract.proj(blame.swap()
+                                                                   .addLocation("the " + addTh(key) +
+                                                                                " field of"));
+                                target[key] = fieldProj(value);
                             }
                         }
                     });
@@ -244,7 +275,7 @@
                     obj[key] = checkedProperty;
                 });
 
-                if (options.proxy) {
+                if (options && options.proxy) {
                     return new Proxy(obj, {
                         set: function(target, key, value) {
                             if (objContract.hasOwnProperty(key)) {
