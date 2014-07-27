@@ -138,6 +138,7 @@ let import = macro {
                         var rngProj = rng.proj(blame.addLocation('the return of'));
                         return rngProj(rawResult);
                     }
+                    // only use expensive proxies when needed (to distinguish between apply and construct)
                     if (options && options.needs_proxy) {
                         var p = new Proxy(f, {
                                 apply: function (target, thisVal, args) {
@@ -174,7 +175,8 @@ let import = macro {
         });
     }
     function array(arrContract, options) {
-        var contractName = '[' + arrContract.map(function (c$2) {
+        var proxyPrefix = options && options.proxy ? '!' : '';
+        var contractName = proxyPrefix + '[' + arrContract.map(function (c$2) {
                 return c$2;
             }).join(', ') + ']';
         var contractNum = arrContract.length;
@@ -224,7 +226,8 @@ let import = macro {
     }
     function object(objContract, options) {
         var contractKeys = Object.keys(objContract);
-        var contractName = '{' + contractKeys.map(function (prop) {
+        var proxyPrefix = options && options.proxy ? '!' : '';
+        var contractName = proxyPrefix + '{' + contractKeys.map(function (prop) {
                 return prop + ': ' + objContract[prop];
             }).join(', ') + '}';
         var keyNum = contractKeys.length;
@@ -234,9 +237,11 @@ let import = macro {
                         raiseBlame(blame.addGiven(obj).addExpected('an object with at least ' + keyNum + pluralize(keyNum, ' key')));
                     }
                     contractKeys.forEach(function (key) {
-                        var propProj = objContract[key].proj(blame.addLocation('the ' + key + ' property of'));
-                        var checkedProperty = propProj(obj[key]);
-                        obj[key] = checkedProperty;
+                        if (!(objContract[key].type === 'optional' && obj[key] === undefined)) {
+                            var propProj = objContract[key].proj(blame.addLocation('the ' + key + ' property of'));
+                            var checkedProperty = propProj(obj[key]);
+                            obj[key] = checkedProperty;
+                        }
                     });
                     if (options && options.proxy) {
                         return new Proxy(obj, {
@@ -245,6 +250,8 @@ let import = macro {
                                     var propProj = objContract[key].proj(blame.swap().addLocation('setting the ' + key + ' property of'));
                                     var checkedProperty = propProj(value);
                                     target[key] = checkedProperty;
+                                } else {
+                                    target[key] = value;
                                 }
                             }
                         });

@@ -161,6 +161,7 @@
                     return rngProj(rawResult);
                 }
 
+                // only use expensive proxies when needed (to distinguish between apply and construct)
                 if (options && options.needs_proxy) {
                     var p = new Proxy(f, {
                         apply: function(target, thisVal, args) {
@@ -206,7 +207,8 @@
     }
 
     function array(arrContract, options) {
-        var contractName = "[" + arrContract.map(function(c) {
+        var proxyPrefix = options && options.proxy ? "!" : "";
+        var contractName = proxyPrefix + "[" + arrContract.map(function(c) {
             return c;
         }).join(", ") + "]";
 
@@ -251,8 +253,8 @@
                             var fieldProj;
                             if (arrContract[key] !== undefined && arrContract[key].type !== "repeat") {
                                 fieldProj = arrContract[key].proj(blame.swap()
-                                                                           .addLocation("the " + addTh(key) +
-                                                                                        " field of"));
+                                                                  .addLocation("the " + addTh(key) +
+                                                                               " field of"));
                                 target[key] = fieldProj(value);
                             } else if (lastContract && lastContract.type === "repeat") {
                                 fieldProj = lastContract.proj(blame.swap()
@@ -272,7 +274,8 @@
 
     function object(objContract, options) {
         var contractKeys = Object.keys(objContract);
-        var contractName = "{" + contractKeys.map(function(prop) {
+        var proxyPrefix = options && options.proxy ? "!" : "";
+        var contractName = proxyPrefix + "{" + contractKeys.map(function(prop) {
             return prop + ": " + objContract[prop];
         }).join(", ") + "}";
         var keyNum = contractKeys.length;
@@ -288,9 +291,13 @@
                 }
 
                 contractKeys.forEach(function(key) {
-                    var propProj = objContract[key].proj(blame.addLocation("the " + key + " property of"));
-                    var checkedProperty = propProj(obj[key]);
-                    obj[key] = checkedProperty;
+                    if (!(objContract[key].type === "optional" && obj[key] === undefined)) {
+                        var propProj = objContract[key].proj(blame.addLocation("the " +
+                                                                               key +
+                                                                               " property of"));
+                        var checkedProperty = propProj(obj[key]);
+                        obj[key] = checkedProperty;
+                    }
                 });
 
                 if (options && options.proxy) {
@@ -302,6 +309,8 @@
                                                                                   key + " property of"));
                                 var checkedProperty = propProj(value);
                                 target[key] = checkedProperty;
+                            } else {
+                                target[key] = value;
                             }
                         }
                     });

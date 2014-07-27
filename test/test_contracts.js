@@ -95,6 +95,21 @@ describe("contracts", function() {
         f(42);
     });
 
+    it("should allow optional contracts on an object", function() {
+        @ ({foo: opt Str}) -> Str
+        function f(o) { return "str"; }
+
+        f({bar: 42});
+    });
+
+    it("should blame when an optional contract is violated for an object", function() {
+        @ ({foo: opt Str}) -> Str
+        function f(o) { return "str"; }
+
+        f({foo: 42});
+
+    })
+
     it("should blame a proxied object after it has been created", function() {
         @ (Num) -> !{age: Num}
         function makePerson(age) {
