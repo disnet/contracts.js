@@ -322,84 +322,75 @@ let import = macro {
 }
 export import;
 
-macro toLibrary {
-    // function
-    rule { {
-		($args ...) -> $rest ...
-	} } => {
-        _c.fun(
-            [toLibrary { $args ... }],
-             toLibrary {$rest ...})
-    }
-
-    // object
-    rule { {
-        { $($key $[:] $contract ...) (,) ... }
-    } } => {
-        _c.object({
-            $($key $[:] toLibrary { $contract ...}) (,) ...
-        })
-
-    }
-
-    // proxied object
-    rule { {
-        !{ $($key $[:] $contract ...) (,) ... }
-    } } => {
-        _c.object({
-            $($key $[:] toLibrary { $contract ...}) (,) ...
-        }, {proxy: true})
-
-    }
-
-    // array
-    rule { {
-        [ $contracts ... ]
-    } } => {
-        _c.array([toLibrary { $contracts ...} ])
-
-    }
-
-    // proxied array
-    rule { {
-        ![ $contracts ... ]
-    } } => {
-        _c.array([toLibrary { $contracts ...} ], {proxy: true})
-
-    }
-
-    rule { {
-        $contract ... , $rest ...
-	} } => {
-        toLibrary { $contract ... } , toLibrary { $rest ... }
-    }
-
-    // repeat
-    rule { {
-        $[...] $contract ...
-    } } => {
-        _c.repeat(toLibrary { $contract ... })
-    }
-
-    // optional
-    rule { {
-        opt $contract ...
-    } } => {
-        _c.optional(toLibrary { $contract ... })
-    }
-
-    rule { {
-		$contract
-	} } => {
-        _c.$contract
-	}
+macro base_contract {
+    rule { $name } => { _c.$name }
 }
 
+macro function_contract {
+    rule { ($dom:any_contract (,) ...) -> $range:any_contract } => {
+        _c.fun([$dom (,) ...], $range)
+    }
+}
+
+macro object_contract {
+    rule { {
+        $($prop $[:] $contract:any_contract) (,) ...
+    } } => {
+        _c.object({
+            $($prop : $contract) (,) ...
+        })
+    }
+    // proxied objects
+    rule { !{
+        $($prop $[:] $contract:any_contract) (,) ...
+    } } => {
+        _c.object({
+            $($prop : $contract) (,) ...
+        }, {proxy: true})
+    }
+}
+
+macro array_contract {
+    rule { [
+        $contracts:any_contract (,) ...
+    ] } => {
+        _c.array([$contracts (,) ...])
+    }
+    // proxied arrays
+    rule { ![
+        $contracts:any_contract (,) ...
+    ] } => {
+        _c.array([$contracts (,) ...], {proxy: true})
+    }
+}
+
+macro repeat_contract {
+    rule {$[...] $contract:any_contract } => {
+        _c.repeat($contract)
+    }
+}
+
+macro optional_contract {
+    rule {
+        opt $contract:any_contract
+    } => {
+        _c.optional($contract)
+    }
+}
+
+macro any_contract {
+    rule { $contract:function_contract } => { $contract }
+    rule { $contract:object_contract } => { $contract }
+    rule { $contract:array_contract } => { $contract }
+    rule { $contract:repeat_contract } => { $contract }
+    rule { $contract:optional_contract } => { $contract }
+    rule { $contract:base_contract } => { $contract }
+}
 
 
 let @ = macro {
 	case {_
-        $contracts ...
+        $contracts:function_contract
 		function $name ($params ...) { $body ...}
     } => {
         var nameStx = #{$name}[0];
@@ -410,7 +401,7 @@ let @ = macro {
         letstx $fnName = [makeValue(nameStr, #{here})];
         letstx $lineNumber = [makeValue(nameStx.token.sm_lineNumber, #{here})];
 		return #{
-            var $guardedName = (toLibrary { $contracts ... }).proj(_c.Blame.create($fnName, $client, $server, $lineNumber))(function $name ($params ...) { $body ...});
+            var $guardedName = ($contracts).proj(_c.Blame.create($fnName, $client, $server, $lineNumber))(function $name ($params ...) { $body ...});
             function $name ($params ...) {
                 return $guardedName.apply(this, arguments);
             }
