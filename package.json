@@ -6,7 +6,7 @@
     "contracts"
   ],
   "author": "Tim Disney",
-  "version": "0.4.0-pre",
+  "version": "0.4.0",
   "licenses": [
     {
       "type": "MIT",
@@ -24,7 +24,7 @@
   "homepage": "http://disnetdev.com/contracts.js/",
   "dependencies": {
     "harmony-reflect": "~0.0.13",
-    "sweet.js": "mozilla/sweet.js"
+    "sweet.js": "^0.7.0"
   },
   "devDependencies": {
     "es6-macros": "0.0.7",
