@@ -14,8 +14,18 @@ function cleanerEval(str, oldConsole) {
 var examples = [
     {
         id: 1,
+        file: "average-loc.js",
+        title: "Average Lines of Code"
+    },
+    {
+        id: 2,
         file: "higher-order.js",
         title: "Higher-Order"
+    },
+    {
+        id: 3,
+        file: "proxied-object.js",
+        title: "Proxied Object"
     },
 ];
 var contractModulePromise = Ember.$.ajax("macros/index.js", {
