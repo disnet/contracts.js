@@ -39,7 +39,8 @@
     "grunt-template": "^0.2.3",
     "harmony-reflect": "^1.0.0",
     "mocha": "^1.20.1",
-    "sparkler": "^0.3.3"
+    "sparkler": "^0.3.3",
+    "should": "^4.0.4"
   },
   "repository": {
     "type": "git",
