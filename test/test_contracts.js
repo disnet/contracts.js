@@ -109,4 +109,12 @@ describe("contracts", function() {
 
         f(["string"]);
     });
+
+    it("should blame a proxied array", function() {
+        @ (Num) -> ![Num]
+        function makeArr(n) { return [n]; }
+
+        var a = makeArr(42);
+        a[0] = "string";
+    });
 });

@@ -164,7 +164,19 @@ let import = macro {
                         var checkedField = fieldProj(arr[i]);
                         arr[i] = checkedField;
                     }
-                    return arr;
+                    if (options.proxy) {
+                        return new Proxy(arr, {
+                            set: function (target, key, value) {
+                                if (arrContract[key] !== undefined) {
+                                    var fieldProj$2 = arrContract[key].proj(blame.swap().addLocation('the ' + addTh(key) + ' field of'));
+                                    var checkedField$2 = fieldProj$2(value);
+                                    target[key] = checkedField$2;
+                                }
+                            }
+                        });
+                    } else {
+                        return arr;
+                    }
                 };
             });
         return c;
@@ -295,6 +307,14 @@ macro toLibrary {
         [ $contracts ... ]
     } } => {
         _c.array([toLibrary { $contracts ...} ])
+
+    }
+
+    // proxied array
+    rule { {
+        ![ $contracts ... ]
+    } } => {
+        _c.array([toLibrary { $contracts ...} ], {proxy: true})
 
     }
 

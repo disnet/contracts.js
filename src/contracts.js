@@ -197,7 +197,21 @@
                     var checkedField = fieldProj(arr[i]);
                     arr[i] = checkedField;
                 }
-                return arr;
+                if (options.proxy) {
+                    return new Proxy(arr, {
+                        set: function(target, key, value) {
+                            if (arrContract[key] !== undefined) {
+                                var fieldProj = arrContract[key].proj(blame.swap()
+                                                                           .addLocation("the " + addTh(key) +
+                                                                                        " field of"));
+                                var checkedField = fieldProj(value);
+                                target[key] = checkedField;
+                            }
+                        }
+                    });
+                } else {
+                    return arr;
+                }
             };
         });
         return c;

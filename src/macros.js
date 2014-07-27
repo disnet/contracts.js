@@ -47,6 +47,14 @@ macro toLibrary {
 
     }
 
+    // proxied array
+    rule { {
+        ![ $contracts ... ]
+    } } => {
+        _c.array([toLibrary { $contracts ...} ], {proxy: true})
+
+    }
+
     rule { {
         $contract ... , $rest ...
 	} } => {
