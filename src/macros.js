@@ -76,6 +76,14 @@ macro any_contract {
 
 
 let @ = macro {
+    case {_
+          let $contractName = $contract:any_contract
+    } => {
+        return #{
+            _c.$contractName = $contract;
+        }
+    }
+
 	case {_
         $contracts:function_contract
 		function $name ($params ...) { $body ...}

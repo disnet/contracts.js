@@ -412,4 +412,25 @@ blaming: (calling context for calcAverageLoc)
 `
     });
 
+    it("should bind contracts to names", function() {
+        @ let NumId = (Num) -> Num
+
+        @ (NumId) -> Num
+        function f(g) { return g(100); }
+
+        (f(function(x) { return x; })).should.equal(100);
+        blame of {
+            f(function(x) { return "string"; })
+        } should be `f: contract violation
+expected: Num
+given: 'string'
+in: the return of
+    the 1st argument of
+    ((Num) -> Num) -> Num
+function f guarded at line: 419
+blaming: (calling context for f)
+`
+
+    })
+
 });
