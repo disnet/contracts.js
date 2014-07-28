@@ -13,7 +13,7 @@ Requires [sweet.js](http://sweetjs.org) which you can install via npm:
 
 ```
 npm install -g sweet.js
-npm install contracts.js
+npm install contracts-js
 ```
 
 # Using
