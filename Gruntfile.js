@@ -44,7 +44,26 @@ module.exports = function(grunt) {
                     }
                 },
                 src: "src/macros.js",
-                dest: "macros/index.js"
+                dest: "build/macros/index.js"
+            },
+            diabledMacros: {
+                options: {
+                    data: function() {
+                        return {
+                            lib: grunt.file.read("build/contracts.js")
+                        };
+                    }
+                },
+                src: "src/macros-disabled.js",
+                dest: "build/macros/disabled.js"
+            }
+        },
+        copy: {
+            macros: {
+                expand: true,
+                flatten: true,
+                src: "build/macros/*",
+                dest: "macros/"
             }
         },
         jshint: {
@@ -120,7 +139,7 @@ module.exports = function(grunt) {
     });
 
     // Default task.
-    grunt.registerTask('default', ["sweetjs:contracts", "template", "sweetjs:tests", "mochaTest"]);
+    grunt.registerTask('default', ["sweetjs:contracts", "template", "copy", "sweetjs:tests", "mochaTest"]);
 
     grunt.registerTask("docs", ["pandoc"]);
 
