@@ -165,7 +165,7 @@ npm install contracts-js</code></pre>
 // rest of your code goes here...</code></pre>
 <p>This looks like ES6 modules but it's not really and will work with whatever module system you are using (if any). See <a href="#what-is-up-with-the-import">here</a> for details.</p>
 <p>Compile your JavaScript file with sweet.js using the contracts.js module:</p>
-<pre><code>sjs --module contracts.js -o output.js input.js</code></pre>
+<pre><code>sjs --module contracts-js/macros -o output.js input.js</code></pre>
 <p>Then run your <code>output.js</code> file in any JavaScript environment. Some features of contracts.js (eg. proxied objects and arrays) require ES6 features which not every JavaScript engine supports right now (any recent version of Firefox is fine along with node.js/V8 with the <code>--harmony</code> flag enabled).</p>
 <h1 id="contracts"><span class="header-section-number">4</span> Contracts</h1>
 <p>Put a contract on a function like this:</p>
