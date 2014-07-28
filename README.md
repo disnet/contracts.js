@@ -77,7 +77,7 @@ whatever module system you are using (if any). See
 Compile your JavaScript file with sweet.js using the contracts.js module:
 
 ```
-sjs --module contracts.js -o output.js input.js
+sjs --module contracts-js/macros -o output.js input.js
 ```
 
 Then run your `output.js` file in any JavaScript environment. Some
