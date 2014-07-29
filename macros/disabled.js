@@ -185,8 +185,8 @@ let import = macro {
         var contractNum = arrContract.length;
         var c = new Contract(contractName, 'array', function (blame) {
                 return function (arr) {
-                    if (typeof arr === 'number' || typeof arr === 'string' || typeof arr === 'boolean') {
-                        raiseBlame(blame.addGiven(arr).addExpected('an array with at least ' + contractNum + pluralize(contractNum, ' fields')));
+                    if (typeof arr === 'number' || typeof arr === 'string' || typeof arr === 'boolean' || arr == null) {
+                        raiseBlame(blame.addGiven(arr).addExpected('an array with at least ' + contractNum + pluralize(contractNum, ' field')));
                     }
                     for (var ctxIdx = 0, arrIdx = 0; ctxIdx < arrContract.length; ctxIdx++) {
                         if (arrContract[ctxIdx].type === 'repeat' && arr.length <= ctxIdx) {
