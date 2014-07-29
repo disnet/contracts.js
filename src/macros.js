@@ -65,13 +65,24 @@ macro optional_contract {
     }
 }
 
-macro any_contract {
+macro non_or_contract {
     rule { $contract:function_contract } => { $contract }
-    rule { $contract:object_contract } => { $contract }
-    rule { $contract:array_contract } => { $contract }
-    rule { $contract:repeat_contract } => { $contract }
+    rule { $contract:object_contract }   => { $contract }
+    rule { $contract:array_contract }    => { $contract }
+    rule { $contract:repeat_contract }   => { $contract }
     rule { $contract:optional_contract } => { $contract }
-    rule { $contract:base_contract } => { $contract }
+    rule { $contract:base_contract }     => { $contract }
+}
+
+macro or_contract {
+    rule { $left:non_or_contract or $right:any_contract } => {
+        _c.or($left, $right)
+    }
+}
+
+macro any_contract {
+    rule { $contract:or_contract }     => { $contract }
+    rule { $contract:non_or_contract } => { $contract }
 }
 
 

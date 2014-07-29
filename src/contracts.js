@@ -36,10 +36,13 @@
             neg: this.pos
         });
     };
-    BlameObj.prototype.addExpected = function(expected) {
-        return Blame.clone(this, {
-            expected: expected
-        });
+    BlameObj.prototype.addExpected = function(expected, override) {
+        if (this.expected === undefined || override) {
+            return Blame.clone(this, {
+                expected: expected
+            });
+        }
+        return Blame.clone(this, {});
     };
     BlameObj.prototype.addGiven = function(given) {
         return Blame.clone(this, {
@@ -287,7 +290,7 @@
             return function(obj) {
                 if (typeof obj === "number" ||
                     typeof obj === "string" ||
-                    typeof obj === "boolean") {
+                    typeof obj === "boolean" || obj == null) {
                     raiseBlame(blame.addGiven(obj)
                                     .addExpected("an object with at least " +
                                                  keyNum + pluralize(keyNum, " key")));
@@ -326,6 +329,21 @@
         return c;
     }
 
+    function or(left, right) {
+        var contractName = left + " or " + right;
+        return new Contract(contractName, "or", function(blame) {
+            return function(val) {
+                try {
+                    var leftProj = left.proj(blame.addExpected(contractName, true));
+                    return leftProj(val);
+                } catch (b) {
+                    var rightProj = right.proj(blame.addExpected(contractName, true));
+                    return rightProj(val);
+                }
+            };
+        });
+    }
+
     function guard(contract, value, name) {
         var proj = contract.proj(Blame.create(name,
                                               "function " + name,
@@ -359,6 +377,7 @@
         // g: seal("g"),
 
         fun: fun,
+        or: or,
         repeat: repeat,
         optional: optional,
         object: object,

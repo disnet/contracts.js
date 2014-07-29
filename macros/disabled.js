@@ -37,8 +37,11 @@ let import = macro {
             neg: this.pos
         });
     };
-    BlameObj.prototype.addExpected = function (expected) {
-        return Blame.clone(this, { expected: expected });
+    BlameObj.prototype.addExpected = function (expected, override) {
+        if (this.expected === undefined || override) {
+            return Blame.clone(this, { expected: expected });
+        }
+        return Blame.clone(this, {});
     };
     BlameObj.prototype.addGiven = function (given) {
         return Blame.clone(this, { given: given });
@@ -233,7 +236,7 @@ let import = macro {
         var keyNum = contractKeys.length;
         var c = new Contract(contractName, 'object', function (blame) {
                 return function (obj) {
-                    if (typeof obj === 'number' || typeof obj === 'string' || typeof obj === 'boolean') {
+                    if (typeof obj === 'number' || typeof obj === 'string' || typeof obj === 'boolean' || obj == null) {
                         raiseBlame(blame.addGiven(obj).addExpected('an object with at least ' + keyNum + pluralize(keyNum, ' key')));
                     }
                     contractKeys.forEach(function (key) {
@@ -261,6 +264,20 @@ let import = macro {
                 };
             });
         return c;
+    }
+    function or(left, right) {
+        var contractName = left + ' or ' + right;
+        return new Contract(contractName, 'or', function (blame) {
+            return function (val) {
+                try {
+                    var leftProj = left.proj(blame.addExpected(contractName, true));
+                    return leftProj(val);
+                } catch (b) {
+                    var rightProj = right.proj(blame.addExpected(contractName, true));
+                    return rightProj(val);
+                }
+            };
+        });
     }
     function guard(contract, value, name) {
         var proj = contract.proj(Blame.create(name, 'function ' + name, '(calling context for ' + name + ')'));
@@ -307,6 +324,7 @@ let import = macro {
             return null == val;
         }, 'Null'),
         fun: fun,
+        or: or,
         repeat: repeat,
         optional: optional,
         object: object,
@@ -378,17 +396,36 @@ macro optional_contract {
     }
 }
 
-macro any_contract {
+macro non_or_contract {
     rule { $contract:function_contract } => { $contract }
-    rule { $contract:object_contract } => { $contract }
-    rule { $contract:array_contract } => { $contract }
-    rule { $contract:repeat_contract } => { $contract }
+    rule { $contract:object_contract }   => { $contract }
+    rule { $contract:array_contract }    => { $contract }
+    rule { $contract:repeat_contract }   => { $contract }
     rule { $contract:optional_contract } => { $contract }
-    rule { $contract:base_contract } => { $contract }
+    rule { $contract:base_contract }     => { $contract }
+}
+
+macro or_contract {
+    rule { $left:non_or_contract or $right:any_contract } => {
+        _c.or($left, $right)
+    }
+}
+
+macro any_contract {
+    rule { $contract:or_contract }     => { $contract }
+    rule { $contract:non_or_contract } => { $contract }
 }
 
 
 let @ = macro {
+    case {_
+          let $contractName = $contract:any_contract
+    } => {
+        return #{
+            _c.$contractName = $contract;
+        }
+    }
+
     case {_
         $contracts:function_contract
         function $name ($params ...) { $body ...}

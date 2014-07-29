@@ -431,6 +431,24 @@ function f guarded at line: 419
 blaming: (calling context for f)
 `
 
+    });
+
+    it("should work with or contracts", function() {
+        @ (Str or Num) -> Str
+        function foo(s) { return s.toString(); }
+
+        (foo("foo")).should.equal("foo");
+        (foo(42)).should.equal("42");
+        blame of {
+            (foo(false))
+        } should be `foo: contract violation
+expected: Str or Num
+given: false
+in: the 1st argument of
+    (Str or Num) -> Str
+function foo guarded at line: 438
+blaming: (calling context for foo)
+`
     })
 
 });
