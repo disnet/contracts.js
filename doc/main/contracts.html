@@ -144,11 +144,16 @@
 <li><a href="#repeated-fields"><span class="toc-section-number">4.4.1</span> Repeated Fields</a></li>
 <li><a href="#proxied-arrays"><span class="toc-section-number">4.4.2</span> Proxied Arrays</a></li>
 </ul></li>
+<li><a href="#combinators"><span class="toc-section-number">4.5</span> Combinators</a><ul>
+<li><a href="#or"><span class="toc-section-number">4.5.1</span> <code>or</code></a></li>
+</ul></li>
+<li><a href="#naming-contracts"><span class="toc-section-number">4.6</span> Naming Contracts</a></li>
 </ul></li>
 <li><a href="#faq"><span class="toc-section-number">5</span> FAQ</a><ul>
 <li><a href="#do-i-have-to-use-macros"><span class="toc-section-number">5.1</span> Do I have to use macros?</a></li>
 <li><a href="#what-is-up-with-the-import"><span class="toc-section-number">5.2</span> What is up with the import?</a></li>
 <li><a href="#what-about-blaming-modules"><span class="toc-section-number">5.3</span> What about blaming modules?</a></li>
+<li><a href="#how-can-i-disable-contracts-in-production"><span class="toc-section-number">5.4</span> How can I disable contracts in production?</a></li>
 </ul></li>
 </ul>
 </nav>
@@ -167,6 +172,8 @@ npm install contracts-js</code></pre>
 <p>Compile your JavaScript file with sweet.js using the contracts.js module:</p>
 <pre><code>sjs --module contracts-js/macros -o output.js input.js</code></pre>
 <p>Then run your <code>output.js</code> file in any JavaScript environment. Some features of contracts.js (eg. proxied objects and arrays) require ES6 features which not every JavaScript engine supports right now (any recent version of Firefox is fine along with node.js/V8 with the <code>--harmony</code> flag enabled).</p>
+<p>If you want to disable contract checking (eg. for a production build) you can use the disabled contracts module:</p>
+<pre><code>sjs --module contracts-js/macros/disabled.js -o output.js input.js</code></pre>
 <h1 id="contracts"><span class="header-section-number">4</span> Contracts</h1>
 <p>Put a contract on a function like this:</p>
 <pre class="js"><code>@ (Num) -&gt; Num
@@ -284,6 +291,23 @@ function foo(a, b) { return [a, b]; }
 var arr = foo(100, &quot;foo&quot;);
 
 arr[0] = &quot;string&quot;;          // error wrong type</code></pre>
+<h2 id="combinators"><span class="header-section-number">4.5</span> Combinators</h2>
+<h3 id="or"><span class="header-section-number">4.5.1</span> <code>or</code></h3>
+<p>You can combine two contracts with the <code>or</code> combinator. If the first contract fails, the combined contract will succeed if the second passes.</p>
+<pre class="js"><code>@ (Num or Str) -&gt; Str
+function foo(x) { return x.toString(); }
+
+foo(24);    // passes
+foo(&quot;24&quot;);  // passes
+foo(false); // error not a Num or Str</code></pre>
+<p>Note that <code>or</code> only makes sense for at most one higher-order contract. For example, <code>Num or (Num) -&gt; Num</code> is fine but <code>(Num) -&gt; Num or (Str) -&gt; Str</code> will not work.</p>
+<h2 id="naming-contracts"><span class="header-section-number">4.6</span> Naming Contracts</h2>
+<p>When you have a complicated contract that is repeated in several places it can be convenient to refer to it by a shorter name. For this, you can use <code>let</code> after the <code>@</code> symbol:</p>
+<pre class="js"><code>@ let NumId = (Num) -&gt; Num
+
+
+@ (NumId, Num) -&gt; Num
+function (f, x) { return f(x); }</code></pre>
 <h1 id="faq"><span class="header-section-number">5</span> FAQ</h1>
 <h2 id="do-i-have-to-use-macros"><span class="header-section-number">5.1</span> Do I have to use macros?</h2>
 <p>No, as a matter of fact. If you'd like to just use the library in vanilla JavaScript you can. Load contracts.js and then use the <code>guard</code> function:</p>
@@ -297,5 +321,8 @@ arr[0] = &quot;string&quot;;          // error wrong type</code></pre>
 <h2 id="what-about-blaming-modules"><span class="header-section-number">5.3</span> What about blaming modules?</h2>
 <p>At the moment contracts.js just supports guarding the interaction of a contracted value and its context rather than tracking blame at the module level. This is because the module story in JavaScript is a bit fractured and incompatible in various ways (CommonJS, Node, AMD, ES6, rolling by hand). Earlier versions of contracts.js had hacky support that only kind of worked but this has been temporarily simplified to what we have right now.</p>
 <p>Once sweet.js has good ES6 module support we will do the right thing and track blame at the module level.</p>
+<h2 id="how-can-i-disable-contracts-in-production"><span class="header-section-number">5.4</span> How can I disable contracts in production?</h2>
+<p>Compile with the <code>disabled.js</code> module:</p>
+<pre><code>sjs --module contracts-js/macros/disabled.js -o output.js input.js</code></pre>
 </body>
 </html>

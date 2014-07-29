@@ -43,6 +43,15 @@ features which not every JavaScript engine supports right now (any
 recent version of Firefox is fine along with node.js/V8 with the
 `--harmony` flag enabled).
 
+If you want to disable contract checking (eg. for a production build)
+you can use the disabled contracts module:
+
+```
+sjs --module contracts-js/macros/disabled.js -o output.js input.js
+```
+
+
+
 # Contracts
 
 Put a contract on a function like this:
@@ -264,6 +273,42 @@ var arr = foo(100, "foo");
 arr[0] = "string";          // error wrong type
 ```
 
+## Combinators
+
+### `or`
+
+You can combine two contracts with the `or` combinator. If the first
+contract fails, the combined contract will succeed if the second
+passes.
+
+```js
+@ (Num or Str) -> Str
+function foo(x) { return x.toString(); }
+
+foo(24);    // passes
+foo("24");  // passes
+foo(false); // error not a Num or Str
+```
+
+Note that `or` only makes sense for at most one higher-order contract.
+For example, `Num or (Num) -> Num` is fine but `(Num) -> Num or
+(Str) -> Str` will not work.
+
+
+## Naming Contracts
+
+When you have a complicated contract that is repeated in several
+places it can be convenient to refer to it by a shorter name. For
+this, you can use `let` after the `@` symbol:
+
+```js
+@ let NumId = (Num) -> Num
+
+
+@ (NumId, Num) -> Num
+function (f, x) { return f(x); }
+```
+
 # FAQ
 
 ## Do I have to use macros?
@@ -303,3 +348,12 @@ what we have right now.
 
 Once sweet.js has good ES6 module support we will do the right thing
 and track blame at the module level.
+
+
+## How can I disable contracts in production?
+
+Compile with the `disabled.js` module:
+
+```
+sjs --module contracts-js/macros/disabled.js -o output.js input.js
+```
