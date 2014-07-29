@@ -1,4 +1,4 @@
-var should = require("should");
+var should = require("should"), assert = require("assert");
 import @ from "contracts.js";
 
 macro blame {
@@ -7,6 +7,7 @@ macro blame {
         return #{
             try {
                 $body ...
+                assert.fail("no exception", "exception", "Should have blamed: " + $expectedMsg);
             } catch (b) {
                 (b.message).should.equal($expectedMsg);
             }
@@ -27,7 +28,7 @@ expected: Num
 given: 'foo'
 in: the 1st argument of
     (Num) -> Num
-function numId guarded at line: 21
+function numId guarded at line: 22
 blaming: (calling context for numId)
 `
     });
@@ -43,7 +44,7 @@ expected: Num
 given: 'foo'
 in: the return of
     (Num) -> Num
-function numId guarded at line: 37
+function numId guarded at line: 38
 blaming: function numId
 `
     });
@@ -59,7 +60,7 @@ expected: Str
 given: 42
 in: the 2nd argument of
     (Num, Str) -> Num
-function f guarded at line: 53
+function f guarded at line: 54
 blaming: (calling context for f)
 `
     });
@@ -86,7 +87,7 @@ expected: Str
 given: 100
 in: the 2nd argument of
     (Num, opt Str) -> Num
-function f guarded at line: 78
+function f guarded at line: 79
 blaming: (calling context for f)
 `
     });
@@ -102,7 +103,7 @@ expected: a function that takes 1 argument
 given: 42
 in: the 1st argument of
     ((Num) -> Num) -> Num
-function f guarded at line: 96
+function f guarded at line: 97
 blaming: (calling context for f)
 `
     });
@@ -123,7 +124,7 @@ given: 'string'
 in: the return of
     the 1st argument of
     ((Num) -> Num) -> Num
-function numApp guarded at line: 112
+function numApp guarded at line: 113
 blaming: (calling context for numApp)
 `
     });
@@ -142,7 +143,7 @@ given: 'string'
 in: the 1st argument of
     the 1st argument of
     ((Num) -> Num) -> Num
-function bad guarded at line: 133
+function bad guarded at line: 134
 blaming: function bad
 `
     });
@@ -159,7 +160,7 @@ given: 'foo'
 in: the age property of
     the 1st argument of
     ({age: Num}) -> Num
-function f guarded at line: 152
+function f guarded at line: 153
 blaming: (calling context for f)
 `
     });
@@ -179,7 +180,7 @@ in: the return of
     the g property of
     the 1st argument of
     ({g: (Num) -> Num}) -> Num
-function f guarded at line: 169
+function f guarded at line: 170
 blaming: (calling context for f)
 `
     });
@@ -195,7 +196,7 @@ expected: an object with at least 1 key
 given: 42
 in: the 1st argument of
     ({s: Str}) -> Str
-function f guarded at line: 189
+function f guarded at line: 190
 blaming: (calling context for f)
 `
     });
@@ -219,7 +220,7 @@ given: 42
 in: the foo property of
     the 1st argument of
     ({foo: opt Str}) -> Str
-function f guarded at line: 212
+function f guarded at line: 213
 blaming: (calling context for f)
 `
     });
@@ -239,7 +240,7 @@ given: 'string'
 in: setting the age property of
     the return of
     (Num) -> !{age: Num}
-function makePerson guarded at line: 229
+function makePerson guarded at line: 230
 blaming: (calling context for makePerson)
 `
     });
@@ -259,7 +260,7 @@ given: '42'
 in: setting the age property of
     the 1st argument of
     (!{age: Num}) -> Num
-function f guarded at line: 249
+function f guarded at line: 250
 blaming: function f
 `
     });
@@ -276,7 +277,7 @@ given: 1
 in: the 0th field of
     the 1st argument of
     ([Str]) -> Num
-function f guarded at line: 269
+function f guarded at line: 270
 blaming: (calling context for f)
 `
     });
@@ -293,7 +294,7 @@ given: undefined
 in: the 1st field of
     the 1st argument of
     ([Str, Num]) -> Num
-function f guarded at line: 286
+function f guarded at line: 287
 blaming: (calling context for f)
 `
     });
@@ -311,7 +312,7 @@ given: 'string'
 in: the 0th field of
     the return of
     (Num) -> ![Num]
-function makeArr guarded at line: 303
+function makeArr guarded at line: 304
 blaming: (calling context for makeArr)
 `
     });
@@ -328,7 +329,7 @@ given: 'foo'
 in: the 3rd field of
     the 1st argument of
     ([....Num]) -> Num
-function f guarded at line: 321
+function f guarded at line: 322
 blaming: (calling context for f)
 `
     });
@@ -364,7 +365,7 @@ given: 'string'
 in: the 100th field of
     the 1st argument of
     (![....Num]) -> Num
-function f guarded at line: 354
+function f guarded at line: 355
 blaming: function f
 `
     });
@@ -382,7 +383,7 @@ in: the name property of
     the o property of
     the 1st argument of
     ({o: {name: Str}}) -> Str
-function f guarded at line: 374
+function f guarded at line: 375
 blaming: (calling context for f)
 `
     });
@@ -407,7 +408,7 @@ given: undefined
 in: the name property of
     the 1st argument of
     ({name: Str}, [....{loc: Num}]) -> Str
-function calcAverageLoc guarded at line: 392
+function calcAverageLoc guarded at line: 393
 blaming: (calling context for calcAverageLoc)
 `
     });
@@ -427,7 +428,7 @@ given: 'string'
 in: the return of
     the 1st argument of
     ((Num) -> Num) -> Num
-function f guarded at line: 419
+function f guarded at line: 420
 blaming: (calling context for f)
 `
 
@@ -446,9 +447,18 @@ expected: Str or Num
 given: false
 in: the 1st argument of
     (Str or Num) -> Str
-function foo guarded at line: 438
+function foo guarded at line: 439
 blaming: (calling context for foo)
 `
-    })
+    });
+
+    it("should work for dependent contracts", function() {
+        @ (x: Pos) -> res: Num | res <= x
+        function bad_square_root(x) { return x * x; }
+
+        blame of {
+            bad_square_root(100)
+        } should be `not less than x`
+    });
 
 });
