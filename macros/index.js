@@ -118,8 +118,12 @@ let import = macro {
         return str + 's';
     }
     function fun(dom, rng, options) {
-        var domName = '(' + dom.join(', ') + ')';
-        var contractName = domName + ' -> ' + rng;
+        var domStr = dom.map(function (d, idx) {
+                return options && options.namesStr ? options.namesStr[idx] + ': ' + d : d;
+            }).join(', ');
+        var domName = '(' + domStr + ')';
+        var rngStr = options && options.namesStr ? options.namesStr[options.namesStr.length - 1] + ': ' + rng : rng;
+        var contractName = domName + ' -> ' + rngStr + (options && options.dependencyStr ? ' | ' + options.dependencyStr : '');
         var c = new Contract(contractName, 'fun', function (blame) {
                 return function (f) {
                     blame = blame.addParents(contractName);
@@ -140,7 +144,14 @@ let import = macro {
                         assert(rng instanceof Contract, 'The range is not a contract');
                         var rawResult = target.apply(thisVal, checkedArgs);
                         var rngProj = rng.proj(blame.addLocation('the return of'));
-                        return rngProj(rawResult);
+                        var rngResult = rngProj(rawResult);
+                        if (options && options.dependency && typeof options.dependency === 'function') {
+                            var depResult = options.dependency.apply(this, checkedArgs.concat(rngResult));
+                            if (!depResult) {
+                                raiseBlame(blame.addExpected(options.dependencyStr).addGiven(false).addLocation('the return dependency of'));
+                            }
+                        }
+                        return rngResult;
                     }
                     // only use expensive proxies when needed (to distinguish between apply and construct)
                     if (options && options.needs_proxy) {
@@ -340,6 +351,15 @@ let import = macro {
 }
 export import;
 
+macro stringify {
+    case {_ ($toks ...) } => {
+        var toks = #{$toks ...}[0].token.inner;
+        var toksStr = toks.map(function(tok) { return unwrapSyntax(tok); }).join(" ");
+        letstx $str = [makeValue(toksStr, #{here})];
+        return #{$str}
+    }
+}
+
 macro base_contract {
     rule { $name } => { _c.$name }
 }
@@ -350,8 +370,12 @@ macroclass named_contract {
 
 macro function_contract {
     rule { ($dom:named_contract (,) ...) -> $range:named_contract | $guard:expr } => {
-        _c.fun([$dom$contract (,) ...], $range$contract, function($dom$name (,) ..., $range$name) {
-            return $guard;
+        _c.fun([$dom$contract (,) ...], $range$contract, {
+            dependency: function($dom$name (,) ..., $range$name) {
+                return $guard;
+            },
+            namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
+            dependencyStr: stringify ($guard)
         })
     }
     rule { ($dom:any_contract (,) ...) -> $range:any_contract } => {

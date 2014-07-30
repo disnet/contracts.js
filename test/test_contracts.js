@@ -458,7 +458,14 @@ blaming: (calling context for foo)
 
         blame of {
             bad_square_root(100)
-        } should be `not less than x`
+        } should be `bad_square_root: contract violation
+expected: res <= x
+given: false
+in: the return dependency of
+    (x: Pos) -> res: Num | res <= x
+function bad_square_root guarded at line: 457
+blaming: function bad_square_root
+`
     });
 
 });

@@ -130,9 +130,15 @@
     }
 
     function fun(dom, rng, options) {
+        var domStr = dom.map(function (d, idx) {
+            return options && options.namesStr ? options.namesStr[idx] + ": " + d : d;
+        }).join(", ");
+        var domName = "(" + domStr + ")";
 
-        var domName = "(" + dom.join(", ") + ")";
-        var contractName = domName + " -> " + rng;
+        var rngStr = options && options.namesStr ? options.namesStr[options.namesStr.length - 1] + ": " + rng : rng;
+
+        var contractName = domName + " -> " + rngStr +
+            (options && options.dependencyStr ? " | " + options.dependencyStr : "");
 
         var c = new Contract(contractName, "fun", function(blame) {
             return function(f) {
@@ -165,7 +171,16 @@
 
                     var rawResult = target.apply(thisVal, checkedArgs);
                     var rngProj = rng.proj(blame.addLocation("the return of"));
-                    return rngProj(rawResult);
+                    var rngResult = rngProj(rawResult);
+                    if (options && options.dependency && typeof options.dependency === "function") {
+                        var depResult = options.dependency.apply(this, checkedArgs.concat(rngResult));
+                        if (!depResult) {
+                            raiseBlame(blame.addExpected(options.dependencyStr)
+                                            .addGiven(false)
+                                            .addLocation("the return dependency of"));
+                        }
+                    }
+                    return rngResult;
                 }
 
                 // only use expensive proxies when needed (to distinguish between apply and construct)

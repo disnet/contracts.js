@@ -9,11 +9,29 @@ let import = macro {
 }
 export import;
 
+macro stringify {
+    case {_ ($toks ...) } => {
+        var toks = #{$toks ...}[0].token.inner;
+        var toksStr = toks.map(function(tok) { return unwrapSyntax(tok); }).join(" ");
+        letstx $str = [makeValue(toksStr, #{here})];
+        return #{$str}
+    }
+}
+
 macro base_contract {
     rule { $name } => { _c.$name }
 }
 
 macro function_contract {
+    rule { ($dom:named_contract (,) ...) -> $range:named_contract | $guard:expr } => {
+        _c.fun([$dom$contract (,) ...], $range$contract, {
+            dependency: function($dom$name (,) ..., $range$name) {
+                return $guard;
+            },
+            namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
+            dependencyStr: stringify ($guard)
+        })
+    }
     rule { ($dom:any_contract (,) ...) -> $range:any_contract } => {
         _c.fun([$dom (,) ...], $range)
     }
