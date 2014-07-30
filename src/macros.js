@@ -127,6 +127,9 @@ macro any_contract {
     rule { $contract:non_or_contract } => { $contract }
 }
 
+// macro ident_list {
+//     rule { $p (,) ... }
+// }
 
 let @ = macro {
     case {_
@@ -134,6 +137,31 @@ let @ = macro {
     } => {
         return #{
             _c.$contractName = $contract;
+        }
+    }
+
+    case {_
+        forall $($varName (,) ...)
+        $contracts:function_contract
+        function $name ($params ...) { $body ...}
+    } => {
+        var nameStx = #{$name}[0];
+        var nameStr = unwrapSyntax(nameStx);
+        var varNameStr = #{$varName ...}.map(function(stx) {
+            return makeValue(stx.token.value, #{here});
+        });
+        letstx $guardedName = [makeIdent("inner_" + nameStr, #{here})];
+        letstx $client = [makeValue("function " + nameStr, #{here})];
+        letstx $server = [makeValue("(calling context for " + nameStr + ")", #{here})];
+        letstx $fnName = [makeValue(nameStr, #{here})];
+        letstx $lineNumber = [makeValue(nameStx.token.sm_lineNumber, #{here})];
+        letstx $varNameStr ... = varNameStr;
+        return #{
+            $(_c.$varName = _c.makeCoffer($varNameStr)) (,) ...;
+            var $guardedName = ($contracts).proj(_c.Blame.create($fnName, $client, $server, $lineNumber))(function $name ($params ...) { $body ...});
+            function $name ($params ...) {
+                return $guardedName.apply(this, arguments);
+            }
         }
     }
 

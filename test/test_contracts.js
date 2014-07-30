@@ -485,6 +485,17 @@ in: the 1st argument of
 function foo guarded at line: 473
 blaming: the contract of foo
 `
+    });
+
+    it("should work for polymorphic contracts", function() {
+        @ forall a ([...a], (a) -> a) -> [...a]
+        function map(l, f) {
+            return l.map(f);
+        }
+
+        map([1, 2], function(x) {
+            return x.toString();
+        })
     })
 
 });

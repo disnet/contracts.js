@@ -5,6 +5,8 @@
         require("harmony-reflect");
     }
 
+    var unproxy = new WeakMap();
+
     var Blame = {
         create: function(name, pos, neg, lineNumber) {
             var o = new BlameObj(name, pos, neg, lineNumber);
@@ -107,6 +109,31 @@
         throw new Error(msg);
     }
 
+    function makeCoffer(name) {
+        return new Contract(name, "coffer", function(blame) {
+            return function(val) {
+                var towrap = {};
+                if (val && typeof val === "object") {
+                    if (unproxy.has(val)) {
+                        return unproxy.get(val);
+                    }
+                    towrap = val;
+                } else {
+                    towrap = {};
+                }
+                var p = new Proxy(towrap, {
+                    apply: function(target, thisVal, args) {
+                        raiseBlame(blame.addLocation("in the type variable " + name));
+                    },
+                    get: function() {
+                        raiseBlame(blame.addLocation("in the type variable " + name));
+                    }
+                });
+                unproxy.set(p, val);
+                return p;
+            };
+        });
+    }
 
     function check(predicate, name) {
         var c = new Contract(name, "check", function(blame) {
@@ -410,6 +437,7 @@
         object: object,
         array: array,
         Blame: Blame,
+        makeCoffer: makeCoffer,
         guard: guard
     };
 })();

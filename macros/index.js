@@ -7,6 +7,7 @@ let import = macro {
         // importing patches Proxy to be in line with the new direct proxies
         require('harmony-reflect');
     }
+    var unproxy = new WeakMap();
     var Blame = {
             create: function (name, pos, neg, lineNumber) {
                 var o = new BlameObj(name, pos, neg, lineNumber);
@@ -78,6 +79,31 @@ let import = macro {
         var lineMessage = blame.lineNumber !== undefined ? 'function ' + blame.name + ' guarded at line: ' + blame.lineNumber + '\n' : '';
         var msg = blame.name + ': contract violation\n' + 'expected: ' + blame.expected + '\n' + 'given: ' + addQuotes(blame.given) + '\n' + 'in: ' + blame.loc.slice().reverse().join('\n    ') + '\n' + '    ' + blame.parents[0] + '\n' + lineMessage + 'blaming: ' + blame.pos + '\n';
         throw new Error(msg);
+    }
+    function makeCoffer(name) {
+        return new Contract(name, 'coffer', function (blame) {
+            return function (val) {
+                var towrap = {};
+                if (val && typeof val === 'object') {
+                    if (unproxy.has(val)) {
+                        return unproxy.get(val);
+                    }
+                    towrap = val;
+                } else {
+                    towrap = {};
+                }
+                var p = new Proxy(towrap, {
+                        apply: function (target, thisVal, args) {
+                            raiseBlame(blame.addLocation('in the type variable ' + name));
+                        },
+                        get: function () {
+                            raiseBlame(blame.addLocation('in the type variable ' + name));
+                        }
+                    });
+                unproxy.set(p, val);
+                return p;
+            };
+        });
     }
     function check(predicate, name) {
         var c = new Contract(name, 'check', function (blame) {
@@ -350,6 +376,7 @@ let import = macro {
         object: object,
         array: array,
         Blame: Blame,
+        makeCoffer: makeCoffer,
         guard: guard
     };
 }());
@@ -478,6 +505,9 @@ macro any_contract {
     rule { $contract:non_or_contract } => { $contract }
 }
 
+// macro ident_list {
+//     rule { $p (,) ... }
+// }
 
 let @ = macro {
     case {_
@@ -485,6 +515,31 @@ let @ = macro {
     } => {
         return #{
             _c.$contractName = $contract;
+        }
+    }
+
+    case {_
+        forall $($varName (,) ...)
+        $contracts:function_contract
+        function $name ($params ...) { $body ...}
+    } => {
+        var nameStx = #{$name}[0];
+        var nameStr = unwrapSyntax(nameStx);
+        var varNameStr = #{$varName ...}.map(function(stx) {
+            return makeValue(stx.token.value, #{here});
+        });
+        letstx $guardedName = [makeIdent("inner_" + nameStr, #{here})];
+        letstx $client = [makeValue("function " + nameStr, #{here})];
+        letstx $server = [makeValue("(calling context for " + nameStr + ")", #{here})];
+        letstx $fnName = [makeValue(nameStr, #{here})];
+        letstx $lineNumber = [makeValue(nameStx.token.sm_lineNumber, #{here})];
+        letstx $varNameStr ... = varNameStr;
+        return #{
+            $(_c.$varName = _c.makeCoffer($varNameStr)) (,) ...;
+            var $guardedName = ($contracts).proj(_c.Blame.create($fnName, $client, $server, $lineNumber))(function $name ($params ...) { $body ...});
+            function $name ($params ...) {
+                return $guardedName.apply(this, arguments);
+            }
         }
     }
 
