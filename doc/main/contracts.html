@@ -135,6 +135,7 @@
 <li><a href="#function-contracts"><span class="toc-section-number">4.2</span> Function Contracts</a><ul>
 <li><a href="#optional-arguments"><span class="toc-section-number">4.2.1</span> Optional Arguments</a></li>
 <li><a href="#higher-order-arguments"><span class="toc-section-number">4.2.2</span> Higher-Order Arguments</a></li>
+<li><a href="#dependent-contracts"><span class="toc-section-number">4.2.3</span> Dependent Contracts</a></li>
 </ul></li>
 <li><a href="#object-contracts"><span class="toc-section-number">4.3</span> Object Contracts</a><ul>
 <li><a href="#optional-properties"><span class="toc-section-number">4.3.1</span> Optional Properties</a></li>
@@ -144,11 +145,16 @@
 <li><a href="#repeated-fields"><span class="toc-section-number">4.4.1</span> Repeated Fields</a></li>
 <li><a href="#proxied-arrays"><span class="toc-section-number">4.4.2</span> Proxied Arrays</a></li>
 </ul></li>
+<li><a href="#combinators"><span class="toc-section-number">4.5</span> Combinators</a><ul>
+<li><a href="#or"><span class="toc-section-number">4.5.1</span> <code>or</code></a></li>
+</ul></li>
+<li><a href="#naming-contracts"><span class="toc-section-number">4.6</span> Naming Contracts</a></li>
 </ul></li>
 <li><a href="#faq"><span class="toc-section-number">5</span> FAQ</a><ul>
 <li><a href="#do-i-have-to-use-macros"><span class="toc-section-number">5.1</span> Do I have to use macros?</a></li>
 <li><a href="#what-is-up-with-the-import"><span class="toc-section-number">5.2</span> What is up with the import?</a></li>
 <li><a href="#what-about-blaming-modules"><span class="toc-section-number">5.3</span> What about blaming modules?</a></li>
+<li><a href="#how-can-i-disable-contracts-in-production"><span class="toc-section-number">5.4</span> How can I disable contracts in production?</a></li>
 </ul></li>
 </ul>
 </nav>
@@ -167,6 +173,8 @@ npm install contracts-js</code></pre>
 <p>Compile your JavaScript file with sweet.js using the contracts.js module:</p>
 <pre><code>sjs --module contracts-js/macros -o output.js input.js</code></pre>
 <p>Then run your <code>output.js</code> file in any JavaScript environment. Some features of contracts.js (eg. proxied objects and arrays) require ES6 features which not every JavaScript engine supports right now (any recent version of Firefox is fine along with node.js/V8 with the <code>--harmony</code> flag enabled).</p>
+<p>If you want to disable contract checking (eg. for a production build) you can use the disabled contracts module:</p>
+<pre><code>sjs --module contracts-js/macros/disabled.js -o output.js input.js</code></pre>
 <h1 id="contracts"><span class="header-section-number">4</span> Contracts</h1>
 <p>Put a contract on a function like this:</p>
 <pre class="js"><code>@ (Num) -&gt; Num
@@ -226,6 +234,32 @@ foo(&quot;foo&quot;, &quot;bar&quot;); // error</code></pre>
 <p>You can put contracts on functions to functions. And blaming the correct party at fault even works! <a href="what-about-blaming-modules">Mostly</a>.</p>
 <pre class="js"><code>@ (Num, (Num, Num) -&gt; Num) -&gt; Num
 function (x, f) { return f(x, x); }</code></pre>
+<h3 id="dependent-contracts"><span class="header-section-number">4.2.3</span> Dependent Contracts</h3>
+<p>You can also write a function contract who's result depends on the value of its arguments.</p>
+<pre class="js"><code>@ (x: Pos) -&gt; res: Num | res &lt;= x
+function square_root(x) { return Math.sqrt(x); }</code></pre>
+<p>Name each argument and result with the notation <code>&lt;name&gt;: &lt;contract&gt;</code> and then each name can be referred to in the dependency guard following the <code>|</code>. The guard is an expression the must evaluate to a boolean. If the guard evaluates to <code>true</code> the dependent function contract will pass otherwise it fails.</p>
+<p>If you need more than a single boolean expression you can wrap it in curlies:</p>
+<pre class="js"><code>@ (x: Pos) -&gt; res: Num | {
+    var fromlib = Math.sqrt(x);
+    return res &lt;= x &amp;&amp; fromlib === res;
+}
+function square_root(x) { return Math.sqrt(x); }</code></pre>
+<p>Note that guards in a dependent contract could potentially violate a contract on one of the arguments:</p>
+<pre class="js"><code>@ (f: (Num) -&gt; Num) -&gt; res: Num | f(&quot;foo&quot;) &gt; 10
+function foo(f) { return f(24) }</code></pre>
+<p>In a case like this, the contract itself will be blamed:</p>
+<pre style="color:red">
+expected: Num
+given: 'foo'
+in: the 1st argument of
+    the 1st argument of
+    (f: (Num) -> Num) -> res: Num | f (foo) > 10
+function foo guarded at line: 2
+blaming: the contract of foo
+</pre>
+
+<p>If you are familiar with contract research, this is the <a href="http://www.ccs.neu.edu/racket/pubs/popl11-dfff.pdf">indy</a> semantics.</p>
 <h2 id="object-contracts"><span class="header-section-number">4.3</span> Object Contracts</h2>
 <p>Object contracts are built using familiar object literal syntax:</p>
 <pre class="js"><code>@ (Str, Num) -&gt; {name: Str, age: Num}
@@ -284,6 +318,23 @@ function foo(a, b) { return [a, b]; }
 var arr = foo(100, &quot;foo&quot;);
 
 arr[0] = &quot;string&quot;;          // error wrong type</code></pre>
+<h2 id="combinators"><span class="header-section-number">4.5</span> Combinators</h2>
+<h3 id="or"><span class="header-section-number">4.5.1</span> <code>or</code></h3>
+<p>You can combine two contracts with the <code>or</code> combinator. If the first contract fails, the combined contract will succeed if the second passes.</p>
+<pre class="js"><code>@ (Num or Str) -&gt; Str
+function foo(x) { return x.toString(); }
+
+foo(24);    // passes
+foo(&quot;24&quot;);  // passes
+foo(false); // error not a Num or Str</code></pre>
+<p>Note that <code>or</code> only makes sense for at most one higher-order contract. For example, <code>Num or (Num) -&gt; Num</code> is fine but <code>(Num) -&gt; Num or (Str) -&gt; Str</code> will not work.</p>
+<h2 id="naming-contracts"><span class="header-section-number">4.6</span> Naming Contracts</h2>
+<p>When you have a complicated contract that is repeated in several places it can be convenient to refer to it by a shorter name. For this, you can use <code>let</code> after the <code>@</code> symbol:</p>
+<pre class="js"><code>@ let NumId = (Num) -&gt; Num
+
+
+@ (NumId, Num) -&gt; Num
+function (f, x) { return f(x); }</code></pre>
 <h1 id="faq"><span class="header-section-number">5</span> FAQ</h1>
 <h2 id="do-i-have-to-use-macros"><span class="header-section-number">5.1</span> Do I have to use macros?</h2>
 <p>No, as a matter of fact. If you'd like to just use the library in vanilla JavaScript you can. Load contracts.js and then use the <code>guard</code> function:</p>
@@ -297,5 +348,8 @@ arr[0] = &quot;string&quot;;          // error wrong type</code></pre>
 <h2 id="what-about-blaming-modules"><span class="header-section-number">5.3</span> What about blaming modules?</h2>
 <p>At the moment contracts.js just supports guarding the interaction of a contracted value and its context rather than tracking blame at the module level. This is because the module story in JavaScript is a bit fractured and incompatible in various ways (CommonJS, Node, AMD, ES6, rolling by hand). Earlier versions of contracts.js had hacky support that only kind of worked but this has been temporarily simplified to what we have right now.</p>
 <p>Once sweet.js has good ES6 module support we will do the right thing and track blame at the module level.</p>
+<h2 id="how-can-i-disable-contracts-in-production"><span class="header-section-number">5.4</span> How can I disable contracts in production?</h2>
+<p>Compile with the <code>disabled.js</code> module:</p>
+<pre><code>sjs --module contracts-js/macros/disabled.js -o output.js input.js</code></pre>
 </body>
 </html>

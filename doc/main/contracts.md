@@ -43,6 +43,15 @@ features which not every JavaScript engine supports right now (any
 recent version of Firefox is fine along with node.js/V8 with the
 `--harmony` flag enabled).
 
+If you want to disable contract checking (eg. for a production build)
+you can use the disabled contracts module:
+
+```
+sjs --module contracts-js/macros/disabled.js -o output.js input.js
+```
+
+
+
 # Contracts
 
 Put a contract on a function like this:
@@ -157,6 +166,55 @@ correct party at fault even works!
 function (x, f) { return f(x, x); }
 ```
 
+### Dependent Contracts
+
+You can also write a function contract who's result depends on the
+value of its arguments.
+
+```js
+@ (x: Pos) -> res: Num | res <= x
+function square_root(x) { return Math.sqrt(x); }
+```
+
+Name each argument and result with the notation `<name>: <contract>`
+and then each name can be referred to in the dependency guard
+following the `|`. The guard is an expression the must evaluate to a
+boolean. If the guard evaluates to `true` the dependent function
+contract will pass otherwise it fails.
+
+If you need more than a single boolean expression you can wrap it in
+curlies:
+
+```js
+@ (x: Pos) -> res: Num | {
+    var fromlib = Math.sqrt(x);
+    return res <= x && fromlib === res;
+}
+function square_root(x) { return Math.sqrt(x); }
+```
+
+Note that guards in a dependent contract could potentially violate
+a contract on one of the arguments:
+
+```js
+@ (f: (Num) -> Num) -> res: Num | f("foo") > 10
+function foo(f) { return f(24) }
+```
+
+In a case like this, the contract itself will be blamed:
+
+<pre style="color:red">
+expected: Num
+given: 'foo'
+in: the 1st argument of
+    the 1st argument of
+    (f: (Num) -> Num) -> res: Num | f (foo) > 10
+function foo guarded at line: 2
+blaming: the contract of foo
+</pre>
+
+If you are familiar with contract research, this is the [indy](http://www.ccs.neu.edu/racket/pubs/popl11-dfff.pdf) semantics.
+
 ## Object Contracts
 
 Object contracts are built using familiar object literal syntax:
@@ -264,6 +322,42 @@ var arr = foo(100, "foo");
 arr[0] = "string";          // error wrong type
 ```
 
+## Combinators
+
+### `or`
+
+You can combine two contracts with the `or` combinator. If the first
+contract fails, the combined contract will succeed if the second
+passes.
+
+```js
+@ (Num or Str) -> Str
+function foo(x) { return x.toString(); }
+
+foo(24);    // passes
+foo("24");  // passes
+foo(false); // error not a Num or Str
+```
+
+Note that `or` only makes sense for at most one higher-order contract.
+For example, `Num or (Num) -> Num` is fine but `(Num) -> Num or
+(Str) -> Str` will not work.
+
+
+## Naming Contracts
+
+When you have a complicated contract that is repeated in several
+places it can be convenient to refer to it by a shorter name. For
+this, you can use `let` after the `@` symbol:
+
+```js
+@ let NumId = (Num) -> Num
+
+
+@ (NumId, Num) -> Num
+function (f, x) { return f(x); }
+```
+
 # FAQ
 
 ## Do I have to use macros?
@@ -303,3 +397,12 @@ what we have right now.
 
 Once sweet.js has good ES6 module support we will do the right thing
 and track blame at the module level.
+
+
+## How can I disable contracts in production?
+
+Compile with the `disabled.js` module:
+
+```
+sjs --module contracts-js/macros/disabled.js -o output.js input.js
+```

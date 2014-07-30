@@ -36,10 +36,13 @@
             neg: this.pos
         });
     };
-    BlameObj.prototype.addExpected = function(expected) {
-        return Blame.clone(this, {
-            expected: expected
-        });
+    BlameObj.prototype.addExpected = function(expected, override) {
+        if (this.expected === undefined || override) {
+            return Blame.clone(this, {
+                expected: expected
+            });
+        }
+        return Blame.clone(this, {});
     };
     BlameObj.prototype.addGiven = function(given) {
         return Blame.clone(this, {
@@ -54,6 +57,12 @@
     BlameObj.prototype.addParents = function(parent) {
         return Blame.clone(this, {
             parents: this.parents != null ? this.parents.concat(parent) : [parent]
+        });
+    };
+
+    BlameObj.prototype.setNeg = function(neg) {
+        return Blame.clone(this, {
+            neg: neg
         });
     };
 
@@ -127,9 +136,15 @@
     }
 
     function fun(dom, rng, options) {
+        var domStr = dom.map(function (d, idx) {
+            return options && options.namesStr ? options.namesStr[idx] + ": " + d : d;
+        }).join(", ");
+        var domName = "(" + domStr + ")";
 
-        var domName = "(" + dom.join(", ") + ")";
-        var contractName = domName + " -> " + rng;
+        var rngStr = options && options.namesStr ? options.namesStr[options.namesStr.length - 1] + ": " + rng : rng;
+
+        var contractName = domName + " -> " + rngStr +
+            (options && options.dependencyStr ? " | " + options.dependencyStr : "");
 
         var c = new Contract(contractName, "fun", function(blame) {
             return function(f) {
@@ -143,17 +158,23 @@
                 function applyTrap(target, thisVal, args) {
 
                     var checkedArgs = [];
-
+                    var depArgs = [];
                     for (var i = 0; i < dom.length; i++) {
                         if (dom[i].type === "optional" && args[i] === undefined) {
                             continue;
                         } else {
+                            var location = "the " + addTh(i+1) + " argument of";
                             var domProj = dom[i].proj(blame.swap()
-                                                      .addLocation("the " +
-                                                                   addTh(i+1) +
-                                                                   " argument of"));
+                                                      .addLocation(location));
+
                             checkedArgs.push(domProj(args[i]));
 
+                            if (options && options.dependency) {
+                                var depProj = dom[i].proj(blame.swap()
+                                                               .setNeg("the contract of " + blame.name)
+                                                               .addLocation(location));
+                                depArgs.push(depProj(args[i]));
+                            }
                         }
                     }
                     checkedArgs = checkedArgs.concat(args.slice(i));
@@ -162,7 +183,16 @@
 
                     var rawResult = target.apply(thisVal, checkedArgs);
                     var rngProj = rng.proj(blame.addLocation("the return of"));
-                    return rngProj(rawResult);
+                    var rngResult = rngProj(rawResult);
+                    if (options && options.dependency && typeof options.dependency === "function") {
+                        var depResult = options.dependency.apply(this, depArgs.concat(rngResult));
+                        if (!depResult) {
+                            raiseBlame(blame.addExpected(options.dependencyStr)
+                                            .addGiven(false)
+                                            .addLocation("the return dependency of"));
+                        }
+                    }
+                    return rngResult;
                 }
 
                 // only use expensive proxies when needed (to distinguish between apply and construct)
@@ -221,10 +251,10 @@
             return function(arr) {
                 if (typeof arr === "number" ||
                     typeof arr === "string" ||
-                    typeof arr === "boolean") {
+                    typeof arr === "boolean" || arr == null) {
                     raiseBlame(blame.addGiven(arr)
                                     .addExpected("an array with at least " +
-                                                 contractNum + pluralize(contractNum, " fields")));
+                                                 contractNum + pluralize(contractNum, " field")));
                 }
                 for (var ctxIdx = 0, arrIdx = 0; ctxIdx < arrContract.length; ctxIdx++) {
                     if (arrContract[ctxIdx].type === "repeat" && arr.length <= ctxIdx) {
@@ -287,7 +317,7 @@
             return function(obj) {
                 if (typeof obj === "number" ||
                     typeof obj === "string" ||
-                    typeof obj === "boolean") {
+                    typeof obj === "boolean" || obj == null) {
                     raiseBlame(blame.addGiven(obj)
                                     .addExpected("an object with at least " +
                                                  keyNum + pluralize(keyNum, " key")));
@@ -326,6 +356,21 @@
         return c;
     }
 
+    function or(left, right) {
+        var contractName = left + " or " + right;
+        return new Contract(contractName, "or", function(blame) {
+            return function(val) {
+                try {
+                    var leftProj = left.proj(blame.addExpected(contractName, true));
+                    return leftProj(val);
+                } catch (b) {
+                    var rightProj = right.proj(blame.addExpected(contractName, true));
+                    return rightProj(val);
+                }
+            };
+        });
+    }
+
     function guard(contract, value, name) {
         var proj = contract.proj(Blame.create(name,
                                               "function " + name,
@@ -359,6 +404,7 @@
         // g: seal("g"),
 
         fun: fun,
+        or: or,
         repeat: repeat,
         optional: optional,
         object: object,
