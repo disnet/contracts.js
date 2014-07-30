@@ -27,6 +27,16 @@ var examples = [
         file: "proxied-object.js",
         title: "Proxied Object"
     },
+    {
+        id: 4,
+        file: "dependent.js",
+        title: "Dependent Contracts"
+    },
+    {
+        id: 4,
+        file: "dependent-indy.js",
+        title: "Dependent Contracts with Indy Blame"
+    }
 ];
 var contractModulePromise = Ember.$.ajax("macros/index.js", {
     dataType: "text"
