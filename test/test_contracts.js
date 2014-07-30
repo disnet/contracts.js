@@ -487,15 +487,61 @@ blaming: the contract of foo
 `
     });
 
-    it("should work for polymorphic contracts", function() {
-        @ forall a ([...a], (a) -> a) -> [...a]
-        function map(l, f) {
-            return l.map(f);
-        }
+    it("should work for polymorphic contracts on the identity function", function() {
+        @ forall a (a) -> a
+        function id(x) { return x; }
 
-        map([1, 2], function(x) {
-            return x.toString();
-        })
-    })
+        (id(100)).should.equal(100);
+    });
+
+    it("should catch a bad application of a polymorphic identity contract", function() {
+        @ forall a (a) -> a
+        function const5(x) { return 5; }
+
+        blame of {
+            const5(5);
+        } should be `const5: contract violation
+expected: an opaque value
+given: 5
+in: in the type variable a of
+    the return of
+    (a) -> a
+function const5 guarded at line: 499
+blaming: function const5
+`
+    });
+
+    it("should catch a bad application of a higher-order polymorphic contract", function() {
+        @ forall a (a, (a) -> a) -> a
+        function foo(x, f) { return f(x); }
+
+        foo(100, function(x) {
+            return "foo";
+        });
+    });
+
+
+//     it("should work for polymorphic contracts", function() {
+//         @ forall a ([...a], (a) -> a) -> [...a]
+//         function map(l, f) {
+//             return l.map(f);
+//         }
+
+//         // blame of {
+//             map([1, 2], function(x) {
+//                 return x;
+//             });
+// //         } should be `map: contract violation
+// // expected: value to not be manipulated
+// // given: 'performed obj.toString'
+// // in: in the type variable a
+// //     the 1st argument of
+// //     the 2nd argument of
+// //     ([....a], (a) -> a) -> [....a]
+// // function map guarded at line: 492
+// // blaming: (calling context for map)
+// // `
+//     })
+
 
 });
