@@ -468,4 +468,23 @@ blaming: function bad_square_root
 `
     });
 
+    it("should blame the contract if the dependency breaks a domain contract", function() {
+        @ (f: (Num) -> Num) -> res: Num | f("foo") > 10
+        function foo(f) { return f(24) }
+
+        blame of {
+            foo(function(x) {
+                return x;
+            });
+        } should be `foo: contract violation
+expected: Num
+given: 'foo'
+in: the 1st argument of
+    the 1st argument of
+    (f: (Num) -> Num) -> res: Num | f (foo) > 10
+function foo guarded at line: 473
+blaming: the contract of foo
+`
+    })
+
 });

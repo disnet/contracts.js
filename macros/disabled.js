@@ -52,6 +52,9 @@ let import = macro {
     BlameObj.prototype.addParents = function (parent) {
         return Blame.clone(this, { parents: this.parents != null ? this.parents.concat(parent) : [parent] });
     };
+    BlameObj.prototype.setNeg = function (neg) {
+        return Blame.clone(this, { neg: neg });
+    };
     function assert(cond, msg) {
         if (!cond) {
             throw new Error(msg);
@@ -132,12 +135,18 @@ let import = macro {
                     }
                     function applyTrap(target, thisVal, args) {
                         var checkedArgs = [];
+                        var depArgs = [];
                         for (var i = 0; i < dom.length; i++) {
                             if (dom[i].type === 'optional' && args[i] === undefined) {
                                 continue;
                             } else {
-                                var domProj = dom[i].proj(blame.swap().addLocation('the ' + addTh(i + 1) + ' argument of'));
+                                var location = 'the ' + addTh(i + 1) + ' argument of';
+                                var domProj = dom[i].proj(blame.swap().addLocation(location));
                                 checkedArgs.push(domProj(args[i]));
+                                if (options && options.dependency) {
+                                    var depProj = dom[i].proj(blame.swap().setNeg('the contract of ' + blame.name).addLocation(location));
+                                    depArgs.push(depProj(args[i]));
+                                }
                             }
                         }
                         checkedArgs = checkedArgs.concat(args.slice(i));
@@ -146,7 +155,7 @@ let import = macro {
                         var rngProj = rng.proj(blame.addLocation('the return of'));
                         var rngResult = rngProj(rawResult);
                         if (options && options.dependency && typeof options.dependency === 'function') {
-                            var depResult = options.dependency.apply(this, checkedArgs.concat(rngResult));
+                            var depResult = options.dependency.apply(this, depArgs.concat(rngResult));
                             if (!depResult) {
                                 raiseBlame(blame.addExpected(options.dependencyStr).addGiven(false).addLocation('the return dependency of'));
                             }
