@@ -166,6 +166,55 @@ correct party at fault even works!
 function (x, f) { return f(x, x); }
 ```
 
+### Dependent Contracts
+
+You can also write a function contract who's result depends on the
+value of its arguments.
+
+```js
+@ (x: Pos) -> res: Num | res <= x
+function square_root(x) { return Math.sqrt(x); }
+```
+
+Name each argument and result with the notation `<name>: <contract>`
+and then each name can be referred to in the dependency guard
+following the `|`. The guard is an expression the must evaluate to a
+boolean. If the guard evaluates to `true` the dependent function
+contract will pass otherwise it fails.
+
+If you need more than a single boolean expression you can wrap it in
+curlies:
+
+```js
+@ (x: Pos) -> res: Num | {
+    var fromlib = Math.sqrt(x);
+    return res <= x && fromlib === res;
+}
+function square_root(x) { return Math.sqrt(x); }
+```
+
+Note that guards in a dependent contract could potentially violate
+a contract on one of the arguments:
+
+```js
+@ (f: (Num) -> Num) -> res: Num | f("foo") > 10
+function foo(f) { return f(24) }
+```
+
+In a case like this, the contract itself will be blamed:
+
+<pre style="color:red">
+expected: Num
+given: 'foo'
+in: the 1st argument of
+    the 1st argument of
+    (f: (Num) -> Num) -> res: Num | f (foo) > 10
+function foo guarded at line: 2
+blaming: the contract of foo
+</pre>
+
+If you are familiar with contract research, this is the [indy](http://www.ccs.neu.edu/racket/pubs/popl11-dfff.pdf) semantics.
+
 ## Object Contracts
 
 Object contracts are built using familiar object literal syntax:

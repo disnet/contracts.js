@@ -135,6 +135,7 @@
 <li><a href="#function-contracts"><span class="toc-section-number">4.2</span> Function Contracts</a><ul>
 <li><a href="#optional-arguments"><span class="toc-section-number">4.2.1</span> Optional Arguments</a></li>
 <li><a href="#higher-order-arguments"><span class="toc-section-number">4.2.2</span> Higher-Order Arguments</a></li>
+<li><a href="#dependent-contracts"><span class="toc-section-number">4.2.3</span> Dependent Contracts</a></li>
 </ul></li>
 <li><a href="#object-contracts"><span class="toc-section-number">4.3</span> Object Contracts</a><ul>
 <li><a href="#optional-properties"><span class="toc-section-number">4.3.1</span> Optional Properties</a></li>
@@ -233,6 +234,32 @@ foo(&quot;foo&quot;, &quot;bar&quot;); // error</code></pre>
 <p>You can put contracts on functions to functions. And blaming the correct party at fault even works! <a href="what-about-blaming-modules">Mostly</a>.</p>
 <pre class="js"><code>@ (Num, (Num, Num) -&gt; Num) -&gt; Num
 function (x, f) { return f(x, x); }</code></pre>
+<h3 id="dependent-contracts"><span class="header-section-number">4.2.3</span> Dependent Contracts</h3>
+<p>You can also write a function contract who's result depends on the value of its arguments.</p>
+<pre class="js"><code>@ (x: Pos) -&gt; res: Num | res &lt;= x
+function square_root(x) { return Math.sqrt(x); }</code></pre>
+<p>Name each argument and result with the notation <code>&lt;name&gt;: &lt;contract&gt;</code> and then each name can be referred to in the dependency guard following the <code>|</code>. The guard is an expression the must evaluate to a boolean. If the guard evaluates to <code>true</code> the dependent function contract will pass otherwise it fails.</p>
+<p>If you need more than a single boolean expression you can wrap it in curlies:</p>
+<pre class="js"><code>@ (x: Pos) -&gt; res: Num | {
+    var fromlib = Math.sqrt(x);
+    return res &lt;= x &amp;&amp; fromlib === res;
+}
+function square_root(x) { return Math.sqrt(x); }</code></pre>
+<p>Note that guards in a dependent contract could potentially violate a contract on one of the arguments:</p>
+<pre class="js"><code>@ (f: (Num) -&gt; Num) -&gt; res: Num | f(&quot;foo&quot;) &gt; 10
+function foo(f) { return f(24) }</code></pre>
+<p>In a case like this, the contract itself will be blamed:</p>
+<pre style="color:red">
+expected: Num
+given: 'foo'
+in: the 1st argument of
+    the 1st argument of
+    (f: (Num) -> Num) -> res: Num | f (foo) > 10
+function foo guarded at line: 2
+blaming: the contract of foo
+</pre>
+
+<p>If you are familiar with contract research, this is the <a href="http://www.ccs.neu.edu/racket/pubs/popl11-dfff.pdf">indy</a> semantics.</p>
 <h2 id="object-contracts"><span class="header-section-number">4.3</span> Object Contracts</h2>
 <p>Object contracts are built using familiar object literal syntax:</p>
 <pre class="js"><code>@ (Str, Num) -&gt; {name: Str, age: Num}

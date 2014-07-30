@@ -363,7 +363,17 @@ export import;
 macro stringify {
     case {_ ($toks ...) } => {
         var toks = #{$toks ...}[0].token.inner;
-        var toksStr = toks.map(function(tok) { return unwrapSyntax(tok); }).join(" ");
+
+        function traverse(stx) {
+            return stx.map(function(s) {
+                if (s.token.inner) {
+                    return s.token.value[0] + traverse(s.token.inner) + s.token.value[1];
+                }
+                return s.token.value;
+            }).join(" ");
+        }
+
+        var toksStr = traverse(toks);
         letstx $str = [makeValue(toksStr, #{here})];
         return #{$str}
     }

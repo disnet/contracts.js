@@ -37,6 +37,15 @@ macroclass named_contract {
 }
 
 macro function_contract {
+    rule { ($dom:named_contract (,) ...) -> $range:named_contract | { $guard ... } } => {
+        _c.fun([$dom$contract (,) ...], $range$contract, {
+            dependency: function($dom$name (,) ..., $range$name) {
+                $guard ...
+            },
+            namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
+            dependencyStr: stringify (($guard ...))
+        })
+    }
     rule { ($dom:named_contract (,) ...) -> $range:named_contract | $guard:expr } => {
         _c.fun([$dom$contract (,) ...], $range$contract, {
             dependency: function($dom$name (,) ..., $range$name) {
