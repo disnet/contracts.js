@@ -624,4 +624,26 @@ blaming: function bad_foo
 `
     })
 
+    it("should work for inc if odd", function() {
+        @ forall a (a) -> a
+        function inc_if_odd(x) {
+            if (x % 2 !== 0) {
+                return x + 1;
+            }
+            return x;
+        }
+
+        blame of {
+            inc_if_odd(100);
+        } should be `inc_if_odd: contract violation
+expected: value to not be manipulated
+given: 'attempted to inspect the value'
+in: in the type variable a of
+    the 1st argument of
+    (a) -> a
+function inc_if_odd guarded at line: 629
+blaming: function inc_if_odd
+`
+    })
+
 });

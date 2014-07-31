@@ -149,6 +149,7 @@
 <li><a href="#or"><span class="toc-section-number">4.5.1</span> <code>or</code></a></li>
 </ul></li>
 <li><a href="#naming-contracts"><span class="toc-section-number">4.6</span> Naming Contracts</a></li>
+<li><a href="#parametric-polymorphism"><span class="toc-section-number">4.7</span> Parametric Polymorphism</a></li>
 </ul></li>
 <li><a href="#faq"><span class="toc-section-number">5</span> FAQ</a><ul>
 <li><a href="#do-i-have-to-use-macros"><span class="toc-section-number">5.1</span> Do I have to use macros?</a></li>
@@ -335,6 +336,71 @@ foo(false); // error not a Num or Str</code></pre>
 
 @ (NumId, Num) -&gt; Num
 function (f, x) { return f(x); }</code></pre>
+<h2 id="parametric-polymorphism"><span class="header-section-number">4.7</span> Parametric Polymorphism</h2>
+<p>Note: requires proxies (so use Firefox out of the box or Chrome/V8/node with the <code>--harmony</code> flag).</p>
+<p>Parametric polymorphic functions can be defined using <code>forall</code>:</p>
+<pre class="js"><code>@ forall &lt;name (,) ...&gt; &lt;contract&gt;</code></pre>
+<p>Where each <code>name</code> is a contract variable to be bound in <code>contract</code>. For example, the identity function is defined as:</p>
+<pre class="js"><code>@ forall a (a) -&gt; a
+function id(x) { return x; }</code></pre>
+<p>The contract enforces the invariant that for all types, the value applied to <code>id</code> will be returned from the function. If the function does not obey this invariant a contract violation will be triggered:</p>
+<pre class="js"><code>@ forall a (a) -&gt; a
+function const5(x) { return 5; }
+
+const5(10);</code></pre>
+<p>will throw the error:</p>
+<pre style="color:red">
+const5: contract violation
+expected: an opaque value
+given: 5
+in: in the type variable a of
+    the return of
+    (a) -> a
+function const5 guarded at line: 2
+blaming: function const5
+</pre>
+
+<p>A key idea of parametric polymorphism is that a function cannot inspect the value of a polymorphic type (otherwise it doesn't really work &quot;forall&quot;). For example, the <code>inc_if_odd</code> function behaves like the identity function unless its argument is odd, which violates the parametric invariant:</p>
+<pre class="js"><code>@ forall a (a) -&gt; a
+function inc_if_odd(x) {
+    if (x % 2 !== 0) {
+        return x + 1;
+    }
+    return x;
+}</code></pre>
+<p>So, attempting to invoke <code>inc_if_odd(100)</code> will throw the error:</p>
+<pre style="color:red">
+inc_if_odd: contract violation
+expected: value to not be manipulated
+given: 'attempted to inspect the value'
+in: in the type variable a of
+    the 1st argument of
+    (a) -> a
+function inc_if_odd guarded at line: 2
+blaming: function inc_if_odd
+</pre>
+
+<p>Note that there are a couple of operations on values that contracts.js cannot currently guard against (<code>typeof</code> in particular).</p>
+<p>Polymorphic contracts also do contract inference. So, if you have a polymorphic array, contracts.js will check that the array is homogeneous:</p>
+<pre class="js"><code>@ forall a ([...a]) -&gt; [...a]
+function arrayId(l) {
+    return l;
+}
+arrayId([1, 2, &quot;three&quot;]);</code></pre>
+<p>This infers that the <code>a</code> should be a <code>Num</code> for this application of <code>arrayId</code> and then throws and error when it discovers <code>&quot;three&quot;</code>:</p>
+<pre style="color:red">
+arrayId: contract violation
+expected: (x) => typeof x === 'number'
+given: 'three'
+in: in the type variable a of
+    the 2nd field of
+    the 1st argument of
+    ([....a]) -> [....a]
+function foo guarded at line: 2
+blaming: (calling context for arrayId)
+</pre>
+
+<p>Contract inference is currently done with simple <code>typeof</code> checks.</p>
 <h1 id="faq"><span class="header-section-number">5</span> FAQ</h1>
 <h2 id="do-i-have-to-use-macros"><span class="header-section-number">5.1</span> Do I have to use macros?</h2>
 <p>No, as a matter of fact. If you'd like to just use the library in vanilla JavaScript you can. Load contracts.js and then use the <code>guard</code> function:</p>

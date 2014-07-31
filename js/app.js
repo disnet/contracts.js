@@ -33,10 +33,20 @@ var examples = [
         title: "Dependent Contracts"
     },
     {
-        id: 4,
+        id: 5,
         file: "dependent-indy.js",
         title: "Dependent Contracts with Indy Blame"
-    }
+    },
+    {
+        id: 6,
+        file: "polymorphic-id.js",
+        title: "Polymorphic Identity"
+    },
+    {
+        id: 7,
+        file: "polymorphic-inference.js",
+        title: "Polymorphic Inference"
+    },
 ];
 var contractModulePromise = Ember.$.ajax("macros/index.js", {
     dataType: "text"
