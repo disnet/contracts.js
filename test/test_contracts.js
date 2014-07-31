@@ -575,7 +575,53 @@ in: in the type variable a of
 function foo guarded at line: 562
 blaming: (calling context for foo)
 `
-    })
+    });
 
+    it("should catch odds as not a polymorphic function", function() {
+        @ forall a ([...a]) -> [...a]
+        function odds(l) {
+            return l.filter(function(x) {
+                return x % 2 !== 0;
+            });
+        }
+
+        blame of {
+            odds([1,2,3,4]);
+        } should be `odds: contract violation
+expected: value to not be manipulated
+given: 'attempted to inspect the value'
+in: in the type variable a of
+    the 0th field of
+    the 1st argument of
+    ([....a]) -> [....a]
+function odds guarded at line: 582
+blaming: function odds
+`
+    });
+
+    it("should work with function of more than one type variable", function() {
+        @ forall a, b, c (a, b, (a, b) -> c) -> c
+        function foo(x, y, f) { return f(x, y); }
+
+        (foo(1, 2, function(x, y) { return x + y; })).should.equal(3);
+
+        @ forall a, b, c (a, b, (a, b) -> c) -> c
+        function bad_foo(x, y, f) {
+            f(x, y);
+            return 100;
+        }
+
+        blame of {
+            bad_foo(1, 2, function(x, y) { return x + y; })
+        } should be `bad_foo: contract violation
+expected: an opaque value
+given: 100
+in: in the type variable c of
+    the return of
+    (a, b, (a, b) -> c) -> c
+function bad_foo guarded at line: 609
+blaming: function bad_foo
+`
+    })
 
 });

@@ -123,7 +123,11 @@ let import = macro {
                                 raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.hasOwnProperty on property ' + propName).addLocation(locationMsg));
                             },
                             get: function (target, propName) {
-                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('performed obj.' + propName).addLocation(locationMsg));
+                                var givenMsg = 'performed obj.' + propName;
+                                if (propName === 'valueOf') {
+                                    givenMsg = 'attempted to inspect the value';
+                                }
+                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven(givenMsg).addLocation(locationMsg));
                             },
                             set: function (target, propName, val$2) {
                                 raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('performed obj.' + propName + ' = ' + val$2).addLocation(locationMsg));
