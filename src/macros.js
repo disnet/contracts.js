@@ -127,9 +127,6 @@ macro any_contract {
     rule { $contract:non_or_contract } => { $contract }
 }
 
-// macro ident_list {
-//     rule { $p (,) ... }
-// }
 
 let @ = macro {
     case {_
