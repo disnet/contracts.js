@@ -32,6 +32,10 @@ macro base_contract {
     rule { $name } => { _c.$name }
 }
 
+macroclass named_contract {
+    rule { $name $[:] $contract:any_contract }
+}
+
 macro function_contract {
     rule { ($dom:named_contract (,) ...) -> $range:named_contract | { $guard ... } } => {
         _c.fun([$dom$contract (,) ...], $range$contract, {
@@ -102,6 +106,7 @@ macro optional_contract {
     }
 }
 
+
 macro non_or_contract {
     rule { $contract:function_contract } => { $contract }
     rule { $contract:object_contract }   => { $contract }
@@ -133,12 +138,24 @@ let @ = macro {
     }
 
     case {_
+        forall $($varName (,) ...)
         $contracts:function_contract
         function $name ($params ...) { $body ...}
     } => {
         return #{
             function $name ($params ...) {
-                return $body ...
+                $body ...
+            }
+        }
+    }
+
+    case {_
+        $contracts:function_contract
+        function $name ($params ...) { $body ...}
+    } => {
+        return #{
+            function $name ($params ...) {
+                $body ...
             }
         }
     }

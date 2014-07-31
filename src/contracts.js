@@ -5,6 +5,9 @@
         require("harmony-reflect");
     }
 
+    var unproxy = new WeakMap();
+    var typeVarMap = new WeakMap();
+
     var Blame = {
         create: function(name, pos, neg, lineNumber) {
             var o = new BlameObj(name, pos, neg, lineNumber);
@@ -52,7 +55,8 @@
     BlameObj.prototype.addLocation = function(loc) {
         return Blame.clone(this, {
             loc: this.loc != null ? this.loc.concat(loc) : [loc]
-        });
+        })
+        ;
     };
     BlameObj.prototype.addParents = function(parent) {
         return Blame.clone(this, {
@@ -78,7 +82,7 @@
         constructor(name, type, proj) {
             this.name = name;
             this.type = type;
-            this.proj = proj;
+            this.proj = proj.bind(this);
         }
 
         toString() {
@@ -107,6 +111,145 @@
         throw new Error(msg);
     }
 
+    function makeCoffer(name) {
+        return new Contract(name, "coffer", function(blame, unwrapTypeVar) {
+            return function(val) {
+                var locationMsg = "in the type variable " + name + " of";
+                if (unwrapTypeVar) {
+                    if (val && typeof val === "object" && unproxy.has(val)) {
+                        var unwraperProj = typeVarMap.get(this).contract.proj(blame.addLocation(locationMsg));
+                        return unwraperProj(unproxy.get(val));
+                    } else {
+                        raiseBlame(blame.addExpected("an opaque value")
+                                        .addGiven(val)
+                                        .addLocation(locationMsg));
+                    }
+                } else {
+                    var towrap = val && typeof val === "object" ? val : {};
+                    var p = new Proxy(towrap, {
+                        getOwnPropertyDescriptor: function() {
+                            raiseBlame(blame.swap()
+                                            .addExpected("value to not be manipulated")
+                                            .addGiven("called Object.getOwnPropertyDescriptor")
+                                            .addLocation(locationMsg));
+                        },
+                        getOwnPropertyName: function() {
+                            raiseBlame(blame.swap()
+                                            .addExpected("value to not be manipulated")
+                                            .addGiven("called Object.getOwnPropertyName")
+                                            .addLocation(locationMsg));
+                        },
+                        defineProperty: function() {
+                            raiseBlame(blame.swap()
+                                            .addExpected("value to not be manipulated")
+                                            .addGiven("called Object.defineProperty")
+                                            .addLocation(locationMsg));
+                        },
+                        deleteProperty: function(target, propName) {
+                            raiseBlame(blame.swap()
+                                            .addExpected("value to not be manipulated")
+                                            .addGiven("called delete on property" + propName)
+                                            .addLocation(locationMsg));
+                        },
+                        freeze: function() {
+                            raiseBlame(blame.swap()
+                                            .addExpected("value to not be manipulated")
+                                            .addGiven("called Object.freeze")
+                                            .addLocation(locationMsg));
+                        },
+                        seal: function() {
+                            raiseBlame(blame.swap()
+                                            .addExpected("value to not be manipulated")
+                                            .addGiven("called Object.seal")
+                                            .addLocation(locationMsg));
+                        },
+                        preventExtensions: function() {
+                            raiseBlame(blame.swap()
+                                            .addExpected("value to not be manipulated")
+                                            .addGiven("called Object.preventExtensions")
+                                            .addLocation(locationMsg));
+                        },
+                        has: function(target, propName) {
+                            raiseBlame(blame.swap()
+                                            .addExpected("value to not be manipulated")
+                                            .addGiven("called `in` for property " + propName)
+                                            .addLocation(locationMsg));
+                        },
+                        hasOwn: function(target, propName) {
+                            raiseBlame(blame.swap()
+                                            .addExpected("value to not be manipulated")
+                                            .addGiven("called Object.hasOwnProperty on property " + propName)
+                                            .addLocation(locationMsg));
+                        },
+
+                        get: function(target, propName) {
+                            var givenMsg = "performed obj." + propName;
+                            if (propName === "valueOf") {
+                                givenMsg = "attempted to inspect the value";
+                            }
+                            raiseBlame(blame.swap()
+                                            .addExpected("value to not be manipulated")
+                                            .addGiven(givenMsg)
+                                            .addLocation(locationMsg));
+                        },
+                        set: function(target, propName, val) {
+                            raiseBlame(blame.swap()
+                                            .addExpected("value to not be manipulated")
+                                            .addGiven("performed obj." + propName + " = " + val)
+                                            .addLocation(locationMsg));
+                        },
+
+                        enumerate: function() {
+                            raiseBlame(blame.swap()
+                                            .addExpected("value to not be manipulated")
+                                            .addGiven("value used in a `for in` loop")
+                                            .addLocation(locationMsg));
+                        },
+                        iterate: function() {
+                            raiseBlame(blame.swap()
+                                            .addExpected("value to not be manipulated")
+                                            .addGiven("value used in a `for of` loop")
+                                            .addLocation(locationMsg));
+                        },
+                        keys: function() {
+                            raiseBlame(blame.swap()
+                                            .addExpected("value to not be manipulated")
+                                            .addGiven("called Object.keys")
+                                            .addLocation(locationMsg));
+                        },
+
+                        apply: function() {
+                            raiseBlame(blame.swap()
+                                            .addExpected("value to not be manipulated")
+                                            .addGiven("attempted to invoke the value")
+                                            .addLocation(locationMsg));
+                        },
+                        construct: function() {
+                            raiseBlame(blame.swap()
+                                            .addExpected("value to not be manipulated")
+                                            .addGiven("attempted to invoke the value with new")
+                                            .addLocation(locationMsg));
+                        }
+                    });
+
+                    if (!typeVarMap.has(this)) {
+                        var valType = typeof val;
+                        var inferedContract = check(function(checkVal) {
+                            return (typeof checkVal) === valType;
+                        }, "(x) => typeof x === '" + valType + "'");
+                        typeVarMap.set(this, {
+                            contract: inferedContract
+                        });
+                    } else {
+                        var inferedProj = typeVarMap.get(this).contract.proj(blame.addLocation(locationMsg));
+                        inferedProj(val);
+                    }
+                    unproxy.set(p, val);
+                    return p;
+                }
+            }.bind(this);
+        });
+    }
 
     function check(predicate, name) {
         var c = new Contract(name, "check", function(blame) {
@@ -146,7 +289,7 @@
         var contractName = domName + " -> " + rngStr +
             (options && options.dependencyStr ? " | " + options.dependencyStr : "");
 
-        var c = new Contract(contractName, "fun", function(blame) {
+        var c = new Contract(contractName, "fun", function(blame, unwrapTypeVar) {
             return function(f) {
                 blame = blame.addParents(contractName);
                 if (typeof f !== "function") {
@@ -164,8 +307,9 @@
                             continue;
                         } else {
                             var location = "the " + addTh(i+1) + " argument of";
+                            var unwrapForProj = dom[i].type === "fun" ? !unwrapTypeVar : unwrapTypeVar;
                             var domProj = dom[i].proj(blame.swap()
-                                                      .addLocation(location));
+                                                      .addLocation(location), unwrapForProj);
 
                             checkedArgs.push(domProj(args[i]));
 
@@ -182,7 +326,8 @@
                     assert(rng instanceof Contract, "The range is not a contract");
 
                     var rawResult = target.apply(thisVal, checkedArgs);
-                    var rngProj = rng.proj(blame.addLocation("the return of"));
+                    var rngUnwrap = rng.type === "fun" ? unwrapTypeVar : !unwrapTypeVar;
+                    var rngProj = rng.proj(blame.addLocation("the return of"), rngUnwrap);
                     var rngResult = rngProj(rawResult);
                     if (options && options.dependency && typeof options.dependency === "function") {
                         var depResult = options.dependency.apply(this, depArgs.concat(rngResult));
@@ -220,9 +365,9 @@
 
     function optional(contract, options) {
         var contractName = "opt " + contract;
-        return new Contract(contractName, "optional", function(blame) {
+        return new Contract(contractName, "optional", function(blame, unwrapTypeVar) {
             return function(val) {
-                var proj = contract.proj(blame);
+                var proj = contract.proj(blame, unwrapTypeVar);
                 return proj(val);
             };
         });
@@ -231,9 +376,9 @@
     function repeat(contract, options) {
         var contractName = "...." + contract;
 
-        return new Contract(contractName, "repeat", function(blame) {
+        return new Contract(contractName, "repeat", function(blame, unwrapTypeVar) {
             return function (val) {
-                var proj = contract.proj(blame);
+                var proj = contract.proj(blame, unwrapTypeVar);
                 return proj(val);
             };
         });
@@ -247,7 +392,7 @@
 
         var contractNum = arrContract.length;
 
-        var c = new Contract(contractName, "array", function(blame) {
+        var c = new Contract(contractName, "array", function(blame, unwrapTypeVar) {
             return function(arr) {
                 if (typeof arr === "number" ||
                     typeof arr === "string" ||
@@ -260,12 +405,14 @@
                     if (arrContract[ctxIdx].type === "repeat" && arr.length <= ctxIdx) {
                         break;
                     }
+                    var unwrapForProj = arrContract[ctxIdx].type === "fun" ? !unwrapTypeVar : unwrapTypeVar;
                     var fieldProj = arrContract[ctxIdx].proj(blame.addLocation("the " +
                                                                                addTh(arrIdx) +
-                                                                               " field of"));
+                                                                               " field of"), unwrapForProj);
                     var checkedField = fieldProj(arr[arrIdx]);
                     arr[arrIdx] = checkedField;
 
+                    arrIdx++;
                     if (arrContract[ctxIdx].type === "repeat") {
                         if (ctxIdx !== arrContract.length - 1) {
                             throw new Error("The repeated contract must come last in " + contractName);
@@ -273,11 +420,10 @@
                         for (; arrIdx < arr.length; arrIdx++) {
                             var repeatProj = arrContract[ctxIdx].proj(blame.addLocation("the " +
                                                                                         addTh(arrIdx) +
-                                                                                        " field of"));
+                                                                                        " field of"), unwrapForProj);
                             arr[arrIdx] = repeatProj(arr[arrIdx]);
                         }
                     }
-                    arrIdx++;
                 }
                 if (options && options.proxy) {
                     return new Proxy(arr, {
@@ -410,6 +556,7 @@
         object: object,
         array: array,
         Blame: Blame,
+        makeCoffer: makeCoffer,
         guard: guard
     };
 })();

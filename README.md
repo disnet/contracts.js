@@ -89,3 +89,21 @@ recent version of Firefox is fine along with node.js/V8 with the
 # Documentation
 
 Contracts.js is documented [here](http://disnetdev.com/contracts.js/doc/main/contracts.html).
+
+
+# Related Work
+
+An initial stab at adding good contract syntax via macros to
+JavaScript was done in
+[sweet-contracts](https://github.com/oleiman/sweet-contracts).
+
+[rho-contracts](https://github.com/sefaira/rho-contracts.js) is a
+contract library for vanilla JavaScript in the same style as
+contracts.js (in the sense that both project trace their design
+inspiration to the higher-order contracts in Racket). While
+contracts.js can work in vanilla JS (using the `guard` wrapper
+function), rho-contracts probably has better ergonomics when used as a
+library with no special syntax support.
+
+[TreatJS](http://proglang.informatik.uni-freiburg.de/treatjs/) is
+another contract library for JavaScript.

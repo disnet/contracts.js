@@ -215,6 +215,9 @@ blaming: the contract of foo
 
 If you are familiar with contract research, this is the [indy](http://www.ccs.neu.edu/racket/pubs/popl11-dfff.pdf) semantics.
 
+
+
+
 ## Object Contracts
 
 Object contracts are built using familiar object literal syntax:
@@ -357,6 +360,109 @@ this, you can use `let` after the `@` symbol:
 @ (NumId, Num) -> Num
 function (f, x) { return f(x); }
 ```
+
+## Parametric Polymorphism
+
+Note: requires proxies (so use Firefox out of the box or
+Chrome/V8/node with the `--harmony` flag).
+
+Parametric polymorphic functions can be defined using `forall`:
+
+```js
+@ forall <name (,) ...> <contract>
+```
+
+Where each `name` is a contract variable to be bound in `contract`.
+For example, the identity function is defined as:
+
+```js
+@ forall a (a) -> a
+function id(x) { return x; }
+```
+
+The contract enforces the invariant that for all types, the value
+applied to `id` will be returned from the function. If the function
+does not obey this invariant a contract violation will be triggered:
+
+```js
+@ forall a (a) -> a
+function const5(x) { return 5; }
+
+const5(10);
+```
+
+will throw the error:
+
+<pre style="color:red">
+const5: contract violation
+expected: an opaque value
+given: 5
+in: in the type variable a of
+    the return of
+    (a) -> a
+function const5 guarded at line: 2
+blaming: function const5
+</pre>
+
+A key idea of parametric polymorphism is that a function cannot
+inspect the value of a polymorphic type (otherwise it doesn't really
+work "forall"). For example, the `inc_if_odd` function behaves like
+the identity function unless its argument is odd, which violates the
+parametric invariant:
+
+```js
+@ forall a (a) -> a
+function inc_if_odd(x) {
+    if (x % 2 !== 0) {
+        return x + 1;
+    }
+    return x;
+}
+```
+
+So, attempting to invoke `inc_if_odd(100)` will throw the error:
+
+<pre style="color:red">
+inc_if_odd: contract violation
+expected: value to not be manipulated
+given: 'attempted to inspect the value'
+in: in the type variable a of
+    the 1st argument of
+    (a) -> a
+function inc_if_odd guarded at line: 2
+blaming: function inc_if_odd
+</pre>
+
+Note that there are a couple of operations on values that contracts.js
+cannot currently guard against (`typeof` in particular).
+
+Polymorphic contracts also do contract inference. So, if you have a
+polymorphic array, contracts.js will check that the array is homogeneous:
+
+```js
+@ forall a ([...a]) -> [...a]
+function arrayId(l) {
+    return l;
+}
+arrayId([1, 2, "three"]);
+```
+
+This infers that the `a` should be a `Num` for this application of
+`arrayId` and then throws and error when it discovers `"three"`:
+
+<pre style="color:red">
+arrayId: contract violation
+expected: (x) => typeof x === 'number'
+given: 'three'
+in: in the type variable a of
+    the 2nd field of
+    the 1st argument of
+    ([....a]) -> [....a]
+function foo guarded at line: 2
+blaming: (calling context for arrayId)
+</pre>
+
+Contract inference is currently done with simple `typeof` checks.
 
 # FAQ
 

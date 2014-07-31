@@ -485,6 +485,165 @@ in: the 1st argument of
 function foo guarded at line: 473
 blaming: the contract of foo
 `
+    });
+
+    it("should work for polymorphic contracts on the identity function", function() {
+        @ forall a (a) -> a
+        function id(x) { return x; }
+
+        (id(100)).should.equal(100);
+    });
+
+    it("should catch a bad application of a polymorphic identity contract", function() {
+        @ forall a (a) -> a
+        function const5(x) { return 5; }
+
+        blame of {
+            const5(5);
+        } should be `const5: contract violation
+expected: an opaque value
+given: 5
+in: in the type variable a of
+    the return of
+    (a) -> a
+function const5 guarded at line: 499
+blaming: function const5
+`
+    });
+
+    it("should catch a bad application of a higher-order polymorphic contract", function() {
+        @ forall a (a, (a) -> a) -> a
+        function foo(x, f) {
+            f(x);
+            return 100;
+        }
+
+        blame of {
+            foo(100, function(x) {
+                return x;
+            });
+        } should be `foo: contract violation
+expected: an opaque value
+given: 100
+in: in the type variable a of
+    the return of
+    (a, (a) -> a) -> a
+function foo guarded at line: 516
+blaming: function foo
+`
+    });
+
+
+    it("should work for polymorphic contracts with a list and a higher-order function", function() {
+        @ forall a ([...a], (a) -> a) -> [...a]
+        function map(l, f) {
+            return l.map(f);
+        }
+
+        blame of {
+            map([1, 2], function(x) {
+                return "a";
+            });
+        } should be `map: contract violation
+expected: (x) => typeof x === 'number'
+given: 'a'
+in: in the type variable a of
+    the return of
+    the 2nd argument of
+    ([....a], (a) -> a) -> [....a]
+function map guarded at line: 539
+blaming: (calling context for map)
+`
+    });
+
+
+    it("parametric contracts should prevent heterogenous lists", function() {
+        @ forall a ([...a]) -> [...a]
+        function foo(l) {
+            return l;
+        }
+
+        blame of {
+            foo([1,2,"three"]);
+        } should be `foo: contract violation
+expected: (x) => typeof x === 'number'
+given: 'three'
+in: in the type variable a of
+    the 2nd field of
+    the 1st argument of
+    ([....a]) -> [....a]
+function foo guarded at line: 562
+blaming: (calling context for foo)
+`
+    });
+
+    it("should catch odds as not a polymorphic function", function() {
+        @ forall a ([...a]) -> [...a]
+        function odds(l) {
+            return l.filter(function(x) {
+                return x % 2 !== 0;
+            });
+        }
+
+        blame of {
+            odds([1,2,3,4]);
+        } should be `odds: contract violation
+expected: value to not be manipulated
+given: 'attempted to inspect the value'
+in: in the type variable a of
+    the 0th field of
+    the 1st argument of
+    ([....a]) -> [....a]
+function odds guarded at line: 582
+blaming: function odds
+`
+    });
+
+    it("should work with function of more than one type variable", function() {
+        @ forall a, b, c (a, b, (a, b) -> c) -> c
+        function foo(x, y, f) { return f(x, y); }
+
+        (foo(1, 2, function(x, y) { return x + y; })).should.equal(3);
+
+        @ forall a, b, c (a, b, (a, b) -> c) -> c
+        function bad_foo(x, y, f) {
+            f(x, y);
+            return 100;
+        }
+
+        blame of {
+            bad_foo(1, 2, function(x, y) { return x + y; })
+        } should be `bad_foo: contract violation
+expected: an opaque value
+given: 100
+in: in the type variable c of
+    the return of
+    (a, b, (a, b) -> c) -> c
+function bad_foo guarded at line: 609
+blaming: function bad_foo
+`
+    })
+
+    it("should work for inc if odd", function() {
+        @ forall a (a) -> a
+        function inc_if_odd(x) {
+            if (x % 2 !== 0) {
+                return x + 1;
+            }
+            return x;
+        }
+
+        blame of {
+            inc_if_odd(100);
+        } should be `inc_if_odd: contract violation
+expected: value to not be manipulated
+given: 'attempted to inspect the value'
+in: in the type variable a of
+    the 1st argument of
+    (a) -> a
+function inc_if_odd guarded at line: 629
+blaming: function inc_if_odd
+`
     })
 
 });

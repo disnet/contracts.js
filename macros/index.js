@@ -7,6 +7,8 @@ let import = macro {
         // importing patches Proxy to be in line with the new direct proxies
         require('harmony-reflect');
     }
+    var unproxy = new WeakMap();
+    var typeVarMap = new WeakMap();
     var Blame = {
             create: function (name, pos, neg, lineNumber) {
                 var o = new BlameObj(name, pos, neg, lineNumber);
@@ -63,7 +65,7 @@ let import = macro {
     function Contract(name, type, proj) {
         this.name = name;
         this.type = type;
-        this.proj = proj;
+        this.proj = proj.bind(this);
     }
     Contract.prototype.toString = function toString() {
         return this.name;
@@ -78,6 +80,89 @@ let import = macro {
         var lineMessage = blame.lineNumber !== undefined ? 'function ' + blame.name + ' guarded at line: ' + blame.lineNumber + '\n' : '';
         var msg = blame.name + ': contract violation\n' + 'expected: ' + blame.expected + '\n' + 'given: ' + addQuotes(blame.given) + '\n' + 'in: ' + blame.loc.slice().reverse().join('\n    ') + '\n' + '    ' + blame.parents[0] + '\n' + lineMessage + 'blaming: ' + blame.pos + '\n';
         throw new Error(msg);
+    }
+    function makeCoffer(name) {
+        return new Contract(name, 'coffer', function (blame, unwrapTypeVar) {
+            return function (val) {
+                var locationMsg = 'in the type variable ' + name + ' of';
+                if (unwrapTypeVar) {
+                    if (val && typeof val === 'object' && unproxy.has(val)) {
+                        var unwraperProj = typeVarMap.get(this).contract.proj(blame.addLocation(locationMsg));
+                        return unwraperProj(unproxy.get(val));
+                    } else {
+                        raiseBlame(blame.addExpected('an opaque value').addGiven(val).addLocation(locationMsg));
+                    }
+                } else {
+                    var towrap = val && typeof val === 'object' ? val : {};
+                    var p = new Proxy(towrap, {
+                            getOwnPropertyDescriptor: function () {
+                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.getOwnPropertyDescriptor').addLocation(locationMsg));
+                            },
+                            getOwnPropertyName: function () {
+                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.getOwnPropertyName').addLocation(locationMsg));
+                            },
+                            defineProperty: function () {
+                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.defineProperty').addLocation(locationMsg));
+                            },
+                            deleteProperty: function (target, propName) {
+                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called delete on property' + propName).addLocation(locationMsg));
+                            },
+                            freeze: function () {
+                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.freeze').addLocation(locationMsg));
+                            },
+                            seal: function () {
+                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.seal').addLocation(locationMsg));
+                            },
+                            preventExtensions: function () {
+                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.preventExtensions').addLocation(locationMsg));
+                            },
+                            has: function (target, propName) {
+                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called `in` for property ' + propName).addLocation(locationMsg));
+                            },
+                            hasOwn: function (target, propName) {
+                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.hasOwnProperty on property ' + propName).addLocation(locationMsg));
+                            },
+                            get: function (target, propName) {
+                                var givenMsg = 'performed obj.' + propName;
+                                if (propName === 'valueOf') {
+                                    givenMsg = 'attempted to inspect the value';
+                                }
+                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven(givenMsg).addLocation(locationMsg));
+                            },
+                            set: function (target, propName, val$2) {
+                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('performed obj.' + propName + ' = ' + val$2).addLocation(locationMsg));
+                            },
+                            enumerate: function () {
+                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('value used in a `for in` loop').addLocation(locationMsg));
+                            },
+                            iterate: function () {
+                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('value used in a `for of` loop').addLocation(locationMsg));
+                            },
+                            keys: function () {
+                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.keys').addLocation(locationMsg));
+                            },
+                            apply: function () {
+                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('attempted to invoke the value').addLocation(locationMsg));
+                            },
+                            construct: function () {
+                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('attempted to invoke the value with new').addLocation(locationMsg));
+                            }
+                        });
+                    if (!typeVarMap.has(this)) {
+                        var valType = typeof val;
+                        var inferedContract = check(function (checkVal) {
+                                return typeof checkVal === valType;
+                            }, '(x) => typeof x === \'' + valType + '\'');
+                        typeVarMap.set(this, { contract: inferedContract });
+                    } else {
+                        var inferedProj = typeVarMap.get(this).contract.proj(blame.addLocation(locationMsg));
+                        inferedProj(val);
+                    }
+                    unproxy.set(p, val);
+                    return p;
+                }
+            }.bind(this);
+        });
     }
     function check(predicate, name) {
         var c = new Contract(name, 'check', function (blame) {
@@ -127,7 +212,7 @@ let import = macro {
         var domName = '(' + domStr + ')';
         var rngStr = options && options.namesStr ? options.namesStr[options.namesStr.length - 1] + ': ' + rng : rng;
         var contractName = domName + ' -> ' + rngStr + (options && options.dependencyStr ? ' | ' + options.dependencyStr : '');
-        var c = new Contract(contractName, 'fun', function (blame) {
+        var c = new Contract(contractName, 'fun', function (blame, unwrapTypeVar) {
                 return function (f) {
                     blame = blame.addParents(contractName);
                     if (typeof f !== 'function') {
@@ -141,7 +226,8 @@ let import = macro {
                                 continue;
                             } else {
                                 var location = 'the ' + addTh(i + 1) + ' argument of';
-                                var domProj = dom[i].proj(blame.swap().addLocation(location));
+                                var unwrapForProj = dom[i].type === 'fun' ? !unwrapTypeVar : unwrapTypeVar;
+                                var domProj = dom[i].proj(blame.swap().addLocation(location), unwrapForProj);
                                 checkedArgs.push(domProj(args[i]));
                                 if (options && options.dependency) {
                                     var depProj = dom[i].proj(blame.swap().setNeg('the contract of ' + blame.name).addLocation(location));
@@ -152,7 +238,8 @@ let import = macro {
                         checkedArgs = checkedArgs.concat(args.slice(i));
                         assert(rng instanceof Contract, 'The range is not a contract');
                         var rawResult = target.apply(thisVal, checkedArgs);
-                        var rngProj = rng.proj(blame.addLocation('the return of'));
+                        var rngUnwrap = rng.type === 'fun' ? unwrapTypeVar : !unwrapTypeVar;
+                        var rngProj = rng.proj(blame.addLocation('the return of'), rngUnwrap);
                         var rngResult = rngProj(rawResult);
                         if (options && options.dependency && typeof options.dependency === 'function') {
                             var depResult = options.dependency.apply(this, depArgs.concat(rngResult));
@@ -181,18 +268,18 @@ let import = macro {
     }
     function optional(contract, options) {
         var contractName = 'opt ' + contract;
-        return new Contract(contractName, 'optional', function (blame) {
+        return new Contract(contractName, 'optional', function (blame, unwrapTypeVar) {
             return function (val) {
-                var proj = contract.proj(blame);
+                var proj = contract.proj(blame, unwrapTypeVar);
                 return proj(val);
             };
         });
     }
     function repeat(contract, options) {
         var contractName = '....' + contract;
-        return new Contract(contractName, 'repeat', function (blame) {
+        return new Contract(contractName, 'repeat', function (blame, unwrapTypeVar) {
             return function (val) {
-                var proj = contract.proj(blame);
+                var proj = contract.proj(blame, unwrapTypeVar);
                 return proj(val);
             };
         });
@@ -203,7 +290,7 @@ let import = macro {
                 return c$2;
             }).join(', ') + ']';
         var contractNum = arrContract.length;
-        var c = new Contract(contractName, 'array', function (blame) {
+        var c = new Contract(contractName, 'array', function (blame, unwrapTypeVar) {
                 return function (arr) {
                     if (typeof arr === 'number' || typeof arr === 'string' || typeof arr === 'boolean' || arr == null) {
                         raiseBlame(blame.addGiven(arr).addExpected('an array with at least ' + contractNum + pluralize(contractNum, ' field')));
@@ -212,19 +299,20 @@ let import = macro {
                         if (arrContract[ctxIdx].type === 'repeat' && arr.length <= ctxIdx) {
                             break;
                         }
-                        var fieldProj = arrContract[ctxIdx].proj(blame.addLocation('the ' + addTh(arrIdx) + ' field of'));
+                        var unwrapForProj = arrContract[ctxIdx].type === 'fun' ? !unwrapTypeVar : unwrapTypeVar;
+                        var fieldProj = arrContract[ctxIdx].proj(blame.addLocation('the ' + addTh(arrIdx) + ' field of'), unwrapForProj);
                         var checkedField = fieldProj(arr[arrIdx]);
                         arr[arrIdx] = checkedField;
+                        arrIdx++;
                         if (arrContract[ctxIdx].type === 'repeat') {
                             if (ctxIdx !== arrContract.length - 1) {
                                 throw new Error('The repeated contract must come last in ' + contractName);
                             }
                             for (; arrIdx < arr.length; arrIdx++) {
-                                var repeatProj = arrContract[ctxIdx].proj(blame.addLocation('the ' + addTh(arrIdx) + ' field of'));
+                                var repeatProj = arrContract[ctxIdx].proj(blame.addLocation('the ' + addTh(arrIdx) + ' field of'), unwrapForProj);
                                 arr[arrIdx] = repeatProj(arr[arrIdx]);
                             }
                         }
-                        arrIdx++;
                     }
                     if (options && options.proxy) {
                         return new Proxy(arr, {
@@ -350,6 +438,7 @@ let import = macro {
         object: object,
         array: array,
         Blame: Blame,
+        makeCoffer: makeCoffer,
         guard: guard
     };
 }());
@@ -478,6 +567,9 @@ macro any_contract {
     rule { $contract:non_or_contract } => { $contract }
 }
 
+// macro ident_list {
+//     rule { $p (,) ... }
+// }
 
 let @ = macro {
     case {_
@@ -485,6 +577,31 @@ let @ = macro {
     } => {
         return #{
             _c.$contractName = $contract;
+        }
+    }
+
+    case {_
+        forall $($varName (,) ...)
+        $contracts:function_contract
+        function $name ($params ...) { $body ...}
+    } => {
+        var nameStx = #{$name}[0];
+        var nameStr = unwrapSyntax(nameStx);
+        var varNameStr = #{$varName ...}.map(function(stx) {
+            return makeValue(stx.token.value, #{here});
+        });
+        letstx $guardedName = [makeIdent("inner_" + nameStr, #{here})];
+        letstx $client = [makeValue("function " + nameStr, #{here})];
+        letstx $server = [makeValue("(calling context for " + nameStr + ")", #{here})];
+        letstx $fnName = [makeValue(nameStr, #{here})];
+        letstx $lineNumber = [makeValue(nameStx.token.sm_lineNumber, #{here})];
+        letstx $varNameStr ... = varNameStr;
+        return #{
+            $(_c.$varName = _c.makeCoffer($varNameStr)) (,) ...;
+            var $guardedName = ($contracts).proj(_c.Blame.create($fnName, $client, $server, $lineNumber))(function $name ($params ...) { $body ...});
+            function $name ($params ...) {
+                return $guardedName.apply(this, arguments);
+            }
         }
     }
 
