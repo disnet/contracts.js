@@ -542,17 +542,38 @@ blaming: function foo
 
         blame of {
             map([1, 2], function(x) {
-                return x.toString();
+                return "a";
             });
         } should be `map: contract violation
-expected: value to not be manipulated
-given: 'performed obj.toString'
+expected: (x) => typeof x === 'number'
+given: 'a'
 in: in the type variable a of
-    the 0th field of
-    the 1st argument of
+    the return of
+    the 2nd argument of
     ([....a], (a) -> a) -> [....a]
 function map guarded at line: 539
-blaming: function map
+blaming: (calling context for map)
+`
+    });
+
+
+    it("parametric contracts should prevent heterogenous lists", function() {
+        @ forall a ([...a]) -> [...a]
+        function foo(l) {
+            return l;
+        }
+
+        blame of {
+            foo([1,2,"three"]);
+        } should be `foo: contract violation
+expected: (x) => typeof x === 'number'
+given: 'three'
+in: in the type variable a of
+    the 2nd field of
+    the 1st argument of
+    ([....a]) -> [....a]
+function foo guarded at line: 562
+blaming: (calling context for foo)
 `
     })
 

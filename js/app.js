@@ -77,7 +77,7 @@ App.ExamplesController = Ember.ObjectController.extend({
                         filename: "contracts.js"
                     });
                     var out = sweet.compile(editor.getValue(), {
-                        readableNames: false,
+                        readableNames: true,
                         modules: [contractsModule]
                     });
                     var logArr = cleanerEval(out.code, console.log);

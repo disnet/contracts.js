@@ -8,6 +8,7 @@ let import = macro {
         require('harmony-reflect');
     }
     var unproxy = new WeakMap();
+    var typeVarMap = new WeakMap();
     var Blame = {
             create: function (name, pos, neg, lineNumber) {
                 var o = new BlameObj(name, pos, neg, lineNumber);
@@ -64,7 +65,7 @@ let import = macro {
     function Contract(name, type, proj) {
         this.name = name;
         this.type = type;
-        this.proj = proj;
+        this.proj = proj.bind(this);
     }
     Contract.prototype.toString = function toString() {
         return this.name;
@@ -86,7 +87,8 @@ let import = macro {
                 var locationMsg = 'in the type variable ' + name + ' of';
                 if (unwrapTypeVar) {
                     if (val && typeof val === 'object' && unproxy.has(val)) {
-                        return unproxy.get(val);
+                        var unwraperProj = typeVarMap.get(this).contract.proj(blame.addLocation(locationMsg));
+                        return unwraperProj(unproxy.get(val));
                     } else {
                         raiseBlame(blame.addExpected('an opaque value').addGiven(val).addLocation(locationMsg));
                     }
@@ -142,10 +144,20 @@ let import = macro {
                                 raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('attempted to invoke the value with new').addLocation(locationMsg));
                             }
                         });
+                    if (!typeVarMap.has(this)) {
+                        var valType = typeof val;
+                        var inferedContract = check(function (checkVal) {
+                                return typeof checkVal === valType;
+                            }, '(x) => typeof x === \'' + valType + '\'');
+                        typeVarMap.set(this, { contract: inferedContract });
+                    } else {
+                        var inferedProj = typeVarMap.get(this).contract.proj(blame.addLocation(locationMsg));
+                        inferedProj(val);
+                    }
                     unproxy.set(p, val);
                     return p;
                 }
-            };
+            }.bind(this);
         });
     }
     function check(predicate, name) {
@@ -252,18 +264,18 @@ let import = macro {
     }
     function optional(contract, options) {
         var contractName = 'opt ' + contract;
-        return new Contract(contractName, 'optional', function (blame) {
+        return new Contract(contractName, 'optional', function (blame, unwrapTypeVar) {
             return function (val) {
-                var proj = contract.proj(blame);
+                var proj = contract.proj(blame, unwrapTypeVar);
                 return proj(val);
             };
         });
     }
     function repeat(contract, options) {
         var contractName = '....' + contract;
-        return new Contract(contractName, 'repeat', function (blame) {
+        return new Contract(contractName, 'repeat', function (blame, unwrapTypeVar) {
             return function (val) {
-                var proj = contract.proj(blame);
+                var proj = contract.proj(blame, unwrapTypeVar);
                 return proj(val);
             };
         });
@@ -274,7 +286,7 @@ let import = macro {
                 return c$2;
             }).join(', ') + ']';
         var contractNum = arrContract.length;
-        var c = new Contract(contractName, 'array', function (blame) {
+        var c = new Contract(contractName, 'array', function (blame, unwrapTypeVar) {
                 return function (arr) {
                     if (typeof arr === 'number' || typeof arr === 'string' || typeof arr === 'boolean' || arr == null) {
                         raiseBlame(blame.addGiven(arr).addExpected('an array with at least ' + contractNum + pluralize(contractNum, ' field')));
@@ -283,19 +295,20 @@ let import = macro {
                         if (arrContract[ctxIdx].type === 'repeat' && arr.length <= ctxIdx) {
                             break;
                         }
-                        var fieldProj = arrContract[ctxIdx].proj(blame.addLocation('the ' + addTh(arrIdx) + ' field of'));
+                        var unwrapForProj = arrContract[ctxIdx].type === 'fun' ? !unwrapTypeVar : unwrapTypeVar;
+                        var fieldProj = arrContract[ctxIdx].proj(blame.addLocation('the ' + addTh(arrIdx) + ' field of'), unwrapForProj);
                         var checkedField = fieldProj(arr[arrIdx]);
                         arr[arrIdx] = checkedField;
+                        arrIdx++;
                         if (arrContract[ctxIdx].type === 'repeat') {
                             if (ctxIdx !== arrContract.length - 1) {
                                 throw new Error('The repeated contract must come last in ' + contractName);
                             }
                             for (; arrIdx < arr.length; arrIdx++) {
-                                var repeatProj = arrContract[ctxIdx].proj(blame.addLocation('the ' + addTh(arrIdx) + ' field of'));
+                                var repeatProj = arrContract[ctxIdx].proj(blame.addLocation('the ' + addTh(arrIdx) + ' field of'), unwrapForProj);
                                 arr[arrIdx] = repeatProj(arr[arrIdx]);
                             }
                         }
-                        arrIdx++;
                     }
                     if (options && options.proxy) {
                         return new Proxy(arr, {
