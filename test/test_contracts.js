@@ -513,35 +513,48 @@ blaming: function const5
 
     it("should catch a bad application of a higher-order polymorphic contract", function() {
         @ forall a (a, (a) -> a) -> a
-        function foo(x, f) { return f(x); }
+        function foo(x, f) {
+            f(x);
+            return 100;
+        }
 
-        foo(100, function(x) {
-            return "foo";
-        });
+        blame of {
+            foo(100, function(x) {
+                return x;
+            });
+        } should be `foo: contract violation
+expected: an opaque value
+given: 100
+in: in the type variable a of
+    the return of
+    (a, (a) -> a) -> a
+function foo guarded at line: 516
+blaming: function foo
+`
     });
 
 
-//     it("should work for polymorphic contracts", function() {
-//         @ forall a ([...a], (a) -> a) -> [...a]
-//         function map(l, f) {
-//             return l.map(f);
-//         }
+    it("should work for polymorphic contracts with a list and a higher-order function", function() {
+        @ forall a ([...a], (a) -> a) -> [...a]
+        function map(l, f) {
+            return l.map(f);
+        }
 
-//         // blame of {
-//             map([1, 2], function(x) {
-//                 return x;
-//             });
-// //         } should be `map: contract violation
-// // expected: value to not be manipulated
-// // given: 'performed obj.toString'
-// // in: in the type variable a
-// //     the 1st argument of
-// //     the 2nd argument of
-// //     ([....a], (a) -> a) -> [....a]
-// // function map guarded at line: 492
-// // blaming: (calling context for map)
-// // `
-//     })
+        blame of {
+            map([1, 2], function(x) {
+                return x.toString();
+            });
+        } should be `map: contract violation
+expected: value to not be manipulated
+given: 'performed obj.toString'
+in: in the type variable a of
+    the 0th field of
+    the 1st argument of
+    ([....a], (a) -> a) -> [....a]
+function map guarded at line: 539
+blaming: function map
+`
+    })
 
 
 });
