@@ -106,14 +106,29 @@ macro optional_contract {
     }
 }
 
+macro predicate_contract {
+    rule {
+        ($param) => { $pred ... }
+    } => {
+        _c.check(function($param) { $pred ... }, stringify (($pred ...)) )
+    }
+
+    rule {
+        ($param) => $pred:expr
+    } => {
+        _c.check(function($param) { return $pred; }, stringify ($pred) )
+    }
+}
+
 
 macro non_or_contract {
-    rule { $contract:function_contract } => { $contract }
-    rule { $contract:object_contract }   => { $contract }
-    rule { $contract:array_contract }    => { $contract }
-    rule { $contract:repeat_contract }   => { $contract }
-    rule { $contract:optional_contract } => { $contract }
-    rule { $contract:base_contract }     => { $contract }
+    rule { $contract:predicate_contract } => { $contract }
+    rule { $contract:function_contract }  => { $contract }
+    rule { $contract:object_contract }    => { $contract }
+    rule { $contract:array_contract }     => { $contract }
+    rule { $contract:repeat_contract }    => { $contract }
+    rule { $contract:optional_contract }  => { $contract }
+    rule { $contract:base_contract }      => { $contract }
 }
 
 macro or_contract {
@@ -129,6 +144,24 @@ macro any_contract {
 
 
 let @ = macro {
+    // special casing let bound predicate contracts to get the name
+    // from the let binding instead of doing stringify to the predicate body
+    case {_
+         let $contractName = ($param) => { $pred ... }
+    } => {
+        return #{
+            _c.$contractName = _c.check(function($param) { $pred ...},
+                                        stringify (($contractName)))
+        }
+    }
+    case {_
+         let $contractName = ($param) => $pred:expr
+    } => {
+        return #{
+            _c.$contractName = _c.check(function($param) { return $pred },
+                                        stringify (($contractName)))
+        }
+    }
     case {_
           let $contractName = $contract:any_contract
     } => {

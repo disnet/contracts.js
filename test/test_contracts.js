@@ -644,6 +644,48 @@ in: in the type variable a of
 function inc_if_odd guarded at line: 629
 blaming: function inc_if_odd
 `
+    });
+
+    it("should allow you to define predicate contracts", function() {
+        @ ((x) => typeof x === 'number') -> Num
+        function id(x) { return x; }
+
+        (id(42)).should.equal(42);
+        blame of {
+            id("foo")
+        } should be `id: contract violation
+expected: typeof x === number
+given: 'foo'
+in: the 1st argument of
+    (typeof x === number) -> Num
+function id guarded at line: 651
+blaming: (calling context for id)
+`
+
+    })
+
+    it("should allow you to let bind complex predicate contracts", function() {
+        @ let MyNum = (x) => {
+            if (typeof x === "number") {
+                return true;
+            }
+            return false;
+        }
+
+        @ (MyNum) -> MyNum
+        function id(x) { return x; }
+
+        (id(42)).should.equal(42);
+        blame of {
+            id("foo")
+        } should be `id: contract violation
+expected: MyNum
+given: 'foo'
+in: the 1st argument of
+    (MyNum) -> MyNum
+function id guarded at line: 676
+blaming: (calling context for id)
+`
     })
 
 });

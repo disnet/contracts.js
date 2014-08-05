@@ -540,15 +540,7 @@
         Undefined: check(function(val) { return void 0 === val; }, "Null"),
         Void: check(function(val)      { return null == val; }, "Null"),
 
-        // "type" variables
-        // a: seal("a"),
-        // b: seal("b"),
-        // c: seal("c"),
-        // d: seal("d"),
-        // e: seal("e"),
-        // f: seal("f"),
-        // g: seal("g"),
-
+        check: check,
         fun: fun,
         or: or,
         repeat: repeat,
