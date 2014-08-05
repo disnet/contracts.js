@@ -285,8 +285,9 @@
         var domName = "(" + domStr + ")";
 
         var rngStr = options && options.namesStr ? options.namesStr[options.namesStr.length - 1] + ": " + rng : rng;
+        var thisName = options && options.thisContract ? " this " + options.thisContract : "";
 
-        var contractName = domName + " -> " + rngStr +
+        var contractName = domName + thisName + " -> " + rngStr +
             (options && options.dependencyStr ? " | " + options.dependencyStr : "");
 
         var c = new Contract(contractName, "fun", function(blame, unwrapTypeVar) {
@@ -322,10 +323,16 @@
                         }
                     }
                     checkedArgs = checkedArgs.concat(args.slice(i));
+                    var checkedThis = thisVal;
+                    if(options && options.thisContract) {
+                        var thisProj = options.thisContract.proj(blame.swap()
+                                                                      .addLocation("the this value of"));
+                        checkedThis = thisProj(thisVal);
+                    }
 
                     assert(rng instanceof Contract, "The range is not a contract");
 
-                    var rawResult = target.apply(thisVal, checkedArgs);
+                    var rawResult = target.apply(checkedThis, checkedArgs);
                     var rngUnwrap = rng.type === "fun" ? unwrapTypeVar : !unwrapTypeVar;
                     var rngProj = rng.proj(blame.addLocation("the return of"), rngUnwrap);
                     var rngResult = rngProj(rawResult);

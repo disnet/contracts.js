@@ -37,6 +37,16 @@ macroclass named_contract {
 }
 
 macro function_contract {
+    rule { ($dom:named_contract (,) ...) this $this:object_contract -> $range:named_contract | { $guard ... } } => {
+        _c.fun([$dom$contract (,) ...], $range$contract, {
+            dependency: function($dom$name (,) ..., $range$name) {
+                $guard ...
+            },
+            thisContract: $this,
+            namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
+            dependencyStr: stringify (($guard ...))
+        })
+    }
     rule { ($dom:named_contract (,) ...) -> $range:named_contract | { $guard ... } } => {
         _c.fun([$dom$contract (,) ...], $range$contract, {
             dependency: function($dom$name (,) ..., $range$name) {
@@ -46,6 +56,16 @@ macro function_contract {
             dependencyStr: stringify (($guard ...))
         })
     }
+    rule { ($dom:named_contract (,) ...) this $this:object_contract -> $range:named_contract | $guard:expr } => {
+        _c.fun([$dom$contract (,) ...], $range$contract, {
+            dependency: function($dom$name (,) ..., $range$name) {
+                return $guard;
+            },
+            thisContract: $this,
+            namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
+            dependencyStr: stringify ($guard)
+        })
+    }
     rule { ($dom:named_contract (,) ...) -> $range:named_contract | $guard:expr } => {
         _c.fun([$dom$contract (,) ...], $range$contract, {
             dependency: function($dom$name (,) ..., $range$name) {
@@ -53,6 +73,11 @@ macro function_contract {
             },
             namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
             dependencyStr: stringify ($guard)
+        })
+    }
+    rule { ($dom:any_contract (,) ...) this $this:object_contract -> $range:any_contract } => {
+        _c.fun([$dom (,) ...], $range, {
+            thisContract: $this
         })
     }
     rule { ($dom:any_contract (,) ...) -> $range:any_contract } => {

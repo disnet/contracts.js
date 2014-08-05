@@ -688,4 +688,56 @@ blaming: (calling context for id)
 `
     })
 
+    it("should allow you to specify this contracts", function() {
+        @ (Num) this { name: Str} -> Str
+        function f(n) { return this.name; }
+
+        var o = {
+            nam: "Bob",
+            f: f
+        };
+
+        blame of {
+            o.f(100);
+        } should be `f: contract violation
+expected: Str
+given: undefined
+in: the name property of
+    the this value of
+    (Num) this {name: Str} -> Str
+function f guarded at line: 693
+blaming: (calling context for f)
+`
+    })
+
+    // it("should allow you to use method contracts on objects", function() {
+    //     @ let Person = {
+    //         name: Str,
+    //         age: Num,
+    //         hello: () -> Str
+    //     }
+
+    //     @ (Person) -> Str
+    //     function foo(p) { return p.hello(); }
+
+    //     (foo({
+    //         name: "Bob",
+    //         age: 42,
+    //         hello: function() { return this.name; }
+    //     })).should.equal("Bob");
+
+    //     var badPerson = {
+    //         nam: "Bob",
+    //         age: 100,
+    //         hello: function() { }
+    //     }
+
+    //     var p = {
+    //         name: "Bob",
+    //         age: 42,
+    //         hello: function() { return this.name; }.bind(badPerson)
+    //     }
+    //     // foo(p);
+    // })
+
 });

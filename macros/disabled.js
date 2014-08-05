@@ -211,7 +211,8 @@ let import = macro {
             }).join(', ');
         var domName = '(' + domStr + ')';
         var rngStr = options && options.namesStr ? options.namesStr[options.namesStr.length - 1] + ': ' + rng : rng;
-        var contractName = domName + ' -> ' + rngStr + (options && options.dependencyStr ? ' | ' + options.dependencyStr : '');
+        var thisName = options && options.thisContract ? ' this ' + options.thisContract : '';
+        var contractName = domName + thisName + ' -> ' + rngStr + (options && options.dependencyStr ? ' | ' + options.dependencyStr : '');
         var c = new Contract(contractName, 'fun', function (blame, unwrapTypeVar) {
                 return function (f) {
                     blame = blame.addParents(contractName);
@@ -236,8 +237,13 @@ let import = macro {
                             }
                         }
                         checkedArgs = checkedArgs.concat(args.slice(i));
+                        var checkedThis = thisVal;
+                        if (options && options.thisContract) {
+                            var thisProj = options.thisContract.proj(blame.swap().addLocation('the this value of'));
+                            checkedThis = thisProj(thisVal);
+                        }
                         assert(rng instanceof Contract, 'The range is not a contract');
-                        var rawResult = target.apply(thisVal, checkedArgs);
+                        var rawResult = target.apply(checkedThis, checkedArgs);
                         var rngUnwrap = rng.type === 'fun' ? unwrapTypeVar : !unwrapTypeVar;
                         var rngProj = rng.proj(blame.addLocation('the return of'), rngUnwrap);
                         var rngResult = rngProj(rawResult);
@@ -477,7 +483,21 @@ macroclass named_contract {
     rule { $name $[:] $contract:any_contract }
 }
 
+macro this_contract {
+    rule { this $contract:object_contract } => { $contract }
+}
+
 macro function_contract {
+    rule { ($dom:named_contract (,) ...) this $this:object_contract -> $range:named_contract | { $guard ... } } => {
+        _c.fun([$dom$contract (,) ...], $range$contract, {
+            dependency: function($dom$name (,) ..., $range$name) {
+                $guard ...
+            },
+            thisContract: $this,
+            namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
+            dependencyStr: stringify (($guard ...))
+        })
+    }
     rule { ($dom:named_contract (,) ...) -> $range:named_contract | { $guard ... } } => {
         _c.fun([$dom$contract (,) ...], $range$contract, {
             dependency: function($dom$name (,) ..., $range$name) {
@@ -487,6 +507,16 @@ macro function_contract {
             dependencyStr: stringify (($guard ...))
         })
     }
+    rule { ($dom:named_contract (,) ...) this $this:object_contract -> $range:named_contract | $guard:expr } => {
+        _c.fun([$dom$contract (,) ...], $range$contract, {
+            dependency: function($dom$name (,) ..., $range$name) {
+                return $guard;
+            },
+            thisContract: $this,
+            namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
+            dependencyStr: stringify ($guard)
+        })
+    }
     rule { ($dom:named_contract (,) ...) -> $range:named_contract | $guard:expr } => {
         _c.fun([$dom$contract (,) ...], $range$contract, {
             dependency: function($dom$name (,) ..., $range$name) {
@@ -494,6 +524,11 @@ macro function_contract {
             },
             namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
             dependencyStr: stringify ($guard)
+        })
+    }
+    rule { ($dom:any_contract (,) ...) this $this:object_contract -> $range:any_contract } => {
+        _c.fun([$dom (,) ...], $range, {
+            thisContract: $this
         })
     }
     rule { ($dom:any_contract (,) ...) -> $range:any_contract } => {
