@@ -20,7 +20,7 @@ module.exports = function(grunt) {
             contracts: {
                 options: {
                     readableNames: true,
-                    modules: ["sparkler/macros", "es6-macros"]
+                    modules: ["sparkler/macros", "es6-macros", "./src/helper-macros.js"]
                 },
                 src: "src/contracts.js",
                 dest: "build/contracts.js"

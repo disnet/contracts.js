@@ -712,25 +712,42 @@ blaming: (calling context for f)
 `
     })
 
-    // it("should allow you to use method contracts on objects", function() {
-    //     @ let List = Null or {
-    //         a: Num,
-    //         cons: List
-    //     }
+    it("should implicitly bind the this macro for method contracts", function() {
+        @ let Obj = {
+            a: Num,
+            f: () -> Num
+        }
 
-    //     @ (Obj) -> Num
-    //     function foo(o) { return o.b.a; }
+        @ (Obj) -> Num
+        function foo(o) { return o.f(); }
 
-    //     var o = {
-    //         a: 42,
-    //         b: {
-    //             a: 100,
-    //             b: null
-    //         }
-    //     };
-    //     o.b.b = o;
 
-    //     foo(o)
-    // })
+        var obj = {
+            a: 42,
+            f: function() { return this.a; }
+        };
+
+        (foo(obj)).should.equal(42);
+
+        @ (Obj) -> Num
+        function badFoo(o) {
+            var f = o.f;
+            return f();
+        }
+
+        blame of {
+            badFoo(obj)
+        } should be `badFoo: contract violation
+expected: an object with at least 2 keys
+given: undefined
+in: the this value of
+    the f property of
+    the 1st argument of
+    ({a: Num, f: () -> Num}) -> Num
+function badFoo guarded at line: 733
+blaming: function badFoo
+`
+
+    });
 
 });

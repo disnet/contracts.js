@@ -112,11 +112,7 @@
     }
 
     function makeCoffer(name) {
-        return new Contract(name, "coffer", function(blame, otherthing, projOptions) {
-            // if (projOptions && (projOptions.unwrapTypeVar !== unwrapTypeVar)) {
-            //     throw new Error("does not match");
-            // }
-            var unwrapTypeVar = if projOptions then projOptions.unwrapTypeVar else false
+        return new Contract(name, "coffer", function(blame, unwrapTypeVar, projOptions) {
             return function(val) {
                 var locationMsg = "in the type variable " + name + " of";
                 if (unwrapTypeVar) {
@@ -300,11 +296,7 @@
         var contractName = domName  + " -> " + rngStr + thisName +
             (options && options.dependencyStr ? " | " + options.dependencyStr : "");
 
-        var c = new Contract(contractName, "fun", function(blame, otherthing, projOptions) {
-            // if (projOptions && (projOptions.unwrapTypeVar !== unwrapTypeVar)) {
-            //     throw new Error("does not match");
-            // }
-            var unwrapTypeVar = if projOptions then projOptions.unwrapTypeVar else false
+        var c = new Contract(contractName, "fun", function(blame, unwrapTypeVar, projOptions) {
 
             return function(f) {
                 blame = blame.addParents(contractName);
@@ -325,7 +317,7 @@
                             var location = "the " + addTh(i+1) + " argument of";
                             var unwrapForProj = dom[i].type === "fun" ? !unwrapTypeVar : unwrapTypeVar;
                             var domProj = dom[i].proj(blame.swap()
-                                                      .addLocation(location), unwrapForProj, {unwrapTypeVar: unwrapForProj});
+                                                      .addLocation(location), unwrapForProj);
 
                             checkedArgs.push(domProj(args[i]));
 
@@ -339,9 +331,12 @@
                     }
                     checkedArgs = checkedArgs.concat(args.slice(i));
                     var checkedThis = thisVal;
-                    if(options && options.thisContract) {
-                        var thisProj = options.thisContract.proj(blame.swap()
-                                                                      .addLocation("the this value of"));
+                    if((options && options.thisContract) || (projOptions && projOptions.overrideThisContract)) {
+                        var thisContract = if projOptions && projOptions.overrideThisContract
+                                           then projOptions.overrideThisContract
+                                           else options.thisContract
+                        var thisProj = thisContract.proj(blame.swap()
+                                                              .addLocation("the this value of"));
                         checkedThis = thisProj(thisVal);
                     }
 
@@ -349,7 +344,7 @@
 
                     var rawResult = target.apply(checkedThis, checkedArgs);
                     var rngUnwrap = rng.type === "fun" ? unwrapTypeVar : !unwrapTypeVar;
-                    var rngProj = rng.proj(blame.addLocation("the return of"), rngUnwrap, {unwrapTypeVar: rngUnwrap});
+                    var rngProj = rng.proj(blame.addLocation("the return of"), rngUnwrap);
                     var rngResult = rngProj(rawResult);
                     if (options && options.dependency && typeof options.dependency === "function") {
                         var depResult = options.dependency.apply(this, depArgs.concat(rngResult));
@@ -392,7 +387,7 @@
         var contractName = "opt " + contract;
         return new Contract(contractName, "optional", function(blame, unwrapTypeVar) {
             return function(val) {
-                var proj = contract.proj(blame, unwrapTypeVar, {unwrapTypeVar: unwrapTypeVar});
+                var proj = contract.proj(blame, unwrapTypeVar);
                 return proj(val);
             };
         });
@@ -406,7 +401,7 @@
 
         return new Contract(contractName, "repeat", function(blame, unwrapTypeVar) {
             return function (val) {
-                var proj = contract.proj(blame, unwrapTypeVar, {unwrapTypeVar: unwrapTypeVar});
+                var proj = contract.proj(blame, unwrapTypeVar);
                 return proj(val);
             };
         });
@@ -440,8 +435,7 @@
                     var fieldProj = arrContract[ctxIdx].proj(blame.addLocation("the " +
                                                                                addTh(arrIdx) +
                                                                                " field of"),
-                                                             unwrapForProj,
-                                                            {unwrapTypeVar: unwrapForProj});
+                                                             unwrapForProj);
                     var checkedField = fieldProj(arr[arrIdx]);
                     arr[arrIdx] = checkedField;
 
@@ -454,8 +448,7 @@
                             var repeatProj = arrContract[ctxIdx].proj(blame.addLocation("the " +
                                                                                         addTh(arrIdx) +
                                                                                         " field of"),
-                                                                      unwrapForProj,
-                                                                     {unwrapTypeVar: unwrapForProj});
+                                                                      unwrapForProj);
                             arr[arrIdx] = repeatProj(arr[arrIdx]);
                         }
                     }
@@ -511,10 +504,13 @@
                     if (!(objContract[key].type === "optional" && obj[key] === undefined)) {
                         // self contracts use the original object contract
                         var c = objContract[key];
+                        var propProjOptions = if objContract[key].type === "fun"
+                                              then {overrideThisContract: this}
+                                              else {}
                         // var c = objContract[key].type === "self" ? this : objContract[key];
                         var propProj = c.proj(blame.addLocation("the " +
                                                                 key +
-                                                                " property of"));
+                                                                " property of"), false, propProjOptions);
                         var checkedProperty = propProj(obj[key]);
                         obj[key] = checkedProperty;
                     }

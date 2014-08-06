@@ -82,7 +82,7 @@ let import = macro {
         throw new Error(msg);
     }
     function makeCoffer(name) {
-        return new Contract(name, 'coffer', function (blame, unwrapTypeVar) {
+        return new Contract(name, 'coffer', function (blame, unwrapTypeVar, projOptions) {
             return function (val) {
                 var locationMsg = 'in the type variable ' + name + ' of';
                 if (unwrapTypeVar) {
@@ -219,7 +219,7 @@ let import = macro {
         var rngStr = options && options.namesStr ? options.namesStr[options.namesStr.length - 1] + ': ' + rng : rng;
         var thisName = options && options.thisContract ? '\n    | this: ' + options.thisContract : '';
         var contractName = domName + ' -> ' + rngStr + thisName + (options && options.dependencyStr ? ' | ' + options.dependencyStr : '');
-        var c = new Contract(contractName, 'fun', function (blame, unwrapTypeVar) {
+        var c = new Contract(contractName, 'fun', function (blame, unwrapTypeVar, projOptions) {
                 return function (f) {
                     blame = blame.addParents(contractName);
                     if (typeof f !== 'function') {
@@ -244,8 +244,15 @@ let import = macro {
                         }
                         checkedArgs = checkedArgs.concat(args.slice(i));
                         var checkedThis = thisVal;
-                        if (options && options.thisContract) {
-                            var thisProj = options.thisContract.proj(blame.swap().addLocation('the this value of'));
+                        if (options && options.thisContract || projOptions && projOptions.overrideThisContract) {
+                            var thisContract = function () {
+                                    if (projOptions && projOptions.overrideThisContract) {
+                                        return projOptions.overrideThisContract;
+                                    } else {
+                                        return options.thisContract;
+                                    }
+                                }.bind(this)();
+                            var thisProj = thisContract.proj(blame.swap().addLocation('the this value of'));
                             checkedThis = thisProj(thisVal);
                         }
                         assert(rng instanceof Contract, 'The range is not a contract');
@@ -375,8 +382,15 @@ let import = macro {
                         if (!(objContract[key].type === 'optional' && obj[key] === undefined)) {
                             // self contracts use the original object contract
                             var c$2 = objContract[key];
+                            var propProjOptions = function () {
+                                    if (objContract[key].type === 'fun') {
+                                        return { overrideThisContract: this };
+                                    } else {
+                                        return {};
+                                    }
+                                }.bind(this)();
                             // var c = objContract[key].type === "self" ? this : objContract[key];
-                            var propProj = c$2.proj(blame.addLocation('the ' + key + ' property of'));
+                            var propProj = c$2.proj(blame.addLocation('the ' + key + ' property of'), false, propProjOptions);
                             var checkedProperty = propProj(obj[key]);
                             obj[key] = checkedProperty;
                         }
