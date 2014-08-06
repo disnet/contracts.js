@@ -112,7 +112,11 @@
     }
 
     function makeCoffer(name) {
-        return new Contract(name, "coffer", function(blame, unwrapTypeVar) {
+        return new Contract(name, "coffer", function(blame, otherthing, projOptions) {
+            // if (projOptions && (projOptions.unwrapTypeVar !== unwrapTypeVar)) {
+            //     throw new Error("does not match");
+            // }
+            var unwrapTypeVar = if projOptions then projOptions.unwrapTypeVar else false
             return function(val) {
                 var locationMsg = "in the type variable " + name + " of";
                 if (unwrapTypeVar) {
@@ -280,17 +284,28 @@
 
     function fun(dom, rng, options) {
         var domStr = dom.map(function (d, idx) {
+            if (!(d instanceof Contract)) {
+                throw new Error(d + " is not a contract");
+            }
             return options && options.namesStr ? options.namesStr[idx] + ": " + d : d;
         }).join(", ");
         var domName = "(" + domStr + ")";
 
+        if (!(rng instanceof Contract)) {
+            throw new Error(rng + " is not a contract");
+        }
         var rngStr = options && options.namesStr ? options.namesStr[options.namesStr.length - 1] + ": " + rng : rng;
-        var thisName = options && options.thisContract ? " this " + options.thisContract : "";
+        var thisName = options && options.thisContract ? "\n    | this: " + options.thisContract : "";
 
-        var contractName = domName + thisName + " -> " + rngStr +
+        var contractName = domName  + " -> " + rngStr + thisName +
             (options && options.dependencyStr ? " | " + options.dependencyStr : "");
 
-        var c = new Contract(contractName, "fun", function(blame, unwrapTypeVar) {
+        var c = new Contract(contractName, "fun", function(blame, otherthing, projOptions) {
+            // if (projOptions && (projOptions.unwrapTypeVar !== unwrapTypeVar)) {
+            //     throw new Error("does not match");
+            // }
+            var unwrapTypeVar = if projOptions then projOptions.unwrapTypeVar else false
+
             return function(f) {
                 blame = blame.addParents(contractName);
                 if (typeof f !== "function") {
@@ -310,7 +325,7 @@
                             var location = "the " + addTh(i+1) + " argument of";
                             var unwrapForProj = dom[i].type === "fun" ? !unwrapTypeVar : unwrapTypeVar;
                             var domProj = dom[i].proj(blame.swap()
-                                                      .addLocation(location), unwrapForProj);
+                                                      .addLocation(location), unwrapForProj, {unwrapTypeVar: unwrapForProj});
 
                             checkedArgs.push(domProj(args[i]));
 
@@ -334,7 +349,7 @@
 
                     var rawResult = target.apply(checkedThis, checkedArgs);
                     var rngUnwrap = rng.type === "fun" ? unwrapTypeVar : !unwrapTypeVar;
-                    var rngProj = rng.proj(blame.addLocation("the return of"), rngUnwrap);
+                    var rngProj = rng.proj(blame.addLocation("the return of"), rngUnwrap, {unwrapTypeVar: rngUnwrap});
                     var rngResult = rngProj(rawResult);
                     if (options && options.dependency && typeof options.dependency === "function") {
                         var depResult = options.dependency.apply(this, depArgs.concat(rngResult));
@@ -371,21 +386,27 @@
     }
 
     function optional(contract, options) {
+        if (!(contract instanceof Contract)) {
+            throw new Error(contract + " is not a contract");
+        }
         var contractName = "opt " + contract;
         return new Contract(contractName, "optional", function(blame, unwrapTypeVar) {
             return function(val) {
-                var proj = contract.proj(blame, unwrapTypeVar);
+                var proj = contract.proj(blame, unwrapTypeVar, {unwrapTypeVar: unwrapTypeVar});
                 return proj(val);
             };
         });
     }
 
     function repeat(contract, options) {
+        if (!(contract instanceof Contract)) {
+            throw new Error(contract + " is not a contract");
+        }
         var contractName = "...." + contract;
 
         return new Contract(contractName, "repeat", function(blame, unwrapTypeVar) {
             return function (val) {
-                var proj = contract.proj(blame, unwrapTypeVar);
+                var proj = contract.proj(blame, unwrapTypeVar, {unwrapTypeVar: unwrapTypeVar});
                 return proj(val);
             };
         });
@@ -394,6 +415,9 @@
     function array(arrContract, options) {
         var proxyPrefix = options && options.proxy ? "!" : "";
         var contractName = proxyPrefix + "[" + arrContract.map(function(c) {
+            if (!(c instanceof Contract)) {
+                throw new Error(c + " is not a contract");
+            }
             return c;
         }).join(", ") + "]";
 
@@ -415,7 +439,9 @@
                     var unwrapForProj = arrContract[ctxIdx].type === "fun" ? !unwrapTypeVar : unwrapTypeVar;
                     var fieldProj = arrContract[ctxIdx].proj(blame.addLocation("the " +
                                                                                addTh(arrIdx) +
-                                                                               " field of"), unwrapForProj);
+                                                                               " field of"),
+                                                             unwrapForProj,
+                                                            {unwrapTypeVar: unwrapForProj});
                     var checkedField = fieldProj(arr[arrIdx]);
                     arr[arrIdx] = checkedField;
 
@@ -427,7 +453,9 @@
                         for (; arrIdx < arr.length; arrIdx++) {
                             var repeatProj = arrContract[ctxIdx].proj(blame.addLocation("the " +
                                                                                         addTh(arrIdx) +
-                                                                                        " field of"), unwrapForProj);
+                                                                                        " field of"),
+                                                                      unwrapForProj,
+                                                                     {unwrapTypeVar: unwrapForProj});
                             arr[arrIdx] = repeatProj(arr[arrIdx]);
                         }
                     }
@@ -462,6 +490,9 @@
         var contractKeys = Object.keys(objContract);
         var proxyPrefix = options && options.proxy ? "!" : "";
         var contractName = proxyPrefix + "{" + contractKeys.map(function(prop) {
+            if (!(objContract[prop] instanceof Contract)) {
+                throw new Error(objContract[prop] + " is not a contract");
+            }
             return prop + ": " + objContract[prop];
         }).join(", ") + "}";
         var keyNum = contractKeys.length;
@@ -478,13 +509,16 @@
 
                 contractKeys.forEach(function(key) {
                     if (!(objContract[key].type === "optional" && obj[key] === undefined)) {
-                        var propProj = objContract[key].proj(blame.addLocation("the " +
-                                                                               key +
-                                                                               " property of"));
+                        // self contracts use the original object contract
+                        var c = objContract[key];
+                        // var c = objContract[key].type === "self" ? this : objContract[key];
+                        var propProj = c.proj(blame.addLocation("the " +
+                                                                key +
+                                                                " property of"));
                         var checkedProperty = propProj(obj[key]);
                         obj[key] = checkedProperty;
                     }
-                });
+                }.bind(this));
 
                 if (options && options.proxy) {
                     return new Proxy(obj, {
@@ -503,13 +537,23 @@
                 } else {
                     return obj;
                 }
-            };
+            }.bind(this);
         });
 
         return c;
     }
 
+    function self() {
+        var name = "self";
+    }
+
     function or(left, right) {
+        if (!(left instanceof Contract)) {
+            throw new Error(left + " is not a contract");
+        }
+        if (!(right instanceof Contract)) {
+            throw new Error(right + " is not a contract");
+        }
         var contractName = left + " or " + right;
         return new Contract(contractName, "or", function(blame) {
             return function(val) {
@@ -550,6 +594,7 @@
         check: check,
         fun: fun,
         or: or,
+        self: new Contract("self", "self", function(b) { return function() {}; }),
         repeat: repeat,
         optional: optional,
         object: object,

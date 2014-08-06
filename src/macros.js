@@ -29,7 +29,7 @@ macro stringify {
 }
 
 macro base_contract {
-    rule { $name } => { _c.$name }
+    rule { $name } => { typeof $name !== 'undefined' ? $name : _c.$name }
 }
 
 macroclass named_contract {
@@ -75,7 +75,7 @@ macro function_contract {
             dependencyStr: stringify ($guard)
         })
     }
-    rule { ($dom:any_contract (,) ...) this $this:object_contract -> $range:any_contract } => {
+    rule { ($dom:any_contract (,) ...) -> $range:any_contract | this $[:] $this:object_contract } => {
         _c.fun([$dom (,) ...], $range, {
             thisContract: $this
         })

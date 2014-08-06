@@ -689,7 +689,8 @@ blaming: (calling context for id)
     })
 
     it("should allow you to specify this contracts", function() {
-        @ (Num) this { name: Str} -> Str
+        @ (Num) -> Str
+        | this: {name: Str}
         function f(n) { return this.name; }
 
         var o = {
@@ -704,40 +705,32 @@ expected: Str
 given: undefined
 in: the name property of
     the this value of
-    (Num) this {name: Str} -> Str
-function f guarded at line: 693
+    (Num) -> Str
+    | this: {name: Str}
+function f guarded at line: 694
 blaming: (calling context for f)
 `
     })
 
     // it("should allow you to use method contracts on objects", function() {
-    //     @ let Person = {
-    //         name: Str,
-    //         age: Num,
-    //         hello: () -> Str
+    //     @ let List = Null or {
+    //         a: Num,
+    //         cons: List
     //     }
 
-    //     @ (Person) -> Str
-    //     function foo(p) { return p.hello(); }
+    //     @ (Obj) -> Num
+    //     function foo(o) { return o.b.a; }
 
-    //     (foo({
-    //         name: "Bob",
-    //         age: 42,
-    //         hello: function() { return this.name; }
-    //     })).should.equal("Bob");
+    //     var o = {
+    //         a: 42,
+    //         b: {
+    //             a: 100,
+    //             b: null
+    //         }
+    //     };
+    //     o.b.b = o;
 
-    //     var badPerson = {
-    //         nam: "Bob",
-    //         age: 100,
-    //         hello: function() { }
-    //     }
-
-    //     var p = {
-    //         name: "Bob",
-    //         age: 42,
-    //         hello: function() { return this.name; }.bind(badPerson)
-    //     }
-    //     // foo(p);
+    //     foo(o)
     // })
 
 });
