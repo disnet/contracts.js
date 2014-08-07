@@ -80,57 +80,46 @@ blaming: (calling context for id)
 
 ## Basic Contracts
 
-### `Num`
+Contracts.js comes with a number of basic contracts that check for
+first-order properties (things like `typeof` checks).
 
-A value that is `typeof` number.
+| Contract    | Description                            |
+|-------------+----------------------------------------|
+| `Num`       | A value that is `typeof` number        |
+| `Str`       | A value that is `typeof` string        |
+| `Bool`      | A value that is `typeof` boolean       |
+| `Odd`       | A value that is odd (`val % 2 === 1`)  |
+| `Even`      | A value that is even (`val % 1 === 0`) |
+| `Pos`       | A positive number(`val >= 0`)          |
+| `Nat`       | A natural number (`val > 0`)           |
+| `Neg`       | A negative number (`val < 0`)          |
+| `Any`       | Any value                              |
+| `None`      | No value (not terribly useful)         |
+| `Null`      | The `null` value                       |
+| `Undefined` | The `undefined` value                  |
+| `Void`      | Either `null` or `undefined`           |
 
-### `Str`
 
-A value that is `typeof` string.
+### Custom Predicate Contracts
 
-### `Bool`
+All of the basic contracts are built with predicates (functions that
+take a single value and return a boolean) and you can make your own:
 
-A value that is `typeof` boolean.
+```js
+function MyNum(val) {
+    return typeof val === "number";
+}
+@ (MyNum) -> MyNum
+function id(x) { return x; }
+```
 
-### `Odd`
+There is also ES6 arrow function shorthand syntax for defining
+predicate contracts inside of a function or object contract:
 
-A number that is odd (`val % 2 === 1`).
-
-### `Even`
-
-A number that is even (`val % 2 !== 1`).
-
-### `Pos`
-
-A positive number (`val >= 0`).
-
-### `Nat`
-
-A natural number (`val > 0`).
-
-### `Neg`
-
-A negative number (`val < 0`).
-
-### `Any`
-
-Any value.
-
-### `None`
-
-No value (not terribly useful).
-
-### `Null`
-
-The `null` value.
-
-### `Undefined`
-
-The `undefined` value.
-
-### `Void`
-
-Either `null` or `undefined`.
+```js
+@ ((val) => typeof val === "function") -> Num
+function id(x) { return x; }
+```
 
 ## Function Contracts
 
@@ -144,10 +133,10 @@ function foo(s, n, b) { return b; }
 
 ### Optional Arguments
 
-You can make an argument optional with the `opt` prefix:
+You can make an argument optional with the `?` prefix:
 
 ```js
-@ (Str, opt Bool) -> Str
+@ (Str, ?Bool) -> Str
 function foo(s, b) { return s; }
 
 foo("foo");        // fine
@@ -165,6 +154,36 @@ correct party at fault even works!
 @ (Num, (Num, Num) -> Num) -> Num
 function (x, f) { return f(x, x); }
 ```
+
+### Contracts on `this`
+
+You can put a contract on the `this` object of a function:
+
+```js
+@ () -> Str
+| this: {name: Str}
+function f() { return this.name; }
+
+var o = {
+    nam: "Bob", // typo
+    f: f
+};
+o.f();
+```
+
+This will let you know you did something wrong:
+
+<pre style="color: red">
+f: contract violation
+expected: Str
+given: undefined
+in: the name property of
+    the this value of
+    () -> Str
+    | this: {name: Str}
+function f guarded at line: 3
+blaming: (calling context for f)
+</pre>
 
 ### Dependent Contracts
 
@@ -243,12 +262,47 @@ object's lifetime, use [proxied object contracts](#proxied-objects).
 
 ### Optional Properties
 
-The `opt` prefix makes a property optional:
+The `?` prefix makes a property optional:
 
 ```js
-@ ({name: Str, age: opt Num}) -> Str
+@ ({name: Str, age: ?Num}) -> Str
 function get Name(o) { return o.name; }
 ```
+
+### Method Contracts
+
+Function contracts on an object contract will implicitly check that
+the `this` object bound to the function obeys the object contract:
+
+```js
+@ ({name: Str, hi: () -> Str}) -> Str
+function foo(o) {
+  var hi = o.hi;
+  return hi();  // `this` is bound wrong
+}
+
+foo({
+  name: "Bob",
+  hi: function() {
+    return this.name;
+  }
+})
+```
+
+This code will give a nice error letting us know that the `this`
+object was wrong:
+
+<pre style="color: red">
+foo: contract violation
+expected: an object with at least 2 keys
+given: undefined
+in: the this value of
+    the hi property of
+    the 1st argument of
+    ({name: Str, hi: () -> Str}) -> Str
+function foo guarded at line: 2
+blaming: function foo
+</pre>
 
 ### Proxied Objects
 

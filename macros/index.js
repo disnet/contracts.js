@@ -205,16 +205,36 @@ let import = macro {
         var str = a1;
         return str + 's';
     }
-    function fun(dom, rng, options) {
-        var domStr = dom.map(function (d, idx) {
+    function toContract(f) {
+        return check(f, function () {
+            if (f.name) {
+                return f.name;
+            } else {
+                return 'custom contract';
+            }
+        }.bind(this)());
+    }
+    function fun(domRaw, rngRaw, options) {
+        var dom = domRaw.map(function (d) {
                 if (!(d instanceof Contract)) {
+                    if (typeof d === 'function') {
+                        return toContract(d);
+                    }
                     throw new Error(d + ' is not a contract');
                 }
+                return d;
+            });
+        var domStr = dom.map(function (d, idx) {
                 return options && options.namesStr ? options.namesStr[idx] + ': ' + d : d;
             }).join(', ');
         var domName = '(' + domStr + ')';
-        if (!(rng instanceof Contract)) {
-            throw new Error(rng + ' is not a contract');
+        var rng = rngRaw;
+        if (!(rngRaw instanceof Contract)) {
+            if (typeof rngRaw === 'function') {
+                rng = toContract(rngRaw);
+            } else {
+                throw new Error(rng + ' is not a contract');
+            }
         }
         var rngStr = options && options.namesStr ? options.namesStr[options.namesStr.length - 1] + ': ' + rng : rng;
         var thisName = options && options.thisContract ? '\n    | this: ' + options.thisContract : '';
@@ -287,9 +307,13 @@ let import = macro {
     }
     function optional(contract, options) {
         if (!(contract instanceof Contract)) {
-            throw new Error(contract + ' is not a contract');
+            if (typeof contract === 'function') {
+                contract = toContract(contract);
+            } else {
+                throw new Error(contract + ' is not a contract');
+            }
         }
-        var contractName = 'opt ' + contract;
+        var contractName = '?' + contract;
         return new Contract(contractName, 'optional', function (blame, unwrapTypeVar) {
             return function (val) {
                 var proj = contract.proj(blame, unwrapTypeVar);
@@ -299,7 +323,11 @@ let import = macro {
     }
     function repeat(contract, options) {
         if (!(contract instanceof Contract)) {
-            throw new Error(contract + ' is not a contract');
+            if (typeof contract === 'function') {
+                contract = toContract(contract);
+            } else {
+                throw new Error(contract + ' is not a contract');
+            }
         }
         var contractName = '....' + contract;
         return new Contract(contractName, 'repeat', function (blame, unwrapTypeVar) {
@@ -309,12 +337,18 @@ let import = macro {
             };
         });
     }
-    function array(arrContract, options) {
+    function array(arrContractRaw, options) {
         var proxyPrefix = options && options.proxy ? '!' : '';
-        var contractName = proxyPrefix + '[' + arrContract.map(function (c$2) {
+        var arrContract = arrContractRaw.map(function (c$2) {
                 if (!(c$2 instanceof Contract)) {
+                    if (typeof c$2 === 'function') {
+                        return toContract(c$2);
+                    }
                     throw new Error(c$2 + ' is not a contract');
                 }
+                return c$2;
+            });
+        var contractName = proxyPrefix + '[' + arrContract.map(function (c$2) {
                 return c$2;
             }).join(', ') + ']';
         var contractNum = arrContract.length;
@@ -365,11 +399,17 @@ let import = macro {
     }
     function object(objContract, options) {
         var contractKeys = Object.keys(objContract);
-        var proxyPrefix = options && options.proxy ? '!' : '';
-        var contractName = proxyPrefix + '{' + contractKeys.map(function (prop) {
-                if (!(objContract[prop] instanceof Contract)) {
+        contractKeys.forEach(function (prop) {
+            if (!(objContract[prop] instanceof Contract)) {
+                if (typeof objContract[prop] === 'function') {
+                    objContract[prop] = toContract(objContract[prop]);
+                } else {
                     throw new Error(objContract[prop] + ' is not a contract');
                 }
+            }
+        });
+        var proxyPrefix = options && options.proxy ? '!' : '';
+        var contractName = proxyPrefix + '{' + contractKeys.map(function (prop) {
                 return prop + ': ' + objContract[prop];
             }).join(', ') + '}';
         var keyNum = contractKeys.length;
@@ -419,10 +459,18 @@ let import = macro {
     }
     function or(left, right) {
         if (!(left instanceof Contract)) {
-            throw new Error(left + ' is not a contract');
+            if (typeof left === 'function') {
+                left = toContract(left);
+            } else {
+                throw new Error(left + ' is not a contract');
+            }
         }
         if (!(right instanceof Contract)) {
-            throw new Error(right + ' is not a contract');
+            if (typeof right === 'function') {
+                right = toContract(right);
+            } else {
+                throw new Error(right + ' is not a contract');
+            }
         }
         var contractName = left + ' or ' + right;
         return new Contract(contractName, 'or', function (blame) {
@@ -620,7 +668,7 @@ macro repeat_contract {
 
 macro optional_contract {
     rule {
-        opt $contract:any_contract
+        ? $contract:any_contract
     } => {
         _c.optional($contract)
     }

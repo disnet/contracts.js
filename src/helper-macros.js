@@ -6,7 +6,7 @@ let if = macro {
             } else {
                 return $else
             }
-        }.bind(this))();
+        }.bind(this))()
     }
     // fall through
     rule { $rest ...} => { if $rest ...}

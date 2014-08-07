@@ -118,28 +118,18 @@
 <li><a href="#using"><span class="toc-section-number">3</span> Using</a></li>
 <li><a href="#contracts"><span class="toc-section-number">4</span> Contracts</a><ul>
 <li><a href="#basic-contracts"><span class="toc-section-number">4.1</span> Basic Contracts</a><ul>
-<li><a href="#num"><span class="toc-section-number">4.1.1</span> <code>Num</code></a></li>
-<li><a href="#str"><span class="toc-section-number">4.1.2</span> <code>Str</code></a></li>
-<li><a href="#bool"><span class="toc-section-number">4.1.3</span> <code>Bool</code></a></li>
-<li><a href="#odd"><span class="toc-section-number">4.1.4</span> <code>Odd</code></a></li>
-<li><a href="#even"><span class="toc-section-number">4.1.5</span> <code>Even</code></a></li>
-<li><a href="#pos"><span class="toc-section-number">4.1.6</span> <code>Pos</code></a></li>
-<li><a href="#nat"><span class="toc-section-number">4.1.7</span> <code>Nat</code></a></li>
-<li><a href="#neg"><span class="toc-section-number">4.1.8</span> <code>Neg</code></a></li>
-<li><a href="#any"><span class="toc-section-number">4.1.9</span> <code>Any</code></a></li>
-<li><a href="#none"><span class="toc-section-number">4.1.10</span> <code>None</code></a></li>
-<li><a href="#null"><span class="toc-section-number">4.1.11</span> <code>Null</code></a></li>
-<li><a href="#undefined"><span class="toc-section-number">4.1.12</span> <code>Undefined</code></a></li>
-<li><a href="#void"><span class="toc-section-number">4.1.13</span> <code>Void</code></a></li>
+<li><a href="#custom-predicate-contracts"><span class="toc-section-number">4.1.1</span> Custom Predicate Contracts</a></li>
 </ul></li>
 <li><a href="#function-contracts"><span class="toc-section-number">4.2</span> Function Contracts</a><ul>
 <li><a href="#optional-arguments"><span class="toc-section-number">4.2.1</span> Optional Arguments</a></li>
 <li><a href="#higher-order-arguments"><span class="toc-section-number">4.2.2</span> Higher-Order Arguments</a></li>
-<li><a href="#dependent-contracts"><span class="toc-section-number">4.2.3</span> Dependent Contracts</a></li>
+<li><a href="#contracts-on-this"><span class="toc-section-number">4.2.3</span> Contracts on <code>this</code></a></li>
+<li><a href="#dependent-contracts"><span class="toc-section-number">4.2.4</span> Dependent Contracts</a></li>
 </ul></li>
 <li><a href="#object-contracts"><span class="toc-section-number">4.3</span> Object Contracts</a><ul>
 <li><a href="#optional-properties"><span class="toc-section-number">4.3.1</span> Optional Properties</a></li>
-<li><a href="#proxied-objects"><span class="toc-section-number">4.3.2</span> Proxied Objects</a></li>
+<li><a href="#method-contracts"><span class="toc-section-number">4.3.2</span> Method Contracts</a></li>
+<li><a href="#proxied-objects"><span class="toc-section-number">4.3.3</span> Proxied Objects</a></li>
 </ul></li>
 <li><a href="#array-contracts"><span class="toc-section-number">4.4</span> Array Contracts</a><ul>
 <li><a href="#repeated-fields"><span class="toc-section-number">4.4.1</span> Repeated Fields</a></li>
@@ -193,39 +183,86 @@ in: the 1st argument of
 blaming: (calling context for id)
 */</code></pre>
 <h2 id="basic-contracts"><span class="header-section-number">4.1</span> Basic Contracts</h2>
-<h3 id="num"><span class="header-section-number">4.1.1</span> <code>Num</code></h3>
-<p>A value that is <code>typeof</code> number.</p>
-<h3 id="str"><span class="header-section-number">4.1.2</span> <code>Str</code></h3>
-<p>A value that is <code>typeof</code> string.</p>
-<h3 id="bool"><span class="header-section-number">4.1.3</span> <code>Bool</code></h3>
-<p>A value that is <code>typeof</code> boolean.</p>
-<h3 id="odd"><span class="header-section-number">4.1.4</span> <code>Odd</code></h3>
-<p>A number that is odd (<code>val % 2 === 1</code>).</p>
-<h3 id="even"><span class="header-section-number">4.1.5</span> <code>Even</code></h3>
-<p>A number that is even (<code>val % 2 !== 1</code>).</p>
-<h3 id="pos"><span class="header-section-number">4.1.6</span> <code>Pos</code></h3>
-<p>A positive number (<code>val &gt;= 0</code>).</p>
-<h3 id="nat"><span class="header-section-number">4.1.7</span> <code>Nat</code></h3>
-<p>A natural number (<code>val &gt; 0</code>).</p>
-<h3 id="neg"><span class="header-section-number">4.1.8</span> <code>Neg</code></h3>
-<p>A negative number (<code>val &lt; 0</code>).</p>
-<h3 id="any"><span class="header-section-number">4.1.9</span> <code>Any</code></h3>
-<p>Any value.</p>
-<h3 id="none"><span class="header-section-number">4.1.10</span> <code>None</code></h3>
-<p>No value (not terribly useful).</p>
-<h3 id="null"><span class="header-section-number">4.1.11</span> <code>Null</code></h3>
-<p>The <code>null</code> value.</p>
-<h3 id="undefined"><span class="header-section-number">4.1.12</span> <code>Undefined</code></h3>
-<p>The <code>undefined</code> value.</p>
-<h3 id="void"><span class="header-section-number">4.1.13</span> <code>Void</code></h3>
-<p>Either <code>null</code> or <code>undefined</code>.</p>
+<p>Contracts.js comes with a number of basic contracts that check for first-order properties (things like <code>typeof</code> checks).</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Contract</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>Num</code></td>
+<td style="text-align: left;">A value that is <code>typeof</code> number</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>Str</code></td>
+<td style="text-align: left;">A value that is <code>typeof</code> string</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>Bool</code></td>
+<td style="text-align: left;">A value that is <code>typeof</code> boolean</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>Odd</code></td>
+<td style="text-align: left;">A value that is odd (<code>val % 2 === 1</code>)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>Even</code></td>
+<td style="text-align: left;">A value that is even (<code>val % 1 === 0</code>)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>Pos</code></td>
+<td style="text-align: left;">A positive number(<code>val &gt;= 0</code>)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>Nat</code></td>
+<td style="text-align: left;">A natural number (<code>val &gt; 0</code>)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>Neg</code></td>
+<td style="text-align: left;">A negative number (<code>val &lt; 0</code>)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>Any</code></td>
+<td style="text-align: left;">Any value</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>None</code></td>
+<td style="text-align: left;">No value (not terribly useful)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>Null</code></td>
+<td style="text-align: left;">The <code>null</code> value</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>Undefined</code></td>
+<td style="text-align: left;">The <code>undefined</code> value</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>Void</code></td>
+<td style="text-align: left;">Either <code>null</code> or <code>undefined</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="custom-predicate-contracts"><span class="header-section-number">4.1.1</span> Custom Predicate Contracts</h3>
+<p>All of the basic contracts are built with predicates (functions that take a single value and return a boolean) and you can make your own:</p>
+<pre class="js"><code>function MyNum(val) {
+    return typeof val === &quot;number&quot;;
+}
+@ (MyNum) -&gt; MyNum
+function id(x) { return x; }</code></pre>
+<p>There is also ES6 arrow function shorthand syntax for defining predicate contracts inside of a function or object contract:</p>
+<pre class="js"><code>@ ((val) =&gt; typeof val === &quot;function&quot;) -&gt; Num
+function id(x) { return x; }</code></pre>
 <h2 id="function-contracts"><span class="header-section-number">4.2</span> Function Contracts</h2>
 <p>Function contracts take a comma delimited list of argument contracts and a single return value contract:</p>
 <pre class="js"><code>@ (Str, Num, Bool) -&gt; Bool
 function foo(s, n, b) { return b; }</code></pre>
 <h3 id="optional-arguments"><span class="header-section-number">4.2.1</span> Optional Arguments</h3>
-<p>You can make an argument optional with the <code>opt</code> prefix:</p>
-<pre class="js"><code>@ (Str, opt Bool) -&gt; Str
+<p>You can make an argument optional with the <code>?</code> prefix:</p>
+<pre class="js"><code>@ (Str, ?Bool) -&gt; Str
 function foo(s, b) { return s; }
 
 foo(&quot;foo&quot;);        // fine
@@ -235,7 +272,31 @@ foo(&quot;foo&quot;, &quot;bar&quot;); // error</code></pre>
 <p>You can put contracts on functions to functions. And blaming the correct party at fault even works! <a href="what-about-blaming-modules">Mostly</a>.</p>
 <pre class="js"><code>@ (Num, (Num, Num) -&gt; Num) -&gt; Num
 function (x, f) { return f(x, x); }</code></pre>
-<h3 id="dependent-contracts"><span class="header-section-number">4.2.3</span> Dependent Contracts</h3>
+<h3 id="contracts-on-this"><span class="header-section-number">4.2.3</span> Contracts on <code>this</code></h3>
+<p>You can put a contract on the <code>this</code> object of a function:</p>
+<pre class="js"><code>@ () -&gt; Str
+| this: {name: Str}
+function f() { return this.name; }
+
+var o = {
+    nam: &quot;Bob&quot;, // typo
+    f: f
+};
+o.f();</code></pre>
+<p>This will let you know you did something wrong:</p>
+<pre style="color: red">
+f: contract violation
+expected: Str
+given: undefined
+in: the name property of
+    the this value of
+    () -> Str
+    | this: {name: Str}
+function f guarded at line: 3
+blaming: (calling context for f)
+</pre>
+
+<h3 id="dependent-contracts"><span class="header-section-number">4.2.4</span> Dependent Contracts</h3>
 <p>You can also write a function contract who's result depends on the value of its arguments.</p>
 <pre class="js"><code>@ (x: Pos) -&gt; res: Num | res &lt;= x
 function square_root(x) { return Math.sqrt(x); }</code></pre>
@@ -273,10 +334,37 @@ function makePerson(name, age) {
 <p>Note that objects are checked against their contract only once when they cross the contract barrier (in the above example this is when the <code>makePerson</code> function returns). Basic contracts (like <code>Str</code> and <code>Num</code>) are checked immediately while method contracts are deferred until the method is invoked.</p>
 <p>If you want to maintain the contract invariants throughout the object's lifetime, use <a href="#proxied-objects">proxied object contracts</a>.</p>
 <h3 id="optional-properties"><span class="header-section-number">4.3.1</span> Optional Properties</h3>
-<p>The <code>opt</code> prefix makes a property optional:</p>
-<pre class="js"><code>@ ({name: Str, age: opt Num}) -&gt; Str
+<p>The <code>?</code> prefix makes a property optional:</p>
+<pre class="js"><code>@ ({name: Str, age: ?Num}) -&gt; Str
 function get Name(o) { return o.name; }</code></pre>
-<h3 id="proxied-objects"><span class="header-section-number">4.3.2</span> Proxied Objects</h3>
+<h3 id="method-contracts"><span class="header-section-number">4.3.2</span> Method Contracts</h3>
+<p>Function contracts on an object contract will implicitly check that the <code>this</code> object bound to the function obeys the object contract:</p>
+<pre class="js"><code>@ ({name: Str, hi: () -&gt; Str}) -&gt; Str
+function foo(o) {
+  var hi = o.hi;
+  return hi();  // `this` is bound wrong
+}
+
+foo({
+  name: &quot;Bob&quot;,
+  hi: function() {
+    return this.name;
+  }
+})</code></pre>
+<p>This code will give a nice error letting us know that the <code>this</code> object was wrong:</p>
+<pre style="color: red">
+foo: contract violation
+expected: an object with at least 2 keys
+given: undefined
+in: the this value of
+    the hi property of
+    the 1st argument of
+    ({name: Str, hi: () -> Str}) -> Str
+function foo guarded at line: 2
+blaming: function foo
+</pre>
+
+<h3 id="proxied-objects"><span class="header-section-number">4.3.3</span> Proxied Objects</h3>
 <p>To maintain the object contract invariant for the entire lifetime of an object, use the <code>!</code> notation:</p>
 <pre class="js"><code>@ (Str, Num) -&gt; !{name: Str, age: Num}
 function makePerson(name, age) {

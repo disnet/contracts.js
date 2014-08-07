@@ -29,15 +29,11 @@ macro stringify {
 }
 
 macro base_contract {
-    rule { $name } => { _c.$name }
+    rule { $name } => { typeof $name !== 'undefined' ? $name : _c.$name }
 }
 
 macroclass named_contract {
     rule { $name $[:] $contract:any_contract }
-}
-
-macro this_contract {
-    rule { this $contract:object_contract } => { $contract }
 }
 
 macro function_contract {
@@ -79,7 +75,7 @@ macro function_contract {
             dependencyStr: stringify ($guard)
         })
     }
-    rule { ($dom:any_contract (,) ...) this $this:object_contract -> $range:any_contract } => {
+    rule { ($dom:any_contract (,) ...) -> $range:any_contract | this $[:] $this:object_contract } => {
         _c.fun([$dom (,) ...], $range, {
             thisContract: $this
         })
@@ -129,7 +125,7 @@ macro repeat_contract {
 
 macro optional_contract {
     rule {
-        opt $contract:any_contract
+        ? $contract:any_contract
     } => {
         _c.optional($contract)
     }
@@ -158,15 +154,6 @@ macro non_or_contract {
     rule { $contract:repeat_contract }    => { $contract }
     rule { $contract:optional_contract }  => { $contract }
     rule { $contract:base_contract }      => { $contract }
-}
-
-macro non_or_contract {
-    rule { $contract:function_contract } => { $contract }
-    rule { $contract:object_contract }   => { $contract }
-    rule { $contract:array_contract }    => { $contract }
-    rule { $contract:repeat_contract }   => { $contract }
-    rule { $contract:optional_contract } => { $contract }
-    rule { $contract:base_contract }     => { $contract }
 }
 
 macro or_contract {

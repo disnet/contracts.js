@@ -125,7 +125,7 @@ macro repeat_contract {
 
 macro optional_contract {
     rule {
-        opt $contract:any_contract
+        ? $contract:any_contract
     } => {
         _c.optional($contract)
     }

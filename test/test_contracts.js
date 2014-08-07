@@ -66,7 +66,7 @@ blaming: (calling context for f)
     });
 
     it("should not blame when optional arguments are omitted", function() {
-        @ (Num, opt Str) -> Num
+        @ (Num, ?Str) -> Num
         function f(x, s) {
             return x;
         }
@@ -75,7 +75,7 @@ blaming: (calling context for f)
     });
 
     it("should blame when optional arguments are wrong", function() {
-        @ (Num, opt Str) -> Num
+        @ (Num, ?Str) -> Num
         function f(x, s) {
             return x;
         }
@@ -86,7 +86,7 @@ blaming: (calling context for f)
 expected: Str
 given: 100
 in: the 2nd argument of
-    (Num, opt Str) -> Num
+    (Num, ?Str) -> Num
 function f guarded at line: 79
 blaming: (calling context for f)
 `
@@ -202,14 +202,14 @@ blaming: (calling context for f)
     });
 
     it("should allow optional contracts on an object", function() {
-        @ ({foo: opt Str}) -> Str
+        @ ({foo: ?Str}) -> Str
         function f(o) { return "str"; }
 
         (f({bar: 42})).should.equal("str");
     });
 
     it("should blame when an optional contract is violated for an object", function() {
-        @ ({foo: opt Str}) -> Str
+        @ ({foo: ?Str}) -> Str
         function f(o) { return "str"; }
 
         blame of {
@@ -219,7 +219,7 @@ expected: Str
 given: 42
 in: the foo property of
     the 1st argument of
-    ({foo: opt Str}) -> Str
+    ({foo: ?Str}) -> Str
 function f guarded at line: 213
 blaming: (calling context for f)
 `
@@ -749,5 +749,25 @@ blaming: function badFoo
 `
 
     });
+
+    it("should convert predicates in the surrounding scope to contracts", function() {
+        function MyNums(val) { return typeof val === "number"; }
+
+        @ (MyNums) -> MyNums
+        function id(x) { return x; }
+
+        id(100);
+
+        blame of {
+            id("foo");
+        } should be `id: contract violation
+expected: MyNums
+given: 'foo'
+in: the 1st argument of
+    (MyNums) -> MyNums
+function id guarded at line: 757
+blaming: (calling context for id)
+`
+    })
 
 });
