@@ -4,6 +4,7 @@
         // importing patches Proxy to be in line with the new direct proxies
         require("harmony-reflect");
     }
+    operator (|?|) 4 left {$l, $r} => #{ typeof $l !== 'undefined' ? $l : $r }
 
     var unproxy = new WeakMap();
     var typeVarMap = new WeakMap();
@@ -11,18 +12,17 @@
     var Blame = {
         create: function(name, pos, neg, lineNumber) {
             var o = new BlameObj(name, pos, neg, lineNumber);
-            Object.freeze(o);
             return o;
         },
         clone: function(old, props) {
-            var propsObj = {};
-            for (var prop in props) {
-                if (props.hasOwnProperty(prop)) {
-                    propsObj[prop] = { value: props[prop] };
-                }
-            }
-            var o = Object.create(old, propsObj);
-            Object.freeze(o);
+            var o = new BlameObj(props.name |?| old.name,
+                                 props.pos |?| old.pos,
+                                 props.neg |?| old.neg,
+                                 props.lineNuber |?| old.lineNumber);
+            o.expected = props.expected |?| old.expected;
+            o.given    = props.given |?| old.given;
+            o.loc      = props.loc |?| old.loc;
+            o.parents  = props.parents |?| old.parents;
             return o;
         }
     };

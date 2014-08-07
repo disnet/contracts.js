@@ -12,18 +12,16 @@ let import = macro {
     var Blame = {
             create: function (name, pos, neg, lineNumber) {
                 var o = new BlameObj(name, pos, neg, lineNumber);
-                Object.freeze(o);
+                // Object.freeze(o);
                 return o;
             },
             clone: function (old, props) {
-                var propsObj = {};
-                for (var prop in props) {
-                    if (props.hasOwnProperty(prop)) {
-                        propsObj[prop] = { value: props[prop] };
-                    }
-                }
-                var o = Object.create(old, propsObj);
-                Object.freeze(o);
+                var o = new BlameObj(typeof props.name !== 'undefined' ? props.name : old.name, typeof props.pos !== 'undefined' ? props.pos : old.pos, typeof props.neg !== 'undefined' ? props.neg : old.neg, typeof props.lineNuber !== 'undefined' ? props.lineNuber : old.lineNumber);
+                o.expected = typeof props.expected !== 'undefined' ? props.expected : old.expected;
+                o.given = typeof props.given !== 'undefined' ? props.given : old.given;
+                o.loc = typeof props.loc !== 'undefined' ? props.loc : old.loc;
+                o.parents = typeof props.parents !== 'undefined' ? props.parents : old.parents;
+                // Object.freeze(o);
                 return o;
             }
         };
