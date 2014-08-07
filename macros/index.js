@@ -82,7 +82,7 @@ let import = macro {
         throw new Error(msg);
     }
     function makeCoffer(name) {
-        return new Contract(name, 'coffer', function (blame, unwrapTypeVar) {
+        return new Contract(name, 'coffer', function (blame, unwrapTypeVar, projOptions) {
             return function (val) {
                 var locationMsg = 'in the type variable ' + name + ' of';
                 if (unwrapTypeVar) {
@@ -205,14 +205,41 @@ let import = macro {
         var str = a1;
         return str + 's';
     }
-    function fun(dom, rng, options) {
+    function toContract(f) {
+        return check(f, function () {
+            if (f.name) {
+                return f.name;
+            } else {
+                return 'custom contract';
+            }
+        }.bind(this)());
+    }
+    function fun(domRaw, rngRaw, options) {
+        var dom = domRaw.map(function (d) {
+                if (!(d instanceof Contract)) {
+                    if (typeof d === 'function') {
+                        return toContract(d);
+                    }
+                    throw new Error(d + ' is not a contract');
+                }
+                return d;
+            });
         var domStr = dom.map(function (d, idx) {
                 return options && options.namesStr ? options.namesStr[idx] + ': ' + d : d;
             }).join(', ');
         var domName = '(' + domStr + ')';
+        var rng = rngRaw;
+        if (!(rngRaw instanceof Contract)) {
+            if (typeof rngRaw === 'function') {
+                rng = toContract(rngRaw);
+            } else {
+                throw new Error(rng + ' is not a contract');
+            }
+        }
         var rngStr = options && options.namesStr ? options.namesStr[options.namesStr.length - 1] + ': ' + rng : rng;
-        var contractName = domName + ' -> ' + rngStr + (options && options.dependencyStr ? ' | ' + options.dependencyStr : '');
-        var c = new Contract(contractName, 'fun', function (blame, unwrapTypeVar) {
+        var thisName = options && options.thisContract ? '\n    | this: ' + options.thisContract : '';
+        var contractName = domName + ' -> ' + rngStr + thisName + (options && options.dependencyStr ? ' | ' + options.dependencyStr : '');
+        var c = new Contract(contractName, 'fun', function (blame, unwrapTypeVar, projOptions) {
                 return function (f) {
                     blame = blame.addParents(contractName);
                     if (typeof f !== 'function') {
@@ -236,8 +263,20 @@ let import = macro {
                             }
                         }
                         checkedArgs = checkedArgs.concat(args.slice(i));
+                        var checkedThis = thisVal;
+                        if (options && options.thisContract || projOptions && projOptions.overrideThisContract) {
+                            var thisContract = function () {
+                                    if (projOptions && projOptions.overrideThisContract) {
+                                        return projOptions.overrideThisContract;
+                                    } else {
+                                        return options.thisContract;
+                                    }
+                                }.bind(this)();
+                            var thisProj = thisContract.proj(blame.swap().addLocation('the this value of'));
+                            checkedThis = thisProj(thisVal);
+                        }
                         assert(rng instanceof Contract, 'The range is not a contract');
-                        var rawResult = target.apply(thisVal, checkedArgs);
+                        var rawResult = target.apply(checkedThis, checkedArgs);
                         var rngUnwrap = rng.type === 'fun' ? unwrapTypeVar : !unwrapTypeVar;
                         var rngProj = rng.proj(blame.addLocation('the return of'), rngUnwrap);
                         var rngResult = rngProj(rawResult);
@@ -267,7 +306,14 @@ let import = macro {
         return c;
     }
     function optional(contract, options) {
-        var contractName = 'opt ' + contract;
+        if (!(contract instanceof Contract)) {
+            if (typeof contract === 'function') {
+                contract = toContract(contract);
+            } else {
+                throw new Error(contract + ' is not a contract');
+            }
+        }
+        var contractName = '?' + contract;
         return new Contract(contractName, 'optional', function (blame, unwrapTypeVar) {
             return function (val) {
                 var proj = contract.proj(blame, unwrapTypeVar);
@@ -276,6 +322,13 @@ let import = macro {
         });
     }
     function repeat(contract, options) {
+        if (!(contract instanceof Contract)) {
+            if (typeof contract === 'function') {
+                contract = toContract(contract);
+            } else {
+                throw new Error(contract + ' is not a contract');
+            }
+        }
         var contractName = '....' + contract;
         return new Contract(contractName, 'repeat', function (blame, unwrapTypeVar) {
             return function (val) {
@@ -284,8 +337,17 @@ let import = macro {
             };
         });
     }
-    function array(arrContract, options) {
+    function array(arrContractRaw, options) {
         var proxyPrefix = options && options.proxy ? '!' : '';
+        var arrContract = arrContractRaw.map(function (c$2) {
+                if (!(c$2 instanceof Contract)) {
+                    if (typeof c$2 === 'function') {
+                        return toContract(c$2);
+                    }
+                    throw new Error(c$2 + ' is not a contract');
+                }
+                return c$2;
+            });
         var contractName = proxyPrefix + '[' + arrContract.map(function (c$2) {
                 return c$2;
             }).join(', ') + ']';
@@ -337,6 +399,15 @@ let import = macro {
     }
     function object(objContract, options) {
         var contractKeys = Object.keys(objContract);
+        contractKeys.forEach(function (prop) {
+            if (!(objContract[prop] instanceof Contract)) {
+                if (typeof objContract[prop] === 'function') {
+                    objContract[prop] = toContract(objContract[prop]);
+                } else {
+                    throw new Error(objContract[prop] + ' is not a contract');
+                }
+            }
+        });
         var proxyPrefix = options && options.proxy ? '!' : '';
         var contractName = proxyPrefix + '{' + contractKeys.map(function (prop) {
                 return prop + ': ' + objContract[prop];
@@ -349,11 +420,21 @@ let import = macro {
                     }
                     contractKeys.forEach(function (key) {
                         if (!(objContract[key].type === 'optional' && obj[key] === undefined)) {
-                            var propProj = objContract[key].proj(blame.addLocation('the ' + key + ' property of'));
+                            // self contracts use the original object contract
+                            var c$2 = objContract[key];
+                            var propProjOptions = function () {
+                                    if (objContract[key].type === 'fun') {
+                                        return { overrideThisContract: this };
+                                    } else {
+                                        return {};
+                                    }
+                                }.bind(this)();
+                            // var c = objContract[key].type === "self" ? this : objContract[key];
+                            var propProj = c$2.proj(blame.addLocation('the ' + key + ' property of'), false, propProjOptions);
                             var checkedProperty = propProj(obj[key]);
                             obj[key] = checkedProperty;
                         }
-                    });
+                    }.bind(this));
                     if (options && options.proxy) {
                         return new Proxy(obj, {
                             set: function (target, key, value) {
@@ -369,11 +450,28 @@ let import = macro {
                     } else {
                         return obj;
                     }
-                };
+                }.bind(this);
             });
         return c;
     }
+    function self() {
+        var name = 'self';
+    }
     function or(left, right) {
+        if (!(left instanceof Contract)) {
+            if (typeof left === 'function') {
+                left = toContract(left);
+            } else {
+                throw new Error(left + ' is not a contract');
+            }
+        }
+        if (!(right instanceof Contract)) {
+            if (typeof right === 'function') {
+                right = toContract(right);
+            } else {
+                throw new Error(right + ' is not a contract');
+            }
+        }
         var contractName = left + ' or ' + right;
         return new Contract(contractName, 'or', function (blame) {
             return function (val) {
@@ -431,8 +529,13 @@ let import = macro {
         Void: check(function (val) {
             return null == val;
         }, 'Null'),
+        check: check,
         fun: fun,
         or: or,
+        self: new Contract('self', 'self', function (b) {
+            return function () {
+            };
+        }),
         repeat: repeat,
         optional: optional,
         object: object,
@@ -469,7 +572,7 @@ macro stringify {
 }
 
 macro base_contract {
-    rule { $name } => { _c.$name }
+    rule { $name } => { typeof $name !== 'undefined' ? $name : _c.$name }
 }
 
 macroclass named_contract {
@@ -477,6 +580,16 @@ macroclass named_contract {
 }
 
 macro function_contract {
+    rule { ($dom:named_contract (,) ...) this $this:object_contract -> $range:named_contract | { $guard ... } } => {
+        _c.fun([$dom$contract (,) ...], $range$contract, {
+            dependency: function($dom$name (,) ..., $range$name) {
+                $guard ...
+            },
+            thisContract: $this,
+            namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
+            dependencyStr: stringify (($guard ...))
+        })
+    }
     rule { ($dom:named_contract (,) ...) -> $range:named_contract | { $guard ... } } => {
         _c.fun([$dom$contract (,) ...], $range$contract, {
             dependency: function($dom$name (,) ..., $range$name) {
@@ -486,6 +599,16 @@ macro function_contract {
             dependencyStr: stringify (($guard ...))
         })
     }
+    rule { ($dom:named_contract (,) ...) this $this:object_contract -> $range:named_contract | $guard:expr } => {
+        _c.fun([$dom$contract (,) ...], $range$contract, {
+            dependency: function($dom$name (,) ..., $range$name) {
+                return $guard;
+            },
+            thisContract: $this,
+            namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
+            dependencyStr: stringify ($guard)
+        })
+    }
     rule { ($dom:named_contract (,) ...) -> $range:named_contract | $guard:expr } => {
         _c.fun([$dom$contract (,) ...], $range$contract, {
             dependency: function($dom$name (,) ..., $range$name) {
@@ -493,6 +616,11 @@ macro function_contract {
             },
             namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
             dependencyStr: stringify ($guard)
+        })
+    }
+    rule { ($dom:any_contract (,) ...) -> $range:any_contract | this $[:] $this:object_contract } => {
+        _c.fun([$dom (,) ...], $range, {
+            thisContract: $this
         })
     }
     rule { ($dom:any_contract (,) ...) -> $range:any_contract } => {
@@ -540,20 +668,35 @@ macro repeat_contract {
 
 macro optional_contract {
     rule {
-        opt $contract:any_contract
+        ? $contract:any_contract
     } => {
         _c.optional($contract)
     }
 }
 
+macro predicate_contract {
+    rule {
+        ($param) => { $pred ... }
+    } => {
+        _c.check(function($param) { $pred ... }, stringify (($pred ...)) )
+    }
+
+    rule {
+        ($param) => $pred:expr
+    } => {
+        _c.check(function($param) { return $pred; }, stringify ($pred) )
+    }
+}
+
 
 macro non_or_contract {
-    rule { $contract:function_contract } => { $contract }
-    rule { $contract:object_contract }   => { $contract }
-    rule { $contract:array_contract }    => { $contract }
-    rule { $contract:repeat_contract }   => { $contract }
-    rule { $contract:optional_contract } => { $contract }
-    rule { $contract:base_contract }     => { $contract }
+    rule { $contract:predicate_contract } => { $contract }
+    rule { $contract:function_contract }  => { $contract }
+    rule { $contract:object_contract }    => { $contract }
+    rule { $contract:array_contract }     => { $contract }
+    rule { $contract:repeat_contract }    => { $contract }
+    rule { $contract:optional_contract }  => { $contract }
+    rule { $contract:base_contract }      => { $contract }
 }
 
 macro or_contract {
@@ -567,11 +710,26 @@ macro any_contract {
     rule { $contract:non_or_contract } => { $contract }
 }
 
-// macro ident_list {
-//     rule { $p (,) ... }
-// }
 
 let @ = macro {
+    // special casing let bound predicate contracts to get the name
+    // from the let binding instead of doing stringify to the predicate body
+    case {_
+         let $contractName = ($param) => { $pred ... }
+    } => {
+        return #{
+            _c.$contractName = _c.check(function($param) { $pred ...},
+                                        stringify (($contractName)))
+        }
+    }
+    case {_
+         let $contractName = ($param) => $pred:expr
+    } => {
+        return #{
+            _c.$contractName = _c.check(function($param) { return $pred },
+                                        stringify (($contractName)))
+        }
+    }
     case {_
           let $contractName = $contract:any_contract
     } => {

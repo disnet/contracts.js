@@ -29,7 +29,7 @@ macro stringify {
 }
 
 macro base_contract {
-    rule { $name } => { _c.$name }
+    rule { $name } => { typeof $name !== 'undefined' ? $name : _c.$name }
 }
 
 macroclass named_contract {
@@ -37,6 +37,16 @@ macroclass named_contract {
 }
 
 macro function_contract {
+    rule { ($dom:named_contract (,) ...) this $this:object_contract -> $range:named_contract | { $guard ... } } => {
+        _c.fun([$dom$contract (,) ...], $range$contract, {
+            dependency: function($dom$name (,) ..., $range$name) {
+                $guard ...
+            },
+            thisContract: $this,
+            namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
+            dependencyStr: stringify (($guard ...))
+        })
+    }
     rule { ($dom:named_contract (,) ...) -> $range:named_contract | { $guard ... } } => {
         _c.fun([$dom$contract (,) ...], $range$contract, {
             dependency: function($dom$name (,) ..., $range$name) {
@@ -46,6 +56,16 @@ macro function_contract {
             dependencyStr: stringify (($guard ...))
         })
     }
+    rule { ($dom:named_contract (,) ...) this $this:object_contract -> $range:named_contract | $guard:expr } => {
+        _c.fun([$dom$contract (,) ...], $range$contract, {
+            dependency: function($dom$name (,) ..., $range$name) {
+                return $guard;
+            },
+            thisContract: $this,
+            namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
+            dependencyStr: stringify ($guard)
+        })
+    }
     rule { ($dom:named_contract (,) ...) -> $range:named_contract | $guard:expr } => {
         _c.fun([$dom$contract (,) ...], $range$contract, {
             dependency: function($dom$name (,) ..., $range$name) {
@@ -53,6 +73,11 @@ macro function_contract {
             },
             namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
             dependencyStr: stringify ($guard)
+        })
+    }
+    rule { ($dom:any_contract (,) ...) -> $range:any_contract | this $[:] $this:object_contract } => {
+        _c.fun([$dom (,) ...], $range, {
+            thisContract: $this
         })
     }
     rule { ($dom:any_contract (,) ...) -> $range:any_contract } => {
@@ -100,20 +125,35 @@ macro repeat_contract {
 
 macro optional_contract {
     rule {
-        opt $contract:any_contract
+        ? $contract:any_contract
     } => {
         _c.optional($contract)
     }
 }
 
+macro predicate_contract {
+    rule {
+        ($param) => { $pred ... }
+    } => {
+        _c.check(function($param) { $pred ... }, stringify (($pred ...)) )
+    }
+
+    rule {
+        ($param) => $pred:expr
+    } => {
+        _c.check(function($param) { return $pred; }, stringify ($pred) )
+    }
+}
+
 
 macro non_or_contract {
-    rule { $contract:function_contract } => { $contract }
-    rule { $contract:object_contract }   => { $contract }
-    rule { $contract:array_contract }    => { $contract }
-    rule { $contract:repeat_contract }   => { $contract }
-    rule { $contract:optional_contract } => { $contract }
-    rule { $contract:base_contract }     => { $contract }
+    rule { $contract:predicate_contract } => { $contract }
+    rule { $contract:function_contract }  => { $contract }
+    rule { $contract:object_contract }    => { $contract }
+    rule { $contract:array_contract }     => { $contract }
+    rule { $contract:repeat_contract }    => { $contract }
+    rule { $contract:optional_contract }  => { $contract }
+    rule { $contract:base_contract }      => { $contract }
 }
 
 macro or_contract {
@@ -129,6 +169,24 @@ macro any_contract {
 
 
 let @ = macro {
+    // special casing let bound predicate contracts to get the name
+    // from the let binding instead of doing stringify to the predicate body
+    case {_
+         let $contractName = ($param) => { $pred ... }
+    } => {
+        return #{
+            _c.$contractName = _c.check(function($param) { $pred ...},
+                                        stringify (($contractName)))
+        }
+    }
+    case {_
+         let $contractName = ($param) => $pred:expr
+    } => {
+        return #{
+            _c.$contractName = _c.check(function($param) { return $pred },
+                                        stringify (($contractName)))
+        }
+    }
     case {_
           let $contractName = $contract:any_contract
     } => {
