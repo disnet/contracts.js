@@ -160,7 +160,7 @@ _c$600 = function () {
         });
     }
     function check(predicate, name) {
-        var c$2 = new Contract(name, 'check', function (blame) {
+        var c = new Contract(name, 'check', function (blame) {
                 return function (val) {
                     if (predicate(val)) {
                         return val;
@@ -169,7 +169,7 @@ _c$600 = function () {
                     }
                 };
             });
-        return c$2;
+        return c;
     }
     function addTh(a0) {
         if (a0 === 0) {
@@ -234,7 +234,7 @@ _c$600 = function () {
         var rngStr = options && options.namesStr ? options.namesStr[options.namesStr.length - 1] + ': ' + rng : rng;
         var thisName = options && options.thisContract ? '\n    | this: ' + options.thisContract : '';
         var contractName = domName + ' -> ' + rngStr + thisName + (options && options.dependencyStr ? ' | ' + options.dependencyStr : '');
-        var c$2 = new Contract(contractName, 'fun', function (blame, unwrapTypeVar, projOptions) {
+        var c = new Contract(contractName, 'fun', function (blame, unwrapTypeVar, projOptions) {
                 return function (f) {
                     blame = blame.addParents(contractName);
                     if (typeof f !== 'function') {
@@ -298,7 +298,7 @@ _c$600 = function () {
                     }
                 };
             });
-        return c$2;
+        return c;
     }
     function optional(contract, options) {
         if (!(contract instanceof Contract)) {
@@ -347,7 +347,7 @@ _c$600 = function () {
                 return c$2;
             }).join(', ') + ']';
         var contractNum = arrContract.length;
-        var c$2 = new Contract(contractName, 'array', function (blame, unwrapTypeVar) {
+        var c = new Contract(contractName, 'array', function (blame, unwrapTypeVar) {
                 return function (arr) {
                     if (typeof arr === 'number' || typeof arr === 'string' || typeof arr === 'boolean' || arr == null) {
                         raiseBlame(blame.addGiven(arr).addExpected('an array with at least ' + contractNum + pluralize(contractNum, ' field')));
@@ -390,7 +390,7 @@ _c$600 = function () {
                     }
                 };
             });
-        return c$2;
+        return c;
     }
     function object(objContract, options) {
         var contractKeys = Object.keys(objContract);
@@ -408,7 +408,7 @@ _c$600 = function () {
                 return prop + ': ' + objContract[prop];
             }).join(', ') + '}';
         var keyNum = contractKeys.length;
-        var c$2 = new Contract(contractName, 'object', function (blame) {
+        var c = new Contract(contractName, 'object', function (blame) {
                 return function (obj) {
                     if (typeof obj === 'number' || typeof obj === 'string' || typeof obj === 'boolean' || obj == null) {
                         raiseBlame(blame.addGiven(obj).addExpected('an object with at least ' + keyNum + pluralize(keyNum, ' key')));
@@ -447,7 +447,7 @@ _c$600 = function () {
                     }
                 }.bind(this);
             });
-        return c$2;
+        return c;
     }
     function self() {
         var name = 'self';
@@ -540,27 +540,23 @@ _c$600 = function () {
         guard: guard
     };
 }();
-var c = require('rho-contracts');
 function baseId(x) {
     return x;
 }
-var inner_id = _c$600.fun([typeof Num !== 'undefined' ? Num : _c$600.Num], typeof Num !== 'undefined' ? Num : _c$600.Num).proj(_c$600.Blame.create('id', 'function id', '(calling context for id)', 7))(function id$2(x) {
+var inner_id = _c$600.fun([typeof Num !== 'undefined' ? Num : _c$600.Num], typeof Num !== 'undefined' ? Num : _c$600.Num).proj(_c$600.Blame.create('id', 'function id', '(calling context for id)', 6))(function id$2(x) {
         return x;
     });
 function id(x) {
     return inner_id.apply(this, arguments);
 }
-var rhoId = c.fun({ x: c.number }).returns(c.number).wrap(function (x) {
-        return x;
-    });
 module.exports = {
-    name: 'contracts.js vs rho-contracts',
+    name: 'CJS vs Vanilla - Identity function',
     tests: {
-        'Id contracts.js': function () {
-            id(100);
+        'Vanilla - id(100)': function () {
+            baseId(100);
         },
-        'Id rho-contracts': function () {
-            rhoId(100);
+        'CJS - id(100)': function () {
+            id(100);
         }
     }
 };

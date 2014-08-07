@@ -39,8 +39,8 @@ module.exports = function(grunt) {
                     readableNames: true,
                     modules: ["./macros/index.js"]
                 },
-                src: "benchmark/contracts-vs-rho.js",
-                dest: "benchmark/cvr-benchmark.js"
+                src: "benchmark/src/*.js",
+                dest: "benchmark/"
             }
         },
         template: {
@@ -101,7 +101,7 @@ module.exports = function(grunt) {
         },
         benchmark: {
             all: {
-                src: ["benchmark/cvr-benchmark.js"],
+                src: ["benchmark/*.js"],
                 dest: "benchmark/results.csv"
             }
         },

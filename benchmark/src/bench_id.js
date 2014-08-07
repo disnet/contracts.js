@@ -1,8 +1,6 @@
 import @ from "contracts.js"
 var c = require('rho-contracts');
 
-function baseId(x) { return x; }
-
 @ (Num) -> Num
 function id(x) { return x; }
 
@@ -11,15 +9,12 @@ var rhoId = c.fun({
 }).returns(c.number).wrap(function(x) { return x; });
 
 module.exports = {
-    name: "contracts.js vs rho-contracts",
+    name: "CJS vs RHO - Identity function",
     tests: {
-        // 'Id no contracts': function() {
-        //     baseId(100);
-        // },
-        'Id contracts.js': function() {
+        'CJS - id(100)': function() {
             id(100);
         },
-        'Id rho-contracts': function() {
+        'RHO - id(100)': function() {
             rhoId(100);
         }
     }
