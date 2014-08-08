@@ -384,8 +384,8 @@ arr[0] = "string";          // error wrong type
 
 ### `or`
 
-You can combine two contracts with the `or` combinator. If the first
-contract fails, the combined contract will succeed if the second
+You can combine two or more contracts with the `or` combinator. If the
+first contract fails, the combined contract will succeed if the second
 passes.
 
 ```js
@@ -400,6 +400,20 @@ foo(false); // error not a Num or Str
 Note that `or` only makes sense for at most one higher-order contract.
 For example, `Num or (Num) -> Num` is fine but `(Num) -> Num or
 (Str) -> Str` will not work.
+
+### `and`
+
+You can combine two or more contracts with the `and` combinator.
+Both contracts must pass for the combined contract to succeed.
+
+```js
+@ (Num and (x) => x > 5) -> Num
+function foo(x) { return x; }
+
+foo(10);   // passes
+foo("10"); // fails
+foo(1);    // fails
+```
 
 
 ## Naming Contracts
