@@ -191,7 +191,8 @@ let @ = macro {
           let $contractName = $contract:any_contract
     } => {
         return #{
-            _c.$contractName = $contract;
+            _c.$contractName = _c.cyclic(stringify (($contractName)));
+            _c.$contractName = _c.$contractName.closeCycle($contract);
         }
     }
 

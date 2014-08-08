@@ -85,6 +85,11 @@
             this.proj = proj.bind(this);
         }
 
+        closeCycle(contract) {
+            this.cycleContract = contract;
+            return contract;
+        }
+
         toString() {
             return this.name;
         }
@@ -538,12 +543,12 @@
 
                 contractKeys.forEach(function(key) {
                     if (!(objContract[key].type === "optional" && obj[key] === undefined)) {
-                        // self contracts use the original object contract
-                        var c = objContract[key];
                         var propProjOptions = if objContract[key].type === "fun"
                                               then {overrideThisContract: this}
                                               else {}
-                        // var c = objContract[key].type === "self" ? this : objContract[key];
+                        var c = if objContract[key].type === "cycle"
+                                   then objContract[key].cycleContract
+                                   else objContract[key];
                         var propProj = c.proj(blame.addLocation("the " +
                                                                 key +
                                                                 " property of"), false, propProjOptions);
@@ -556,9 +561,12 @@
                     return new Proxy(obj, {
                         set: function(target, key, value) {
                             if (objContract.hasOwnProperty(key)) {
-                                var propProj = objContract[key].proj(blame.swap()
-                                                                     .addLocation("setting the " +
-                                                                                  key + " property of"));
+                                var c = if objContract[key].type === "cycle"
+                                           then objContract[key].cycleContract
+                                           else objContract[key];
+                                var propProj = c.proj(blame.swap()
+                                                      .addLocation("setting the " +
+                                                                   key + " property of"));
                                 var checkedProperty = propProj(value);
                                 target[key] = checkedProperty;
                             } else {
@@ -608,6 +616,13 @@
         });
     }
 
+
+    function cyclic(name) {
+        return new Contract(name, "cycle", function() {
+            throw new Error("Stub, should never be called");
+        });
+    }
+
     function guard(contract, value, name) {
         var proj = contract.proj(Blame.create(name,
                                               "function " + name,
@@ -639,6 +654,7 @@
         optional: optional,
         object: object,
         array: array,
+        cyclic: cyclic,
         Blame: Blame,
         makeCoffer: makeCoffer,
         guard: guard

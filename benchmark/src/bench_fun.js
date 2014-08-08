@@ -21,7 +21,7 @@ module.exports = {
         'RHO - fibonacci(10)': function() {
             rhoFib(10);
         },
-        'CJS - fibonacci(100)': function() {
+        'CJS - fibonacci(10)': function() {
             fibonacci(10);
         }
     }

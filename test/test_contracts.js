@@ -770,4 +770,109 @@ blaming: (calling context for id)
 `
     })
 
+    it("should check recursive object contracts", function() {
+        @ let MyObj = Null or {
+            a: Num,
+            b: MyObj
+        }
+
+        @ (MyObj) -> Num
+        function foo(o) { return o.b.a; }
+
+        var o = {
+            a: 42,
+            b: {
+                a: 100,
+                b: null
+            }
+        };
+
+        foo(o);
+
+        var badO = {
+            a: 42,
+            b: {
+                a: "str",
+                b: null
+            }
+
+        };
+
+        blame of {
+            foo(badO);
+        } should be `foo: contract violation
+expected: Null or {a: Num, b: MyObj}
+given: 'str'
+in: the a property of
+    the b property of
+    the 1st argument of
+    (Null or {a: Num, b: MyObj}) -> Num
+function foo guarded at line: 780
+blaming: (calling context for foo)
+`
+    });
+
+    it("should check recursive object contracts for proxied objects", function() {
+        @ let MyObj = Null or !{
+            a: Num,
+            b: MyObj
+        }
+
+        @ (MyObj) -> Num
+        function foo(o) { return o.b.a; }
+
+        var o = {
+            a: 42,
+            b: {
+                a: 100,
+                b: null
+            }
+        };
+
+        foo(o);
+
+        var badO = {
+            a: 42,
+            b: {
+                a: "str",
+                b: null
+            }
+
+        };
+
+        blame of {
+            foo(badO);
+        } should be `foo: contract violation
+expected: Null or !{a: Num, b: MyObj}
+given: 'str'
+in: the a property of
+    the b property of
+    the 1st argument of
+    (Null or !{a: Num, b: MyObj}) -> Num
+function foo guarded at line: 822
+blaming: (calling context for foo)
+`
+        @ () -> MyObj
+        function bar() {
+            return {
+                a: 42,
+                b: null
+            };
+        }
+
+        var oo = bar();
+
+        blame of {
+            oo.b = {};
+        } should be `bar: contract violation
+expected: Null or !{a: Num, b: MyObj}
+given: undefined
+in: the a property of
+    setting the b property of
+    the return of
+    () -> Null or !{a: Num, b: MyObj}
+function bar guarded at line: 856
+blaming: (calling context for bar)
+`
+    })
 });

@@ -12,7 +12,6 @@ let import = macro {
     var Blame = {
             create: function (name, pos, neg, lineNumber) {
                 var o = new BlameObj(name, pos, neg, lineNumber);
-                // Object.freeze(o);
                 return o;
             },
             clone: function (old, props) {
@@ -21,7 +20,6 @@ let import = macro {
                 o.given = typeof props.given !== 'undefined' ? props.given : old.given;
                 o.loc = typeof props.loc !== 'undefined' ? props.loc : old.loc;
                 o.parents = typeof props.parents !== 'undefined' ? props.parents : old.parents;
-                // Object.freeze(o);
                 return o;
             }
         };
@@ -65,6 +63,10 @@ let import = macro {
         this.type = type;
         this.proj = proj.bind(this);
     }
+    Contract.prototype.closeCycle = function closeCycle(contract) {
+        this.cycleContract = contract;
+        return contract;
+    };
     Contract.prototype.toString = function toString() {
         return this.name;
     };
@@ -418,8 +420,6 @@ let import = macro {
                     }
                     contractKeys.forEach(function (key) {
                         if (!(objContract[key].type === 'optional' && obj[key] === undefined)) {
-                            // self contracts use the original object contract
-                            var c$2 = objContract[key];
                             var propProjOptions = function () {
                                     if (objContract[key].type === 'fun') {
                                         return { overrideThisContract: this };
@@ -427,7 +427,13 @@ let import = macro {
                                         return {};
                                     }
                                 }.bind(this)();
-                            // var c = objContract[key].type === "self" ? this : objContract[key];
+                            var c$2 = function () {
+                                    if (objContract[key].type === 'cycle') {
+                                        return objContract[key].cycleContract;
+                                    } else {
+                                        return objContract[key];
+                                    }
+                                }.bind(this)();
                             var propProj = c$2.proj(blame.addLocation('the ' + key + ' property of'), false, propProjOptions);
                             var checkedProperty = propProj(obj[key]);
                             obj[key] = checkedProperty;
@@ -437,7 +443,14 @@ let import = macro {
                         return new Proxy(obj, {
                             set: function (target, key, value) {
                                 if (objContract.hasOwnProperty(key)) {
-                                    var propProj = objContract[key].proj(blame.swap().addLocation('setting the ' + key + ' property of'));
+                                    var c$2 = function () {
+                                            if (objContract[key].type === 'cycle') {
+                                                return objContract[key].cycleContract;
+                                            } else {
+                                                return objContract[key];
+                                            }
+                                        }.bind(this)();
+                                    var propProj = c$2.proj(blame.swap().addLocation('setting the ' + key + ' property of'));
                                     var checkedProperty = propProj(value);
                                     target[key] = checkedProperty;
                                 } else {
@@ -481,6 +494,11 @@ let import = macro {
                     return rightProj(val);
                 }
             };
+        });
+    }
+    function cyclic(name) {
+        return new Contract(name, 'cycle', function () {
+            throw new Error('Stub, should never be called');
         });
     }
     function guard(contract, value, name) {
@@ -538,6 +556,7 @@ let import = macro {
         optional: optional,
         object: object,
         array: array,
+        cyclic: cyclic,
         Blame: Blame,
         makeCoffer: makeCoffer,
         guard: guard
@@ -732,7 +751,8 @@ let @ = macro {
           let $contractName = $contract:any_contract
     } => {
         return #{
-            _c.$contractName = $contract;
+            _c.$contractName = _c.cyclic(stringify (($contractName)));
+            _c.$contractName = _c.$contractName.closeCycle($contract);
         }
     }
 
