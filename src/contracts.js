@@ -587,6 +587,33 @@
         var name = "self";
     }
 
+    function and(left, right) {
+        if (!(left instanceof Contract)) {
+            if (typeof left === "function") {
+                left = toContract(left);
+            } else {
+                throw new Error(left + " is not a contract");
+            }
+        }
+        if (!(right instanceof Contract)) {
+            if (typeof right === "function") {
+                right = toContract(right);
+            } else {
+                throw new Error(right + " is not a contract");
+            }
+        }
+
+        var contractName = left + " and " + right;
+        return new Contract(contractName, "and", function(blame) {
+            return function(val) {
+                var leftProj = left.proj(blame.addExpected(contractName, true));
+                var leftResult = leftProj(val);
+                var rightProj = right.proj(blame.addExpected(contractName, true));
+                return rightProj(leftResult);
+            };
+        })
+    }
+
     function or(left, right) {
         if (!(left instanceof Contract)) {
             if (typeof left === "function") {
@@ -649,6 +676,7 @@
         check: check,
         fun: fun,
         or: or,
+        and: and,
         self: new Contract("self", "self", function(b) { return function() {}; }),
         repeat: repeat,
         optional: optional,

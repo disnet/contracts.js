@@ -468,6 +468,31 @@ let import = macro {
     function self() {
         var name = 'self';
     }
+    function and(left, right) {
+        if (!(left instanceof Contract)) {
+            if (typeof left === 'function') {
+                left = toContract(left);
+            } else {
+                throw new Error(left + ' is not a contract');
+            }
+        }
+        if (!(right instanceof Contract)) {
+            if (typeof right === 'function') {
+                right = toContract(right);
+            } else {
+                throw new Error(right + ' is not a contract');
+            }
+        }
+        var contractName = left + ' and ' + right;
+        return new Contract(contractName, 'and', function (blame) {
+            return function (val) {
+                var leftProj = left.proj(blame.addExpected(contractName, true));
+                var leftResult = leftProj(val);
+                var rightProj = right.proj(blame.addExpected(contractName, true));
+                return rightProj(leftResult);
+            };
+        });
+    }
     function or(left, right) {
         if (!(left instanceof Contract)) {
             if (typeof left === 'function') {
@@ -548,6 +573,7 @@ let import = macro {
         check: check,
         fun: fun,
         or: or,
+        and: and,
         self: new Contract('self', 'self', function (b) {
             return function () {
             };
@@ -706,7 +732,7 @@ macro predicate_contract {
 }
 
 
-macro non_or_contract {
+macro non_bin_contract {
     rule { $contract:predicate_contract } => { $contract }
     rule { $contract:function_contract }  => { $contract }
     rule { $contract:object_contract }    => { $contract }
@@ -717,14 +743,21 @@ macro non_or_contract {
 }
 
 macro or_contract {
-    rule { $left:non_or_contract or $right:any_contract } => {
+    rule { $left:non_bin_contract or $right:any_contract } => {
         _c.or($left, $right)
+    }
+}
+
+macro and_contract {
+    rule { $left:non_bin_contract and $right:any_contract } => {
+        _c.and($left, $right)
     }
 }
 
 macro any_contract {
     rule { $contract:or_contract }     => { $contract }
-    rule { $contract:non_or_contract } => { $contract }
+    rule { $contract:and_contract }     => { $contract }
+    rule { $contract:non_bin_contract } => { $contract }
 }
 
 

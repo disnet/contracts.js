@@ -875,4 +875,33 @@ function bar guarded at line: 856
 blaming: (calling context for bar)
 `
     })
+
+    it("should work with the and contract", function() {
+        @ (Num and (x) => x > 5) -> Num
+        function foo(x) { return x; }
+
+        foo(10);
+
+        blame of {
+            foo("string");
+        } should be `foo: contract violation
+expected: Num and x > 5
+given: 'string'
+in: the 1st argument of
+    (Num and x > 5) -> Num
+function foo guarded at line: 881
+blaming: (calling context for foo)
+`
+
+        blame of {
+            foo(1);
+        } should be `foo: contract violation
+expected: Num and x > 5
+given: 1
+in: the 1st argument of
+    (Num and x > 5) -> Num
+function foo guarded at line: 881
+blaming: (calling context for foo)
+`
+    })
 });
