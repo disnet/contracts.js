@@ -328,6 +328,7 @@ tricky invariants.
 
 
 
+
 ## Array Contracts
 
 Contracts on arrays use the familiar array literal notation:
@@ -414,6 +415,23 @@ this, you can use `let` after the `@` symbol:
 @ (NumId, Num) -> Num
 function (f, x) { return f(x); }
 ```
+
+## Recursive Contracts
+
+You can define contracts that have a recursive definition naturally:
+
+```js
+@ let MyObj = Null or {
+    a: Num,
+    b: MyObj
+}
+```
+
+This definition checks that the `b` property is either a `null` or an
+object that satisfies the `{a: Num, b: MyObj}` contract. Note that
+this will explore the entire object each time a value crosses the
+contract boundary so it could be potentially expensive if the object
+is deeply nested.
 
 ## Parametric Polymorphism
 

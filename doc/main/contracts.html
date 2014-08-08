@@ -139,7 +139,8 @@
 <li><a href="#or"><span class="toc-section-number">4.5.1</span> <code>or</code></a></li>
 </ul></li>
 <li><a href="#naming-contracts"><span class="toc-section-number">4.6</span> Naming Contracts</a></li>
-<li><a href="#parametric-polymorphism"><span class="toc-section-number">4.7</span> Parametric Polymorphism</a></li>
+<li><a href="#recursive-contracts"><span class="toc-section-number">4.7</span> Recursive Contracts</a></li>
+<li><a href="#parametric-polymorphism"><span class="toc-section-number">4.8</span> Parametric Polymorphism</a></li>
 </ul></li>
 <li><a href="#faq"><span class="toc-section-number">5</span> FAQ</a><ul>
 <li><a href="#do-i-have-to-use-macros"><span class="toc-section-number">5.1</span> Do I have to use macros?</a></li>
@@ -424,7 +425,14 @@ foo(false); // error not a Num or Str</code></pre>
 
 @ (NumId, Num) -&gt; Num
 function (f, x) { return f(x); }</code></pre>
-<h2 id="parametric-polymorphism"><span class="header-section-number">4.7</span> Parametric Polymorphism</h2>
+<h2 id="recursive-contracts"><span class="header-section-number">4.7</span> Recursive Contracts</h2>
+<p>You can define contracts that have a recursive definition naturally:</p>
+<pre class="js"><code>@ let MyObj = Null or {
+    a: Num,
+    b: MyObj
+}</code></pre>
+<p>This definition checks that the <code>b</code> property is either a <code>null</code> or an object that satisfies the <code>{a: Num, b: MyObj}</code> contract. Note that this will explore the entire object each time a value crosses the contract boundary so it could be potentially expensive if the object is deeply nested.</p>
+<h2 id="parametric-polymorphism"><span class="header-section-number">4.8</span> Parametric Polymorphism</h2>
 <p>Note: requires proxies (so use Firefox out of the box or Chrome/V8/node with the <code>--harmony</code> flag).</p>
 <p>Parametric polymorphic functions can be defined using <code>forall</code>:</p>
 <pre class="js"><code>@ forall &lt;name (,) ...&gt; &lt;contract&gt;</code></pre>
