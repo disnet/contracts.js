@@ -118,7 +118,8 @@
 <li><a href="#using"><span class="toc-section-number">3</span> Using</a></li>
 <li><a href="#contracts"><span class="toc-section-number">4</span> Contracts</a><ul>
 <li><a href="#basic-contracts"><span class="toc-section-number">4.1</span> Basic Contracts</a><ul>
-<li><a href="#custom-predicate-contracts"><span class="toc-section-number">4.1.1</span> Custom Predicate Contracts</a></li>
+<li><a href="#regular-expressions"><span class="toc-section-number">4.1.1</span> Regular Expressions</a></li>
+<li><a href="#custom-predicate-contracts"><span class="toc-section-number">4.1.2</span> Custom Predicate Contracts</a></li>
 </ul></li>
 <li><a href="#function-contracts"><span class="toc-section-number">4.2</span> Function Contracts</a><ul>
 <li><a href="#optional-arguments"><span class="toc-section-number">4.2.1</span> Optional Arguments</a></li>
@@ -248,7 +249,17 @@ blaming: (calling context for id)
 </tr>
 </tbody>
 </table>
-<h3 id="custom-predicate-contracts"><span class="header-section-number">4.1.1</span> Custom Predicate Contracts</h3>
+<h3 id="regular-expressions"><span class="header-section-number">4.1.1</span> Regular Expressions</h3>
+<p>You can test that a value matches a regular expression by using a regular expression literal:</p>
+<pre class="js"><code>@ (/username:\s*[a-zA-Z]*$/) -&gt; Bool
+function checkUsername(str) {
+    // ...
+    return true;
+}
+
+checkUsername(&quot;username: bob&quot;);  // passes
+checkUsername(&quot;user: bob&quot;);      // fails</code></pre>
+<h3 id="custom-predicate-contracts"><span class="header-section-number">4.1.2</span> Custom Predicate Contracts</h3>
 <p>All of the basic contracts are built with predicates (functions that take a single value and return a boolean) and you can make your own:</p>
 <pre class="js"><code>function MyNum(val) {
     return typeof val === &quot;number&quot;;
