@@ -1,7 +1,4 @@
-var _c;
-let import = macro {
-    rule { @ from $lib:lit } => {
-        _c = (function () {
+_c$600 = function () {
     'use strict';
     if (typeof require === 'function') {
         // importing patches Proxy to be in line with the new direct proxies
@@ -165,7 +162,7 @@ let import = macro {
         });
     }
     function check(predicate, name) {
-        var c = new Contract(name, 'check', function (blame) {
+        var c$2 = new Contract(name, 'check', function (blame) {
                 return function (val) {
                     if (predicate(val)) {
                         return val;
@@ -174,7 +171,7 @@ let import = macro {
                     }
                 };
             });
-        return c;
+        return c$2;
     }
     function addTh(a0) {
         if (a0 === 0) {
@@ -239,7 +236,7 @@ let import = macro {
         var rngStr = options && options.namesStr ? options.namesStr[options.namesStr.length - 1] + ': ' + rng : rng;
         var thisName = options && options.thisContract ? '\n    | this: ' + options.thisContract : '';
         var contractName = domName + ' -> ' + rngStr + thisName + (options && options.dependencyStr ? ' | ' + options.dependencyStr : '');
-        var c = new Contract(contractName, 'fun', function (blame, unwrapTypeVar, projOptions) {
+        var c$2 = new Contract(contractName, 'fun', function (blame, unwrapTypeVar, projOptions) {
                 return function (f) {
                     blame = blame.addParents(contractName);
                     if (typeof f !== 'function') {
@@ -303,7 +300,7 @@ let import = macro {
                     }
                 };
             });
-        return c;
+        return c$2;
     }
     function optional(contract, options) {
         if (!(contract instanceof Contract)) {
@@ -352,7 +349,7 @@ let import = macro {
                 return c$2;
             }).join(', ') + ']';
         var contractNum = arrContract.length;
-        var c = new Contract(contractName, 'array', function (blame, unwrapTypeVar) {
+        var c$2 = new Contract(contractName, 'array', function (blame, unwrapTypeVar) {
                 return function (arr) {
                     if (typeof arr === 'number' || typeof arr === 'string' || typeof arr === 'boolean' || arr == null) {
                         raiseBlame(blame.addGiven(arr).addExpected('an array with at least ' + contractNum + pluralize(contractNum, ' field')));
@@ -395,7 +392,7 @@ let import = macro {
                     }
                 };
             });
-        return c;
+        return c$2;
     }
     function object(objContract, options) {
         var contractKeys = Object.keys(objContract);
@@ -413,7 +410,7 @@ let import = macro {
                 return prop + ': ' + objContract[prop];
             }).join(', ') + '}';
         var keyNum = contractKeys.length;
-        var c = new Contract(contractName, 'object', function (blame) {
+        var c$2 = new Contract(contractName, 'object', function (blame) {
                 return function (obj) {
                     if (typeof obj === 'number' || typeof obj === 'string' || typeof obj === 'boolean' || obj == null) {
                         raiseBlame(blame.addGiven(obj).addExpected('an object with at least ' + keyNum + pluralize(keyNum, ' key')));
@@ -463,38 +460,10 @@ let import = macro {
                     }
                 }.bind(this);
             });
-        return c;
+        return c$2;
     }
-    function reMatch(re) {
-        var contractName = re.toString();
-        return check(function (val) {
-            return re.test(val);
-        }, contractName);
-    }
-    function and(left, right) {
-        if (!(left instanceof Contract)) {
-            if (typeof left === 'function') {
-                left = toContract(left);
-            } else {
-                throw new Error(left + ' is not a contract');
-            }
-        }
-        if (!(right instanceof Contract)) {
-            if (typeof right === 'function') {
-                right = toContract(right);
-            } else {
-                throw new Error(right + ' is not a contract');
-            }
-        }
-        var contractName = left + ' and ' + right;
-        return new Contract(contractName, 'and', function (blame) {
-            return function (val) {
-                var leftProj = left.proj(blame.addExpected(contractName, true));
-                var leftResult = leftProj(val);
-                var rightProj = right.proj(blame.addExpected(contractName, true));
-                return rightProj(leftResult);
-            };
-        });
+    function self() {
+        var name = 'self';
     }
     function or(left, right) {
         if (!(left instanceof Contract)) {
@@ -574,10 +543,12 @@ let import = macro {
             return null == val;
         }, 'Null'),
         check: check,
-        reMatch: reMatch,
         fun: fun,
         or: or,
-        and: and,
+        self: new Contract('self', 'self', function (b) {
+            return function () {
+            };
+        }),
         repeat: repeat,
         optional: optional,
         object: object,
@@ -587,246 +558,25 @@ let import = macro {
         makeCoffer: makeCoffer,
         guard: guard
     };
-}());
-    }
-    rule { $rest ... } => {
-        import $rest ...
-    }
+}();
+var c = require('rho-contracts');
+var rhoFib = c.fun({ x: c.number }).returns(c.number).wrap(function (n) {
+        return n < 2 ? n : rhoFib(n - 1) + rhoFib(n - 2);
+    });
+var inner_fibonacci = _c$600.fun([typeof Num !== 'undefined' ? Num : _c$600.Num], typeof Num !== 'undefined' ? Num : _c$600.Num).proj(_c$600.Blame.create('fibonacci', 'function fibonacci', '(calling context for fibonacci)', 14))(function fibonacci$2(n) {
+        return n < 2 ? n : fibonacci$2(n - 1) + fibonacci$2(n - 2);
+    });
+function fibonacci(n) {
+    return inner_fibonacci.apply(this, arguments);
 }
-export import;
-
-macro stringify {
-    case {_ ($toks ...) } => {
-        var toks = #{$toks ...}[0].token.inner;
-
-        function traverse(stx) {
-            return stx.map(function(s) {
-                if (s.token.inner) {
-                    return s.token.value[0] + traverse(s.token.inner) + s.token.value[1];
-                }
-                return s.token.value;
-            }).join(" ");
-        }
-
-        var toksStr = traverse(toks);
-        letstx $str = [makeValue(toksStr, #{here})];
-        return #{$str}
-    }
-}
-
-macro base_contract {
-    rule { $name } => { typeof $name !== 'undefined' ? $name : _c.$name }
-}
-
-macroclass named_contract {
-    rule { $name $[:] $contract:any_contract }
-}
-
-macro function_contract {
-    rule { ($dom:named_contract (,) ...) this $this:object_contract -> $range:named_contract | { $guard ... } } => {
-        _c.fun([$dom$contract (,) ...], $range$contract, {
-            dependency: function($dom$name (,) ..., $range$name) {
-                $guard ...
-            },
-            thisContract: $this,
-            namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
-            dependencyStr: stringify (($guard ...))
-        })
-    }
-    rule { ($dom:named_contract (,) ...) -> $range:named_contract | { $guard ... } } => {
-        _c.fun([$dom$contract (,) ...], $range$contract, {
-            dependency: function($dom$name (,) ..., $range$name) {
-                $guard ...
-            },
-            namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
-            dependencyStr: stringify (($guard ...))
-        })
-    }
-    rule { ($dom:named_contract (,) ...) this $this:object_contract -> $range:named_contract | $guard:expr } => {
-        _c.fun([$dom$contract (,) ...], $range$contract, {
-            dependency: function($dom$name (,) ..., $range$name) {
-                return $guard;
-            },
-            thisContract: $this,
-            namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
-            dependencyStr: stringify ($guard)
-        })
-    }
-    rule { ($dom:named_contract (,) ...) -> $range:named_contract | $guard:expr } => {
-        _c.fun([$dom$contract (,) ...], $range$contract, {
-            dependency: function($dom$name (,) ..., $range$name) {
-                return $guard;
-            },
-            namesStr: [$(stringify (($dom$name))) (,) ..., stringify (($range$name))],
-            dependencyStr: stringify ($guard)
-        })
-    }
-    rule { ($dom:any_contract (,) ...) -> $range:any_contract | this $[:] $this:object_contract } => {
-        _c.fun([$dom (,) ...], $range, {
-            thisContract: $this
-        })
-    }
-    rule { ($dom:any_contract (,) ...) -> $range:any_contract } => {
-        _c.fun([$dom (,) ...], $range)
-    }
-}
-
-macro object_contract {
-    rule { {
-        $($prop $[:] $contract:any_contract) (,) ...
-    } } => {
-        _c.object({
-            $($prop : $contract) (,) ...
-        })
-    }
-    // proxied objects
-    rule { !{
-        $($prop $[:] $contract:any_contract) (,) ...
-    } } => {
-        _c.object({
-            $($prop : $contract) (,) ...
-        }, {proxy: true})
-    }
-}
-
-macro array_contract {
-    rule { [
-        $contracts:any_contract (,) ...
-    ] } => {
-        _c.array([$contracts (,) ...])
-    }
-    // proxied arrays
-    rule { ![
-        $contracts:any_contract (,) ...
-    ] } => {
-        _c.array([$contracts (,) ...], {proxy: true})
-    }
-}
-
-macro repeat_contract {
-    rule {$[...] $contract:any_contract } => {
-        _c.repeat($contract)
-    }
-}
-
-macro optional_contract {
-    rule {
-        ? $contract:any_contract
-    } => {
-        _c.optional($contract)
-    }
-}
-
-macro predicate_contract {
-    rule {
-        ($param) => { $pred ... }
-    } => {
-        _c.check(function($param) { $pred ... }, stringify (($pred ...)) )
-    }
-
-    rule {
-        ($param) => $pred:expr
-    } => {
-        _c.check(function($param) { return $pred; }, stringify ($pred) )
-    }
-}
-
-macro regex {
-    case {_ $tok } => {
-        var tok = #{$tok};
-        if (tok[0].token.type === parser.Token.RegularExpression) {
-            return tok;
-        }
-        throwSyntaxCaseError("Not a regular expression");
-    }
-}
-
-macro regex_contract {
-    rule { $re:regex } => {
-        _c.reMatch($re)
-    }
-}
-
-
-macro non_bin_contract {
-    rule { $contract:regex_contract }     => { $contract }
-    rule { $contract:predicate_contract } => { $contract }
-    rule { $contract:function_contract }  => { $contract }
-    rule { $contract:object_contract }    => { $contract }
-    rule { $contract:array_contract }     => { $contract }
-    rule { $contract:repeat_contract }    => { $contract }
-    rule { $contract:optional_contract }  => { $contract }
-    rule { $contract:base_contract }      => { $contract }
-}
-
-macro or_contract {
-    rule { $left:non_bin_contract or $right:any_contract } => {
-        _c.or($left, $right)
-    }
-}
-
-macro and_contract {
-    rule { $left:non_bin_contract and $right:any_contract } => {
-        _c.and($left, $right)
-    }
-}
-
-macro any_contract {
-    rule { $contract:or_contract }     => { $contract }
-    rule { $contract:and_contract }     => { $contract }
-    rule { $contract:non_bin_contract } => { $contract }
-}
-
-
-let @ = macro {
-    // special casing let bound predicate contracts to get the name
-    // from the let binding instead of doing stringify to the predicate body
-    case {_
-         let $contractName = ($param) => { $pred ... }
-    } => {
-        return #{
-            _c.$contractName = _c.check(function($param) { $pred ...},
-                                        stringify (($contractName)))
+module.exports = {
+    name: 'CJS vs RHO - Fibonacci function',
+    tests: {
+        'RHO - fibonacci(10)': function () {
+            rhoFib(10);
+        },
+        'CJS - fibonacci(100)': function () {
+            fibonacci(10);
         }
     }
-    case {_
-         let $contractName = ($param) => $pred:expr
-    } => {
-        return #{
-            _c.$contractName = _c.check(function($param) { return $pred },
-                                        stringify (($contractName)))
-        }
-    }
-    case {_
-          let $contractName = $contract:any_contract
-    } => {
-        return #{
-            _c.$contractName = _c.cyclic(stringify (($contractName)));
-            _c.$contractName = _c.$contractName.closeCycle($contract);
-        }
-    }
-
-    case {_
-        forall $($varName (,) ...)
-        $contracts:function_contract
-        function $name ($params ...) { $body ...}
-    } => {
-        return #{
-            function $name ($params ...) {
-                $body ...
-            }
-        }
-    }
-
-    case {_
-        $contracts:function_contract
-        function $name ($params ...) { $body ...}
-    } => {
-        return #{
-            function $name ($params ...) {
-                $body ...
-            }
-        }
-    }
-}
-export @;
+};

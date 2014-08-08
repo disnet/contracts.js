@@ -4,6 +4,7 @@
         // importing patches Proxy to be in line with the new direct proxies
         require("harmony-reflect");
     }
+    operator (|?|) 4 left {$l, $r} => #{ typeof $l !== 'undefined' ? $l : $r }
 
     var unproxy = new WeakMap();
     var typeVarMap = new WeakMap();
@@ -11,18 +12,17 @@
     var Blame = {
         create: function(name, pos, neg, lineNumber) {
             var o = new BlameObj(name, pos, neg, lineNumber);
-            Object.freeze(o);
             return o;
         },
         clone: function(old, props) {
-            var propsObj = {};
-            for (var prop in props) {
-                if (props.hasOwnProperty(prop)) {
-                    propsObj[prop] = { value: props[prop] };
-                }
-            }
-            var o = Object.create(old, propsObj);
-            Object.freeze(o);
+            var o = new BlameObj(props.name |?| old.name,
+                                 props.pos |?| old.pos,
+                                 props.neg |?| old.neg,
+                                 props.lineNuber |?| old.lineNumber);
+            o.expected = props.expected |?| old.expected;
+            o.given    = props.given |?| old.given;
+            o.loc      = props.loc |?| old.loc;
+            o.parents  = props.parents |?| old.parents;
             return o;
         }
     };
@@ -83,6 +83,11 @@
             this.name = name;
             this.type = type;
             this.proj = proj.bind(this);
+        }
+
+        closeCycle(contract) {
+            this.cycleContract = contract;
+            return contract;
         }
 
         toString() {
@@ -538,12 +543,12 @@
 
                 contractKeys.forEach(function(key) {
                     if (!(objContract[key].type === "optional" && obj[key] === undefined)) {
-                        // self contracts use the original object contract
-                        var c = objContract[key];
                         var propProjOptions = if objContract[key].type === "fun"
                                               then {overrideThisContract: this}
                                               else {}
-                        // var c = objContract[key].type === "self" ? this : objContract[key];
+                        var c = if objContract[key].type === "cycle"
+                                   then objContract[key].cycleContract
+                                   else objContract[key];
                         var propProj = c.proj(blame.addLocation("the " +
                                                                 key +
                                                                 " property of"), false, propProjOptions);
@@ -556,9 +561,12 @@
                     return new Proxy(obj, {
                         set: function(target, key, value) {
                             if (objContract.hasOwnProperty(key)) {
-                                var propProj = objContract[key].proj(blame.swap()
-                                                                     .addLocation("setting the " +
-                                                                                  key + " property of"));
+                                var c = if objContract[key].type === "cycle"
+                                           then objContract[key].cycleContract
+                                           else objContract[key];
+                                var propProj = c.proj(blame.swap()
+                                                      .addLocation("setting the " +
+                                                                   key + " property of"));
                                 var checkedProperty = propProj(value);
                                 target[key] = checkedProperty;
                             } else {
@@ -575,9 +583,40 @@
         return c;
     }
 
-    function self() {
-        var name = "self";
+    function reMatch(re) {
+        var contractName = re.toString();
+        return check(function(val) {
+            return re.test(val);
+        }, contractName);
     }
+
+    function and(left, right) {
+        if (!(left instanceof Contract)) {
+            if (typeof left === "function") {
+                left = toContract(left);
+            } else {
+                throw new Error(left + " is not a contract");
+            }
+        }
+        if (!(right instanceof Contract)) {
+            if (typeof right === "function") {
+                right = toContract(right);
+            } else {
+                throw new Error(right + " is not a contract");
+            }
+        }
+
+        var contractName = left + " and " + right;
+        return new Contract(contractName, "and", function(blame) {
+            return function(val) {
+                var leftProj = left.proj(blame.addExpected(contractName, true));
+                var leftResult = leftProj(val);
+                var rightProj = right.proj(blame.addExpected(contractName, true));
+                return rightProj(leftResult);
+            };
+        })
+    }
+
 
     function or(left, right) {
         if (!(left instanceof Contract)) {
@@ -608,6 +647,13 @@
         });
     }
 
+
+    function cyclic(name) {
+        return new Contract(name, "cycle", function() {
+            throw new Error("Stub, should never be called");
+        });
+    }
+
     function guard(contract, value, name) {
         var proj = contract.proj(Blame.create(name,
                                               "function " + name,
@@ -632,13 +678,15 @@
         Void: check(function(val)      { return null == val; }, "Null"),
 
         check: check,
+        reMatch: reMatch,
         fun: fun,
         or: or,
-        self: new Contract("self", "self", function(b) { return function() {}; }),
+        and: and,
         repeat: repeat,
         optional: optional,
         object: object,
         array: array,
+        cyclic: cyclic,
         Blame: Blame,
         makeCoffer: makeCoffer,
         guard: guard

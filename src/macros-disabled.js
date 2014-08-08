@@ -145,8 +145,25 @@ macro predicate_contract {
     }
 }
 
+macro regex {
+    case {_ $tok } => {
+        var tok = #{$tok};
+        if (tok[0].token.type === parser.Token.RegularExpression) {
+            return tok;
+        }
+        throwSyntaxCaseError("Not a regular expression");
+    }
+}
 
-macro non_or_contract {
+macro regex_contract {
+    rule { $re:regex } => {
+        _c.reMatch($re)
+    }
+}
+
+
+macro non_bin_contract {
+    rule { $contract:regex_contract }     => { $contract }
     rule { $contract:predicate_contract } => { $contract }
     rule { $contract:function_contract }  => { $contract }
     rule { $contract:object_contract }    => { $contract }
@@ -157,14 +174,21 @@ macro non_or_contract {
 }
 
 macro or_contract {
-    rule { $left:non_or_contract or $right:any_contract } => {
+    rule { $left:non_bin_contract or $right:any_contract } => {
         _c.or($left, $right)
+    }
+}
+
+macro and_contract {
+    rule { $left:non_bin_contract and $right:any_contract } => {
+        _c.and($left, $right)
     }
 }
 
 macro any_contract {
     rule { $contract:or_contract }     => { $contract }
-    rule { $contract:non_or_contract } => { $contract }
+    rule { $contract:and_contract }     => { $contract }
+    rule { $contract:non_bin_contract } => { $contract }
 }
 
 
@@ -191,7 +215,8 @@ let @ = macro {
           let $contractName = $contract:any_contract
     } => {
         return #{
-            _c.$contractName = $contract;
+            _c.$contractName = _c.cyclic(stringify (($contractName)));
+            _c.$contractName = _c.$contractName.closeCycle($contract);
         }
     }
 

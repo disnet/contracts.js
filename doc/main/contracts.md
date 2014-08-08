@@ -100,6 +100,22 @@ first-order properties (things like `typeof` checks).
 | `Void`      | Either `null` or `undefined`           |
 
 
+### Regular Expressions
+
+You can test that a value matches a regular expression by using a
+regular expression literal:
+
+```js
+@ (/username:\s*[a-zA-Z]*$/) -> Bool
+function checkUsername(str) {
+    // ...
+    return true;
+}
+
+checkUsername("username: bob");  // passes
+checkUsername("user: bob");      // fails
+```
+
 ### Custom Predicate Contracts
 
 All of the basic contracts are built with predicates (functions that
@@ -328,6 +344,7 @@ tricky invariants.
 
 
 
+
 ## Array Contracts
 
 Contracts on arrays use the familiar array literal notation:
@@ -383,8 +400,8 @@ arr[0] = "string";          // error wrong type
 
 ### `or`
 
-You can combine two contracts with the `or` combinator. If the first
-contract fails, the combined contract will succeed if the second
+You can combine two or more contracts with the `or` combinator. If the
+first contract fails, the combined contract will succeed if the second
 passes.
 
 ```js
@@ -400,6 +417,20 @@ Note that `or` only makes sense for at most one higher-order contract.
 For example, `Num or (Num) -> Num` is fine but `(Num) -> Num or
 (Str) -> Str` will not work.
 
+### `and`
+
+You can combine two or more contracts with the `and` combinator.
+Both contracts must pass for the combined contract to succeed.
+
+```js
+@ (Num and (x) => x > 5) -> Num
+function foo(x) { return x; }
+
+foo(10);   // passes
+foo("10"); // fails
+foo(1);    // fails
+```
+
 
 ## Naming Contracts
 
@@ -414,6 +445,23 @@ this, you can use `let` after the `@` symbol:
 @ (NumId, Num) -> Num
 function (f, x) { return f(x); }
 ```
+
+## Recursive Contracts
+
+You can define contracts that have a recursive definition naturally:
+
+```js
+@ let MyObj = Null or {
+    a: Num,
+    b: MyObj
+}
+```
+
+This definition checks that the `b` property is either a `null` or an
+object that satisfies the `{a: Num, b: MyObj}` contract. Note that
+this will explore the entire object each time a value crosses the
+contract boundary so it could be potentially expensive if the object
+is deeply nested.
 
 ## Parametric Polymorphism
 

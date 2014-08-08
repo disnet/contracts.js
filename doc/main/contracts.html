@@ -118,7 +118,8 @@
 <li><a href="#using"><span class="toc-section-number">3</span> Using</a></li>
 <li><a href="#contracts"><span class="toc-section-number">4</span> Contracts</a><ul>
 <li><a href="#basic-contracts"><span class="toc-section-number">4.1</span> Basic Contracts</a><ul>
-<li><a href="#custom-predicate-contracts"><span class="toc-section-number">4.1.1</span> Custom Predicate Contracts</a></li>
+<li><a href="#regular-expressions"><span class="toc-section-number">4.1.1</span> Regular Expressions</a></li>
+<li><a href="#custom-predicate-contracts"><span class="toc-section-number">4.1.2</span> Custom Predicate Contracts</a></li>
 </ul></li>
 <li><a href="#function-contracts"><span class="toc-section-number">4.2</span> Function Contracts</a><ul>
 <li><a href="#optional-arguments"><span class="toc-section-number">4.2.1</span> Optional Arguments</a></li>
@@ -137,9 +138,11 @@
 </ul></li>
 <li><a href="#combinators"><span class="toc-section-number">4.5</span> Combinators</a><ul>
 <li><a href="#or"><span class="toc-section-number">4.5.1</span> <code>or</code></a></li>
+<li><a href="#and"><span class="toc-section-number">4.5.2</span> <code>and</code></a></li>
 </ul></li>
 <li><a href="#naming-contracts"><span class="toc-section-number">4.6</span> Naming Contracts</a></li>
-<li><a href="#parametric-polymorphism"><span class="toc-section-number">4.7</span> Parametric Polymorphism</a></li>
+<li><a href="#recursive-contracts"><span class="toc-section-number">4.7</span> Recursive Contracts</a></li>
+<li><a href="#parametric-polymorphism"><span class="toc-section-number">4.8</span> Parametric Polymorphism</a></li>
 </ul></li>
 <li><a href="#faq"><span class="toc-section-number">5</span> FAQ</a><ul>
 <li><a href="#do-i-have-to-use-macros"><span class="toc-section-number">5.1</span> Do I have to use macros?</a></li>
@@ -246,7 +249,17 @@ blaming: (calling context for id)
 </tr>
 </tbody>
 </table>
-<h3 id="custom-predicate-contracts"><span class="header-section-number">4.1.1</span> Custom Predicate Contracts</h3>
+<h3 id="regular-expressions"><span class="header-section-number">4.1.1</span> Regular Expressions</h3>
+<p>You can test that a value matches a regular expression by using a regular expression literal:</p>
+<pre class="js"><code>@ (/username:\s*[a-zA-Z]*$/) -&gt; Bool
+function checkUsername(str) {
+    // ...
+    return true;
+}
+
+checkUsername(&quot;username: bob&quot;);  // passes
+checkUsername(&quot;user: bob&quot;);      // fails</code></pre>
+<h3 id="custom-predicate-contracts"><span class="header-section-number">4.1.2</span> Custom Predicate Contracts</h3>
 <p>All of the basic contracts are built with predicates (functions that take a single value and return a boolean) and you can make your own:</p>
 <pre class="js"><code>function MyNum(val) {
     return typeof val === &quot;number&quot;;
@@ -409,7 +422,7 @@ var arr = foo(100, &quot;foo&quot;);
 arr[0] = &quot;string&quot;;          // error wrong type</code></pre>
 <h2 id="combinators"><span class="header-section-number">4.5</span> Combinators</h2>
 <h3 id="or"><span class="header-section-number">4.5.1</span> <code>or</code></h3>
-<p>You can combine two contracts with the <code>or</code> combinator. If the first contract fails, the combined contract will succeed if the second passes.</p>
+<p>You can combine two or more contracts with the <code>or</code> combinator. If the first contract fails, the combined contract will succeed if the second passes.</p>
 <pre class="js"><code>@ (Num or Str) -&gt; Str
 function foo(x) { return x.toString(); }
 
@@ -417,6 +430,14 @@ foo(24);    // passes
 foo(&quot;24&quot;);  // passes
 foo(false); // error not a Num or Str</code></pre>
 <p>Note that <code>or</code> only makes sense for at most one higher-order contract. For example, <code>Num or (Num) -&gt; Num</code> is fine but <code>(Num) -&gt; Num or (Str) -&gt; Str</code> will not work.</p>
+<h3 id="and"><span class="header-section-number">4.5.2</span> <code>and</code></h3>
+<p>You can combine two or more contracts with the <code>and</code> combinator. Both contracts must pass for the combined contract to succeed.</p>
+<pre class="js"><code>@ (Num and (x) =&gt; x &gt; 5) -&gt; Num
+function foo(x) { return x; }
+
+foo(10);   // passes
+foo(&quot;10&quot;); // fails
+foo(1);    // fails</code></pre>
 <h2 id="naming-contracts"><span class="header-section-number">4.6</span> Naming Contracts</h2>
 <p>When you have a complicated contract that is repeated in several places it can be convenient to refer to it by a shorter name. For this, you can use <code>let</code> after the <code>@</code> symbol:</p>
 <pre class="js"><code>@ let NumId = (Num) -&gt; Num
@@ -424,7 +445,14 @@ foo(false); // error not a Num or Str</code></pre>
 
 @ (NumId, Num) -&gt; Num
 function (f, x) { return f(x); }</code></pre>
-<h2 id="parametric-polymorphism"><span class="header-section-number">4.7</span> Parametric Polymorphism</h2>
+<h2 id="recursive-contracts"><span class="header-section-number">4.7</span> Recursive Contracts</h2>
+<p>You can define contracts that have a recursive definition naturally:</p>
+<pre class="js"><code>@ let MyObj = Null or {
+    a: Num,
+    b: MyObj
+}</code></pre>
+<p>This definition checks that the <code>b</code> property is either a <code>null</code> or an object that satisfies the <code>{a: Num, b: MyObj}</code> contract. Note that this will explore the entire object each time a value crosses the contract boundary so it could be potentially expensive if the object is deeply nested.</p>
+<h2 id="parametric-polymorphism"><span class="header-section-number">4.8</span> Parametric Polymorphism</h2>
 <p>Note: requires proxies (so use Firefox out of the box or Chrome/V8/node with the <code>--harmony</code> flag).</p>
 <p>Parametric polymorphic functions can be defined using <code>forall</code>:</p>
 <pre class="js"><code>@ forall &lt;name (,) ...&gt; &lt;contract&gt;</code></pre>

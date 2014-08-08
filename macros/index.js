@@ -12,18 +12,14 @@ let import = macro {
     var Blame = {
             create: function (name, pos, neg, lineNumber) {
                 var o = new BlameObj(name, pos, neg, lineNumber);
-                Object.freeze(o);
                 return o;
             },
             clone: function (old, props) {
-                var propsObj = {};
-                for (var prop in props) {
-                    if (props.hasOwnProperty(prop)) {
-                        propsObj[prop] = { value: props[prop] };
-                    }
-                }
-                var o = Object.create(old, propsObj);
-                Object.freeze(o);
+                var o = new BlameObj(typeof props.name !== 'undefined' ? props.name : old.name, typeof props.pos !== 'undefined' ? props.pos : old.pos, typeof props.neg !== 'undefined' ? props.neg : old.neg, typeof props.lineNuber !== 'undefined' ? props.lineNuber : old.lineNumber);
+                o.expected = typeof props.expected !== 'undefined' ? props.expected : old.expected;
+                o.given = typeof props.given !== 'undefined' ? props.given : old.given;
+                o.loc = typeof props.loc !== 'undefined' ? props.loc : old.loc;
+                o.parents = typeof props.parents !== 'undefined' ? props.parents : old.parents;
                 return o;
             }
         };
@@ -67,6 +63,10 @@ let import = macro {
         this.type = type;
         this.proj = proj.bind(this);
     }
+    Contract.prototype.closeCycle = function closeCycle(contract) {
+        this.cycleContract = contract;
+        return contract;
+    };
     Contract.prototype.toString = function toString() {
         return this.name;
     };
@@ -420,8 +420,6 @@ let import = macro {
                     }
                     contractKeys.forEach(function (key) {
                         if (!(objContract[key].type === 'optional' && obj[key] === undefined)) {
-                            // self contracts use the original object contract
-                            var c$2 = objContract[key];
                             var propProjOptions = function () {
                                     if (objContract[key].type === 'fun') {
                                         return { overrideThisContract: this };
@@ -429,7 +427,13 @@ let import = macro {
                                         return {};
                                     }
                                 }.bind(this)();
-                            // var c = objContract[key].type === "self" ? this : objContract[key];
+                            var c$2 = function () {
+                                    if (objContract[key].type === 'cycle') {
+                                        return objContract[key].cycleContract;
+                                    } else {
+                                        return objContract[key];
+                                    }
+                                }.bind(this)();
                             var propProj = c$2.proj(blame.addLocation('the ' + key + ' property of'), false, propProjOptions);
                             var checkedProperty = propProj(obj[key]);
                             obj[key] = checkedProperty;
@@ -439,7 +443,14 @@ let import = macro {
                         return new Proxy(obj, {
                             set: function (target, key, value) {
                                 if (objContract.hasOwnProperty(key)) {
-                                    var propProj = objContract[key].proj(blame.swap().addLocation('setting the ' + key + ' property of'));
+                                    var c$2 = function () {
+                                            if (objContract[key].type === 'cycle') {
+                                                return objContract[key].cycleContract;
+                                            } else {
+                                                return objContract[key];
+                                            }
+                                        }.bind(this)();
+                                    var propProj = c$2.proj(blame.swap().addLocation('setting the ' + key + ' property of'));
                                     var checkedProperty = propProj(value);
                                     target[key] = checkedProperty;
                                 } else {
@@ -454,8 +465,36 @@ let import = macro {
             });
         return c;
     }
-    function self() {
-        var name = 'self';
+    function reMatch(re) {
+        var contractName = re.toString();
+        return check(function (val) {
+            return re.test(val);
+        }, contractName);
+    }
+    function and(left, right) {
+        if (!(left instanceof Contract)) {
+            if (typeof left === 'function') {
+                left = toContract(left);
+            } else {
+                throw new Error(left + ' is not a contract');
+            }
+        }
+        if (!(right instanceof Contract)) {
+            if (typeof right === 'function') {
+                right = toContract(right);
+            } else {
+                throw new Error(right + ' is not a contract');
+            }
+        }
+        var contractName = left + ' and ' + right;
+        return new Contract(contractName, 'and', function (blame) {
+            return function (val) {
+                var leftProj = left.proj(blame.addExpected(contractName, true));
+                var leftResult = leftProj(val);
+                var rightProj = right.proj(blame.addExpected(contractName, true));
+                return rightProj(leftResult);
+            };
+        });
     }
     function or(left, right) {
         if (!(left instanceof Contract)) {
@@ -483,6 +522,11 @@ let import = macro {
                     return rightProj(val);
                 }
             };
+        });
+    }
+    function cyclic(name) {
+        return new Contract(name, 'cycle', function () {
+            throw new Error('Stub, should never be called');
         });
     }
     function guard(contract, value, name) {
@@ -530,16 +574,15 @@ let import = macro {
             return null == val;
         }, 'Null'),
         check: check,
+        reMatch: reMatch,
         fun: fun,
         or: or,
-        self: new Contract('self', 'self', function (b) {
-            return function () {
-            };
-        }),
+        and: and,
         repeat: repeat,
         optional: optional,
         object: object,
         array: array,
+        cyclic: cyclic,
         Blame: Blame,
         makeCoffer: makeCoffer,
         guard: guard
@@ -688,8 +731,25 @@ macro predicate_contract {
     }
 }
 
+macro regex {
+    case {_ $tok } => {
+        var tok = #{$tok};
+        if (tok[0].token.type === parser.Token.RegularExpression) {
+            return tok;
+        }
+        throwSyntaxCaseError("Not a regular expression");
+    }
+}
 
-macro non_or_contract {
+macro regex_contract {
+    rule { $re:regex } => {
+        _c.reMatch($re)
+    }
+}
+
+
+macro non_bin_contract {
+    rule { $contract:regex_contract }     => { $contract }
     rule { $contract:predicate_contract } => { $contract }
     rule { $contract:function_contract }  => { $contract }
     rule { $contract:object_contract }    => { $contract }
@@ -700,14 +760,21 @@ macro non_or_contract {
 }
 
 macro or_contract {
-    rule { $left:non_or_contract or $right:any_contract } => {
+    rule { $left:non_bin_contract or $right:any_contract } => {
         _c.or($left, $right)
+    }
+}
+
+macro and_contract {
+    rule { $left:non_bin_contract and $right:any_contract } => {
+        _c.and($left, $right)
     }
 }
 
 macro any_contract {
     rule { $contract:or_contract }     => { $contract }
-    rule { $contract:non_or_contract } => { $contract }
+    rule { $contract:and_contract }     => { $contract }
+    rule { $contract:non_bin_contract } => { $contract }
 }
 
 
@@ -734,7 +801,8 @@ let @ = macro {
           let $contractName = $contract:any_contract
     } => {
         return #{
-            _c.$contractName = $contract;
+            _c.$contractName = _c.cyclic(stringify (($contractName)));
+            _c.$contractName = _c.$contractName.closeCycle($contract);
         }
     }
 

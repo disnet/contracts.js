@@ -11,6 +11,7 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks('grunt-sweet.js');
     grunt.loadNpmTasks('grunt-mocha-test');
     grunt.loadNpmTasks('grunt-template');
+    grunt.loadNpmTasks('grunt-benchmark');
 
 
     // Project configuration.
@@ -32,6 +33,14 @@ module.exports = function(grunt) {
                 },
                 src: "test/test_contracts.js",
                 dest: "build/tests/test_contracts.js"
+            },
+            benchmark: {
+                options: {
+                    readableNames: true,
+                    modules: ["./macros/index.js"]
+                },
+                src: "benchmark/src/*.js",
+                dest: "benchmark/"
             }
         },
         template: {
@@ -90,6 +99,12 @@ module.exports = function(grunt) {
                 src: ['contracts.js', 'test/**/*.js']
             }
         },
+        benchmark: {
+            all: {
+                src: ["benchmark/*.js"],
+                dest: "benchmark/results.csv"
+            }
+        },
         pandoc: {
             options: {
                 pandocOptions: ["--to=html5",
@@ -140,6 +155,8 @@ module.exports = function(grunt) {
 
     // Default task.
     grunt.registerTask('default', ["sweetjs:contracts", "template", "copy", "sweetjs:tests", "mochaTest"]);
+
+    grunt.registerTask("bench", ["sweetjs:benchmark", "benchmark"]);
 
     grunt.registerTask("docs", ["pandoc"]);
 
