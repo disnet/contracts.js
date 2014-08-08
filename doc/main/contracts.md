@@ -100,6 +100,22 @@ first-order properties (things like `typeof` checks).
 | `Void`      | Either `null` or `undefined`           |
 
 
+### Regular Expressions
+
+You can test that a value matches a regular expression by using a
+regular expression literal:
+
+```js
+@ (/username:\s*[a-zA-Z]*$/) -> Bool
+function checkUsername(str) {
+    // ...
+    return true;
+}
+
+checkUsername("username: bob");  // passes
+checkUsername("user: bob");      // fails
+```
+
 ### Custom Predicate Contracts
 
 All of the basic contracts are built with predicates (functions that

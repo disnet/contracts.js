@@ -145,8 +145,25 @@ macro predicate_contract {
     }
 }
 
+macro regex {
+    case {_ $tok } => {
+        var tok = #{$tok};
+        if (tok[0].token.type === parser.Token.RegularExpression) {
+            return tok;
+        }
+        throwSyntaxCaseError("Not a regular expression");
+    }
+}
+
+macro regex_contract {
+    rule { $re:regex } => {
+        _c.reMatch($re)
+    }
+}
+
 
 macro non_bin_contract {
+    rule { $contract:regex_contract }     => { $contract }
     rule { $contract:predicate_contract } => { $contract }
     rule { $contract:function_contract }  => { $contract }
     rule { $contract:object_contract }    => { $contract }

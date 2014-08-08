@@ -583,8 +583,11 @@
         return c;
     }
 
-    function self() {
-        var name = "self";
+    function reMatch(re) {
+        var contractName = re.toString();
+        return check(function(val) {
+            return re.test(val);
+        }, contractName);
     }
 
     function and(left, right) {
@@ -613,6 +616,7 @@
             };
         })
     }
+
 
     function or(left, right) {
         if (!(left instanceof Contract)) {
@@ -674,10 +678,10 @@
         Void: check(function(val)      { return null == val; }, "Null"),
 
         check: check,
+        reMatch: reMatch,
         fun: fun,
         or: or,
         and: and,
-        self: new Contract("self", "self", function(b) { return function() {}; }),
         repeat: repeat,
         optional: optional,
         object: object,

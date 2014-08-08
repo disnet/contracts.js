@@ -904,4 +904,24 @@ function foo guarded at line: 881
 blaming: (calling context for foo)
 `
     })
+
+    it("should work for the regex contract", function() {
+        @ (/username:\s*[a-zA-Z]*$/) -> Bool
+        function checkUsername(str) {
+            return true;
+        }
+
+        checkUsername("username: bob");
+        blame of {
+            checkUsername("bad");
+        } should be `checkUsername: contract violation
+expected: /username:\s*[a-zA-Z]*$/
+given: 'bad'
+in: the 1st argument of
+    (/username:\s*[a-zA-Z]*$/) -> Bool
+function checkUsername guarded at line: 910
+blaming: (calling context for checkUsername)
+`
+
+    })
 });

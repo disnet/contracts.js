@@ -465,8 +465,11 @@ let import = macro {
             });
         return c;
     }
-    function self() {
-        var name = 'self';
+    function reMatch(re) {
+        var contractName = re.toString();
+        return check(function (val) {
+            return re.test(val);
+        }, contractName);
     }
     function and(left, right) {
         if (!(left instanceof Contract)) {
@@ -571,13 +574,10 @@ let import = macro {
             return null == val;
         }, 'Null'),
         check: check,
+        reMatch: reMatch,
         fun: fun,
         or: or,
         and: and,
-        self: new Contract('self', 'self', function (b) {
-            return function () {
-            };
-        }),
         repeat: repeat,
         optional: optional,
         object: object,
@@ -731,8 +731,25 @@ macro predicate_contract {
     }
 }
 
+macro regex {
+    case {_ $tok } => {
+        var tok = #{$tok};
+        if (tok[0].token.type === parser.Token.RegularExpression) {
+            return tok;
+        }
+        throwSyntaxCaseError("Not a regular expression");
+    }
+}
+
+macro regex_contract {
+    rule { $re:regex } => {
+        _c.reMatch($re)
+    }
+}
+
 
 macro non_bin_contract {
+    rule { $contract:regex_contract }     => { $contract }
     rule { $contract:predicate_contract } => { $contract }
     rule { $contract:function_contract }  => { $contract }
     rule { $contract:object_contract }    => { $contract }
