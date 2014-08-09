@@ -243,7 +243,7 @@ blaming: (calling context for isVegetarian)
 
 Note that here blame correctly falls on the caller to `isVegetarian` for supplying a bad `isVeg` function. This may seem like a small thing but the ability to correctly ascribe blame is incredibly important as higher-order functions start to flow through your application. Without blame tracking the code at fault might not show up in either the error message or the stack trace causing you to start looking in the wrong place for the bug. With good blame tracking you always know where to look making it easier to find the bug and get back to your catnap.
 
-# Catup
+# Onward
 
 There's a lot more contracts you can apply to your cats (and other animals). Check out the [reference documentationn](http://disnetdev.com/contracts.js/doc/main/contracts.html) to see what else can be done.
 
