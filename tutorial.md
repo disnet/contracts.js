@@ -246,4 +246,7 @@ Note that here blame correctly falls on the caller to `isVegetarian` for supplyi
 
 # Onward
 
-There's a lot more contracts you can apply to your cats (and other animals). Check out the [reference documentation](http://disnetdev.com/contracts.js/doc/main/contracts.html) to see what else can be done.
+There's a lot more contracts you can apply to your cats (and other
+animals). Check out the
+{{#link-to 'reference'}}Reference Documentation{{/link-to}}
+to see what else can be done.
