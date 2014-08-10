@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contracts.js</title>
+
+
+  <link type="text/css" rel="stylesheet" href="http://fonts.googleapis.com/css?family=Gentium+Book+Basic"></link>
+  <link rel="stylesheet" href="css/normalize.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/bootstrap.min.css" >
+  <link rel="stylesheet" href="css/codemirror.css" >
+  <link rel="stylesheet" href="css/prism.css" >
+  <style>
+    body {
+      margin: 20px;
+    }
+    .CodeMirror {
+      border: 1px solid #DDD;
+      height: 450px;
+    }
+   .docs-sidebar ul {
+     padding-left: 20px;
+   }
+   .docs-tabs {
+     font-size: 16px;
+   }
+    .bg-danger {
+      padding: 12px;
+    }
+   p {
+     font-size: 18px;
+   }
+   code,pre {
+     font-size: 14px;
+   }
+   .container {
+     font-family: "Gentium Book Basic",sans-serif;
+   }
+    .bg-success {
+      padding: 12px;
+    }
+    .row {
+      margin-bottom: 10px;
+    }
+    .code-label {
+      color: #BBB;
+    }
+    .success-label {
+      color: #5cb85c;
+    }
+    .editor-box hr {
+      margin-top: 15px;
+      margin-bottom: 15px;
+    }
+  </style>
+</head>
+<body>
+
+  <script type="text/x-handlebars">
+    <div class="navbar navbar-default" role="navigation">
+      <div class="container-fluid">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">Contracts.js</a>
+        </div>
+        <div class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            <li>{{#link-to 'tutorial'}}Tutorial{{/link-to}}</li>
+            <li>{{#link-to 'reference'}}Reference Documentation{{/link-to}}</li>
+            <li>{{#link-to 'examples'}}Examples{{/link-to}}</li>
+            <li><a href="https://github.com/disnet/contracts.js">Github Repo</a></li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </div>
+
+    {{outlet}}
+  </script>
+
+  <script type="text/x-handlebars" id="index">
+
+    <div class="jumbotron" style="background-color: white">
+      <div class="container language-javascript">
+        <div class="row">
+          <div class="col-md-6">
+            <h1>contracts.js</h1>
+            <p>
+              Contracts.js is a higher-order behavioral contract
+              system for JavaScript. It uses <a
+              href="http://sweetjs.org">sweet.js</a> to let you write
+              contracts that describe exactly how your program should
+              work and then checks those contracts at runtime. If
+              anything goes wrong, it pinpoints exactly what section of
+              the code was to blame with great descriptive error messages.
+            </p>
+            <p>{{#link-to 'tutorial' class="btn btn-primary btn-lg" role="button"}}Tutorial &raquo;{{/link-to}}</p>
+          </div>
+          <div class="col-md-6">
+
+ <ul class="nav nav-tabs docs-tabs" role="tablist">
+  <li id="code-li" class="active"><a href="#" {{action 'switchCode' 'code'}}>Broken Code</a></li>
+  <li id="error-li"><a href="#" {{action 'switchCode' 'error'}}>Error</a></li>
+ </ul>
+        <pre id="code" style="margin-top: 0"><code>import @ from "contracts.js"
+
+
+@ ({eat: (Str) -> Bool}) -> Bool
+function feedKittay(kittay) {
+    return kittay.eat("cheezburger");
+}
+
+feedKittay({
+  name: "Spot",
+  eet: function(foodz) { // typo on the eat property name!
+      console.log(foodz + " iz tasty!");
+      return true;
+}});
+</code></pre>
+
+        <pre id="error" style="color:red; display: none">Error: feedKittay: contract violation
+expected: a function that takes 1 argument
+given: undefined
+in: the eat property of
+    the 1st argument of
+    ({eat: (Str) -> Bool}) -> Bool
+function feedKittay guarded at line: 4
+blaming: (calling context for feedKittay)</pre>
+          </div>
+        </div>
+
+
+
+      </div>
+    </div>
+<div class="container language-javascript">
+      <!-- Example row of columns -->
+      <div class="row">
+        <div class="col-md-4">
+          <h2>Better Errors</h2>
+          <p>
+            Based on the behavioral contracts research pioneered in <a
+            href="http://racket-lang.org/">Racket</a>, contracts.js is able to
+            track not just what went wrong but also exactly where in your program
+            the bug started.
+          </p>
+        </div>
+        <div class="col-md-4">
+          <h2>Better Documented Code</h2>
+          <p>
+            Like types, contracts are a kind of checked comment
+            that helps you reason about your program. Unlike
+            comments, you never have to wonder if they are
+            up to date since contracts are checked every time the code
+            is run.
+          </p>
+       </div>
+        <div class="col-md-4">
+          <h2>Fewer Bugs</h2>
+          <p>
+            By helping you think about your code through checked documentation and providing
+            you with good errors that pinpoint what went wrong,
+            contracts help you write better code with fewer bugs.
+          </p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-12">
+          <h1>Quck Start</h1>
+
+          <p>Install contracts.js from npm:</p>
+
+          <pre><code>npm install -g sweet.js
+npm install contracts-js</code></pre>
+
+          <p>Write your code with the contract import:</p>
+
+          <pre><code>import @ from "contracts.js"
+
+// rest of your code goes here...</code></pre>
+
+          <p>And compile with sweet.js</p>
+
+          <pre><code>sjs --module contracts-js/macros -o output.js input.js</code></pre>
+        </div>
+      </div>
+      <hr>
+      <footer>
+      </footer>
+    </div> <!-- /container -->
+
+
+  </script>
+
+  <script type="text/x-handlebars" id="tutorial">
+    <div class="container language-javascript">
+      <div class="row">
+        <div class="col-md-8">
+<%= tutorial %>
+        </div>
+      </div>
+    </div>
+  </script>
+
+  <script type="text/x-handlebars" id="reference">
+    <div class="container language-javascript">
+      <div class="row">
+        <div class="col-md-8">
+<%= reference %>
+        </div>
+      </div>
+    </div>
+  </script>
+
+  <script type="text/x-handlebars" id="examples">
+    <div class="container-fluid">
+
+      <div class="row">
+        <div class="col-sm-6 editor-box">
+          <h4 class="code-label">Code</h4>
+          <hr />
+          <textarea id="editor">/*
+ * This is the Contracts.js editor.
+ * You can try out writing your own contracts here.
+ * Calls to `console.log` will be displayed in the page below
+ * along with any contract violations.
+ */
+import @ from "contracts.js"
+
+@ ({name: Str}, [...{loc: Num}]) -> Str
+function calcAverageLoc(person, locArr) {
+    var sum = locArr.reduce(function (l1, l2) {
+        return l1.loc + l2.loc;
+    });
+    return "Average lines of code for " +
+           person.name + " was " +
+           sum / locArr.length;
+}
+
+var typoPerson = {nam: "Bob"};
+calcAverageLoc(typoPerson, [{loc: 1000}, {loc: 789}, {loc: 9001}]);</textarea>
+        </div>
+      </div>
+
+      <div class="row">
+
+        <div class="col-md-12">
+          <button type="button" id="btn-run" class="btn btn-default" {{action 'run'}}>Run</button>
+
+          <div class="btn-group" id="btn-examples">
+            <button type="button" id="btn-examples" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+              {{currentTitle}} <span class="caret"></span>
+            </button>
+            <ul  class="dropdown-menu" role="menu">
+              {{#each model}}
+              <li>
+                <a {{action 'select' this}}>{{title}}</a>
+              </li>
+              {{/each}}
+            </ul>
+          </div>
+
+
+        </div>
+      </div>
+
+
+      <div class="row">
+        <div class="col-md-12">
+          {{#if errors}}
+          <div id="error-box" class="bg-danger">
+            <pre>{{errors}}</pre>
+          </div>
+          {{/if}}
+
+          {{#if run}}
+          <div id="run-box" class="bg-success">
+            <h4 class="success-label">Success</h4>
+            {{#each logs}}
+            <p>Log: {{ l }}</p>
+            {{/each}}
+          </div>
+          {{/if}}
+
+        </div>
+      </div>
+    </div>
+
+    </div><!-- /.container -->
+  </script>
+
+
+  <script src="js/libs/jquery-1.10.2.js"></script>
+  <script src="js/libs/prism.js"></script>
+  <script src="js/libs/handlebars-1.1.2.js"></script>
+  <script src="js/libs/ember-1.5.1.js"></script>
+  <script src="js/libs/ember-data.js"></script>
+  <script src="js/libs/bootstrap.min.js"></script>
+  <script src="js/libs/codemirror.js"></script>
+  <script src="js/libs/mode/javascript/javascript.js"></script>
+  <script src="js/libs/reflect.js"></script>
+  <script src="js/libs/sweet.js"></script>
+  <script src="lib/vvalues.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

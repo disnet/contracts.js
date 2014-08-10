@@ -58,9 +58,50 @@ App = Ember.Application.create({});
 
 App.Router.map(function() {
     this.route("about");
-    this.resource("examples", { path: "/"}, function() {
+    this.route("tutorial");
+    this.route("reference");
+    this.resource("examples", function() {
         this.resource("example", {path: ":example_id"});
     });
+});
+
+App.IndexView = Ember.View.extend({
+    didInsertElement: function() {
+        Prism.highlightAll();
+    }
+});
+
+App.TutorialView = Ember.View.extend({
+    didInsertElement: function() {
+        Prism.highlightAll();
+    }
+});
+
+App.ReferenceView = Ember.View.extend({
+    didInsertElement: function() {
+        Prism.highlightAll();
+    }
+});
+
+App.IndexController = Ember.ObjectController.extend({
+
+    actions: {
+        switchCode: function(btn) {
+            var selToShow, selToHide;
+            if (btn === "code") {
+                selToShow = "#code";
+                selToHide = "#error";
+            } else {
+                selToShow = "#error";
+                selToHide = "#code";
+            }
+
+            Ember.$(selToShow + "-li").addClass('active');
+            Ember.$(selToHide + "-li").removeClass('active');
+            Ember.$(selToShow).show();
+            Ember.$(selToHide).hide();
+        }
+    }
 });
 
 
