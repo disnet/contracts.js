@@ -65,7 +65,19 @@ module.exports = function(grunt) {
                 },
                 src: "src/macros-disabled.js",
                 dest: "build/macros/disabled.js"
-            }
+            },
+            webpage: {
+                options: {
+                    data: function() {
+                        return {
+                            tutorial: grunt.file.read("build/tutorial.html"),
+                            reference: grunt.file.read("build/contracts.html")
+                        };
+                    }
+                },
+                src: "webpage/index.html",
+                dest: "./index.html"
+            },
         },
         copy: {
             macros: {
@@ -106,19 +118,30 @@ module.exports = function(grunt) {
             }
         },
         pandoc: {
-            options: {
-                pandocOptions: ["--to=html5",
-                                "--standalone",
-                                "--toc",
-                                "--number-sections",
-                                "--include-in-header=doc/main/style/main.css"]
+            reference: {
+                options: {
+                    pandocOptions: ["--to=html5", "--template=webpage/bootstrap-template.html", "--toc", "--number-section"]
+                },
+                src: "doc/main/contracts.md",
+                dest: "build/contracts.html"
             },
-            files: {
-                expand: true,
-                flatten: true,
-                src: "doc/main/*.md",
-                dest: "doc/main/",
-                ext: ".html"
+            standaloneReference: {
+                options: {
+                    pandocOptions: ["--to=html5",
+                                    "--standalone",
+                                    "--toc",
+                                    "--number-sections",
+                                    "--include-in-header=doc/main/style/main.css"]
+                },
+                src: "doc/main/contracts.md",
+                dest: "doc/main/contracts.html"
+            },
+            tutorial: {
+                options: {
+                    pandocOptions: ["--to=html5"]
+                },
+                src: "tutorial.md",
+                dest: "build/tutorial.html"
             }
         },
         mochaTest: {
@@ -144,7 +167,6 @@ module.exports = function(grunt) {
         var options = this.options({});
         var pandocOpts = options.pandocOptions.join(" ");
         this.files.forEach(function(f) {
-
             f.src.forEach(function(file) {
                 var args = ["-o " + f.dest].concat(pandocOpts.slice())
                                           .concat(file);
@@ -153,11 +175,12 @@ module.exports = function(grunt) {
         });
     });
 
+
     // Default task.
-    grunt.registerTask('default', ["sweetjs:contracts", "template", "copy", "sweetjs:tests", "mochaTest"]);
+    grunt.registerTask('default', ["sweetjs:contracts", "template:macros", "template:diabledMacros", "copy", "sweetjs:tests", "mochaTest"]);
 
     grunt.registerTask("bench", ["sweetjs:benchmark", "benchmark"]);
 
-    grunt.registerTask("docs", ["pandoc"]);
+    grunt.registerTask("docs", ["pandoc", "template:webpage"]);
 
 };

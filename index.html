@@ -5,10 +5,14 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Contracts.js</title>
+
+
+  <link type="text/css" rel="stylesheet" href="http://fonts.googleapis.com/css?family=Gentium+Book+Basic"></link>
   <link rel="stylesheet" href="css/normalize.css">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/bootstrap.min.css" >
   <link rel="stylesheet" href="css/codemirror.css" >
+  <link rel="stylesheet" href="css/prism.css" >
   <style>
     body {
       margin: 20px;
@@ -17,9 +21,24 @@
       border: 1px solid #DDD;
       height: 450px;
     }
+   .docs-sidebar ul {
+     padding-left: 20px;
+   }
+   .docs-tabs {
+     font-size: 16px;
+   }
     .bg-danger {
       padding: 12px;
     }
+   p {
+     font-size: 18px;
+   }
+   code,pre {
+     font-size: 14px;
+   }
+   .container {
+     font-family: "Gentium Book Basic",sans-serif;
+   }
     .bg-success {
       padding: 12px;
     }
@@ -54,14 +73,747 @@
         </div>
         <div class="collapse navbar-collapse">
           <ul class="nav navbar-nav">
+            <li>{{#link-to 'tutorial'}}Tutorial{{/link-to}}</li>
+            <li>{{#link-to 'reference'}}Reference Documentation{{/link-to}}</li>
+            <li>{{#link-to 'examples'}}Examples{{/link-to}}</li>
             <li><a href="https://github.com/disnet/contracts.js">Github Repo</a></li>
-            <li><a href="http://disnetdev.com/contracts.js/doc/main/contracts.html">Documentation</a></li>
           </ul>
         </div><!--/.nav-collapse -->
       </div>
     </div>
 
     {{outlet}}
+  </script>
+
+  <script type="text/x-handlebars" id="index">
+
+    <div class="jumbotron" style="background-color: white">
+      <div class="container language-javascript">
+        <div class="row">
+          <div class="col-md-6">
+            <h1>contracts.js</h1>
+            <p>
+              Contracts.js is a higher-order behavioral contract
+              system for JavaScript. It uses <a
+              href="http://sweetjs.org">sweet.js</a> to let you write
+              contracts that describe exactly how your program should
+              work and then checks those contracts at runtime. If
+              anything goes wrong, it pinpoints exactly what section of
+              the code was to blame with great descriptive error messages.
+            </p>
+            <p>{{#link-to 'tutorial' class="btn btn-primary btn-lg" role="button"}}Tutorial &raquo;{{/link-to}}</p>
+          </div>
+          <div class="col-md-6">
+
+ <ul class="nav nav-tabs docs-tabs" role="tablist">
+  <li id="code-li" class="active"><a href="#" {{action 'switchCode' 'code'}}>Broken Code</a></li>
+  <li id="error-li"><a href="#" {{action 'switchCode' 'error'}}>Error</a></li>
+ </ul>
+        <pre id="code" style="margin-top: 0"><code>import @ from "contracts.js"
+
+
+@ ({eat: (Str) -> Bool}) -> Bool
+function feedKittay(kittay) {
+    return kittay.eat("cheezburger");
+}
+
+feedKittay({
+  name: "Spot",
+  eet: function(foodz) { // typo on the eat property name!
+      console.log(foodz + " iz tasty!");
+      return true;
+}});
+</code></pre>
+
+        <pre id="error" style="color:red; display: none">Error: feedKittay: contract violation
+expected: a function that takes 1 argument
+given: undefined
+in: the eat property of
+    the 1st argument of
+    ({eat: (Str) -> Bool}) -> Bool
+function feedKittay guarded at line: 4
+blaming: (calling context for feedKittay)</pre>
+          </div>
+        </div>
+
+
+
+      </div>
+    </div>
+<div class="container language-javascript">
+      <!-- Example row of columns -->
+      <div class="row">
+        <div class="col-md-4">
+          <h2>Better Errors</h2>
+          <p>
+            Based on the behavioral contracts research pioneered in <a
+            href="http://racket-lang.org/">Racket</a>, contracts.js is able to
+            track not just what went wrong but also exactly where in your program
+            the bug started.
+          </p>
+        </div>
+        <div class="col-md-4">
+          <h2>Better Documented Code</h2>
+          <p>
+            Like types, contracts are a kind of checked comment
+            that helps you reason about your program. Unlike
+            comments, you never have to wonder if they are
+            up to date since contracts are checked every time the code
+            is run.
+          </p>
+       </div>
+        <div class="col-md-4">
+          <h2>Fewer Bugs</h2>
+          <p>
+            By helping you think about your code through checked documentation and providing
+            you with good errors that pinpoint what went wrong,
+            contracts help you write better code with fewer bugs.
+          </p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-12">
+          <h1>Quck Start</h1>
+
+          <p>Install contracts.js from npm:</p>
+
+          <pre><code>npm install -g sweet.js
+npm install contracts-js</code></pre>
+
+          <p>Write your code with the contract import:</p>
+
+          <pre><code>import @ from "contracts.js"
+
+// rest of your code goes here...</code></pre>
+
+          <p>And compile with sweet.js</p>
+
+          <pre><code>sjs --module contracts-js/macros -o output.js input.js</code></pre>
+        </div>
+      </div>
+      <hr>
+      <footer>
+      </footer>
+    </div> <!-- /container -->
+
+
+  </script>
+
+  <script type="text/x-handlebars" id="tutorial">
+    <div class="container language-javascript">
+      <div class="row">
+        <div class="col-md-8">
+<h1 id="programmer-guard-thyself">Programmer Guard Thyself!</h1>
+<p>Bugs happen. They are one of the constants of programming along with ever-shifting requirements and hairy <a href="http://mozillamemes.tumblr.com/post/20411658584/listen-to-the-yak">yaks</a> in need of shaving.</p>
+<p>In JavaScript tracking down the cause of a bug can be particularly frustrating. Have you ever seen this error before?</p>
+<pre class="sourceCode bash"><code class="sourceCode bash"><span class="kw">TypeError</span>: Cannot read property <span class="st">&#39;foo&#39;</span> of undefined</code></pre>
+<p>While the error is descriptive enough for the proximate cause of the failure (you just tried to use an <code>undefined</code> value), it tells you very little about the ultimate cause (i.e. which piece of the code produced the <code>undefined</code> value in the first place). The actual party at fault might be in some function or file not even in the stack trace. You have to recreate the control flow in your head or jump into the debugger just to figure out who to blame.</p>
+<p>Wouldn't it be nice if JavaScript could stop and spit out a descriptive error message right where the bug happens?</p>
+<p>Contracts are a way to do just that.</p>
+<p>Contracts are a runtime invariant enforcement mechanism. They're like powerful assertions sprinkled throughout your code that stops bugs right at the source.</p>
+<h1 id="cats-and-their-discontents">Cats and Their Discontents</h1>
+<p>To understand what contracts can do for you let's start out with some cats (this is the internet after all).</p>
+<pre class="js"><code>var spot = {
+    name: &quot;Spot&quot;,
+    age: 3,
+    haz: &quot;cheezburger&quot;
+};</code></pre>
+<p>We have here a simple object that stores some basic information about our cat. While data is great and all we also need to do something with it so how about a function that checks the food habits of our friendly feline?</p>
+<pre class="js"><code>function isVegetarian(o) {
+    // apparently, only cheezburgers count as meat
+    return o.haz !== &quot;cheezburger&quot;;
+}
+isVegetarian(spot);  // true</code></pre>
+<p>This is great and all but what happens if we have a bad kitty?</p>
+<pre class="js"><code>isVegetarian({
+    name: &quot;Tiger&quot;,
+    age: 2
+});</code></pre>
+<p>Running this will give us <code>true</code> (since <code>undefined !== &quot;cheezburger&quot;</code>) but that's not really right since we have no idea what Tiger haz! This is even worse than a confusing error message since we get a result that is subtly wrong.</p>
+<h1 id="enter-contracts.js">Enter contracts.js</h1>
+<p>Contracts allow us to fix this problem by stating and enforcing what kinds of data our functions work on. In this case the <code>isVegetarian</code> function must be called with an object with a <code>haz</code> string property and it returns a boolean. So we can apply that contract like so:</p>
+<pre class="js"><code>@ ({haz: Str}) -&gt; Bool
+function isVegetarian(o) {
+    return o.haz !== &quot;cheezburger&quot;;
+}</code></pre>
+<p>The syntax for putting a contract on a function is:</p>
+<pre class="js"><code>@ (...) -&gt; ...
+function name(...) {
+    ...
+}</code></pre>
+<p>Contracts for each argument to the function go in the parentheses to the left of the <code>-&gt;</code> and the contract for the return value of the function goes on the right.</p>
+<p>So in our <code>isVegetarian</code> example the argument contract is <code>{haz: Str}</code> (meaning an object with a <code>haz</code> string property) and the return value contract is <code>Bool</code> for boolean values.</p>
+<p>Note that the object contract is only checking for the <code>haz</code> property not every property that a cat object might have. We're doing a kind of &quot;duck&quot; contracting here (i.e. structural typing) because the <code>isVegetarian</code> function only needs the <code>haz</code> property to function properly. Other hazable objects will work too.</p>
+<p>Now if we call <code>isVegetarian</code> with a bad argument:</p>
+<pre class="js"><code>isVegetarian({
+    name: &quot;Tiger&quot;,
+    age: 2
+});</code></pre>
+<p>we get a very descriptive error message:</p>
+<pre style="color:red">
+Error: isVegetarian: contract violation
+expected: Str
+given: undefined
+in: the haz property of
+    the 1st argument of
+    ({haz: Str}) -> Bool
+function isVegetarian guarded at line: 2
+blaming: (calling context for isVegetarian)
+</pre>
+
+<p>The contract is able to let us know exactly what it expected, what is got, and where it all went wrong. It's even blaming the correct part of the code (the caller to <code>isVegetarian</code> was at fault for supplying a bad cat object). Correct blame is actually a surprisingly deep topic that we'll return to in a bit.</p>
+<h1 id="more-haz">More Haz</h1>
+<p>Ok, so let's make this running example a little more interesting. At the moment our cats only have a single <code>haz</code> which is a little silly. Surely cats can <code>haz</code> a few more things?</p>
+<pre class="js"><code>var spot = {
+    name: &quot;Spot&quot;,
+    age: 3,
+    haz: [&quot;cheezburger&quot;, &quot;dataz&quot;, &quot;iphonez&quot;, &quot;fwend&quot;]
+};</code></pre>
+<p>So our <code>haz</code> property is now an array of strings. The revised contract is then:</p>
+<pre class="js"><code>@ ({haz: [...Str]}) -&gt; Bool
+function isVegetarian(o) {
+    var ret = true;
+    for (var i = 0; i &lt; o.haz.length; i++) {
+        if (o.haz[i] !== &quot;cheezburger&quot;) {
+            ret = false;
+        }
+    }
+    return ret;
+}</code></pre>
+<p>The contract <code>[...Str]</code> means that the value must be an array of strings. If you wanted to put a different contract for each index of the array you can do that by not using the ellipses (e.g. <code>[Str, Num, Bool]</code> is the contract for an array like <code>[&quot;foo&quot;, 42, true]</code>).</p>
+<p>Now if we call <code>isVegetarian</code> with a bad kitty:</p>
+<pre class="js"><code>isVegetarian({
+    name: &quot;Tiger&quot;,
+    age: 2,
+    haz: [&quot;cheezburger&quot;, false]
+});</code></pre>
+<p>the error message reads:</p>
+<pre style="color:red">
+Error: isVegetarian: contract violation
+expected: Str
+given: false
+in: the 1st field of
+    the haz property of
+    the 1st argument of
+    ({haz: [....Str]}) -> Bool
+function isVegetarian guarded at line: 2
+blaming: (calling context for isVegetarian)
+</pre>
+
+<p>letting us know exactly where in the array the bad field was.</p>
+<h1 id="higher-order-cats">Higher-Order Cats</h1>
+<p>So obviously cat vegetarianism is a little hard to define. Is &quot;cheezburger&quot; really the only meat? We need to allow the caller to decide what a veggie actually is by passing in a predicate function:</p>
+<pre class="js"><code>@ ({haz: [...Str]}, (Str) -&gt; Bool) -&gt; Bool
+function isVegetarian(o, isVeg) {
+    var ret = true;
+    for (var i = 0; i &lt; o.haz.length; i++) {
+        if (!isVeg(o.haz)) { // should be o.haz[i]!
+            ret = false;
+        }
+    }
+    return ret;
+}</code></pre>
+<p>Now our contract has an argument contract <code>(Str) -&gt; Bool</code> for <code>isVeg</code>. This means that the caller to <code>isVegetarian</code> must supply a function that when called with a string will return a boolean.</p>
+<p>But oops we goofed in the rewrite and are trying to call <code>isVeg</code> with the entire <code>haz</code> array instead the actual element. Contracts.js has our back though. When we try it out:</p>
+<pre class="js"><code>isVegetarian({
+    name: &quot;Tiger&quot;,
+    age: 2,
+    haz: [&quot;cheezburger&quot;, &quot;dataz&quot;]
+}, function(val) {
+    return val !== &quot;cheezburger&quot;;
+});</code></pre>
+<p>We get the error:</p>
+<pre style="color:red">
+Error: isVegetarian: contract violation
+expected: Str
+given: cheezburger,dataz
+in: the 1st argument of
+    the 2nd argument of
+    ({haz: [....Str]}, (Str) -> Bool) -> Bool
+function isVegetarian guarded at line: 2
+blaming: function isVegetarian
+</pre>
+
+<p>Notice that the error blames the function <code>isVegetarian</code> instead of the caller. <code>isVegetarian</code> is the one that messed up by calling <code>isVeg</code> with the wrong thing so it is the one getting blamed.</p>
+<p>Ok, let's fix up <code>isVegetarian</code>:</p>
+<pre class="js"><code>@ ({haz: [...Str]}, (Str) -&gt; Bool) -&gt; Bool
+function isVegetarian(o, isVeg) {
+    var ret = true;
+    for (var i = 0; i &lt; o.haz.length; i++) {
+        if (!isVeg(o.haz[i])) {
+            ret = false;
+        }
+    }
+    return ret;
+}</code></pre>
+<p>But now the caller messes up:</p>
+<pre class="js"><code>isVegetarian({
+    name: &quot;Tiger&quot;,
+    age: 2,
+    haz: [&quot;cheezburger&quot;, &quot;dataz&quot;]
+}, function(val) {
+    val !== &quot;cheezburger&quot;;
+    // forgot the return keyword!
+});</code></pre>
+<p>And we get a nice error message:</p>
+<pre style="color:red">
+Error: isVegetarian: contract violation
+expected: Bool
+given: undefined
+in: the return of
+    the 2nd argument of
+    ({haz: [....Str]}, (Str) -> Bool) -> Bool
+function isVegetarian guarded at line: 2
+blaming: (calling context for isVegetarian)
+</pre>
+
+<p>Note that here blame correctly falls on the caller to <code>isVegetarian</code> for supplying a bad <code>isVeg</code> function. This may seem like a small thing but the ability to correctly ascribe blame is incredibly important as higher-order functions start to flow through your application. Without blame tracking the code at fault might not show up in either the error message or the stack trace causing you to start looking in the wrong place for the bug. With good blame tracking you always know where to look making it easier to find the bug and get back to your catnap.</p>
+<h1 id="onward">Onward</h1>
+<p>There's a lot more contracts you can apply to your cats (and other animals). Check out the <a href="http://disnetdev.com/contracts.js/doc/main/contracts.html">reference documentation</a> to see what else can be done.</p>
+
+        </div>
+      </div>
+    </div>
+  </script>
+
+  <script type="text/x-handlebars" id="reference">
+    <div class="container language-javascript">
+      <div class="row">
+        <div class="col-md-8">
+<div class="container">
+  <div class="row">
+    <div class="col-sm-8">
+<h1 id="introduction"><span class="header-section-number">1</span> Introduction</h1>
+<p>Contracts.js is a contract library for JavaScript that allows you to specify invariants between parts of your code and have them checked at runtime for violations.</p>
+<h1 id="installation"><span class="header-section-number">2</span> Installation</h1>
+<p>Requires <a href="http://sweetjs.org">sweet.js</a> which you can install via npm:</p>
+<pre><code>npm install -g sweet.js
+npm install contracts-js</code></pre>
+<h1 id="using"><span class="header-section-number">3</span> Using</h1>
+<p>At the top of your file you will need to use some special syntax to import contracts.js:</p>
+<pre class="js"><code>import @ from &quot;contracts.js&quot;
+
+// rest of your code goes here...</code></pre>
+<p>This looks like ES6 modules but it's not really and will work with whatever module system you are using (if any). See <a href="#what-is-up-with-the-import">here</a> for details.</p>
+<p>Compile your JavaScript file with sweet.js using the contracts.js module:</p>
+<pre><code>sjs --module contracts-js/macros -o output.js input.js</code></pre>
+<p>Then run your <code>output.js</code> file in any JavaScript environment. Some features of contracts.js (eg. proxied objects and arrays) require ES6 features which not every JavaScript engine supports right now (any recent version of Firefox is fine along with node.js/V8 with the <code>--harmony</code> flag enabled).</p>
+<p>If you want to disable contract checking (eg. for a production build) you can use the disabled contracts module:</p>
+<pre><code>sjs --module contracts-js/macros/disabled.js -o output.js input.js</code></pre>
+<h1 id="contracts"><span class="header-section-number">4</span> Contracts</h1>
+<p>Put a contract on a function like this:</p>
+<pre class="js"><code>@ (Num) -&gt; Num
+function id(x) {
+    return x;
+}</code></pre>
+<p>Then when the function's contract is violated you'll get a really nice error message:</p>
+<pre class="js"><code>id(&quot;a string&quot;);
+/*
+Error: id: contract violation
+expected: Num
+given: &#39;a string&#39;
+in: the 1st argument of
+    (Num) -&gt; Num
+blaming: (calling context for id)
+*/</code></pre>
+<h2 id="basic-contracts"><span class="header-section-number">4.1</span> Basic Contracts</h2>
+<p>Contracts.js comes with a number of basic contracts that check for first-order properties (things like <code>typeof</code> checks).</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Contract</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>Num</code></td>
+<td style="text-align: left;">A value that is <code>typeof</code> number</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>Str</code></td>
+<td style="text-align: left;">A value that is <code>typeof</code> string</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>Bool</code></td>
+<td style="text-align: left;">A value that is <code>typeof</code> boolean</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>Odd</code></td>
+<td style="text-align: left;">A value that is odd (<code>val % 2 === 1</code>)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>Even</code></td>
+<td style="text-align: left;">A value that is even (<code>val % 1 === 0</code>)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>Pos</code></td>
+<td style="text-align: left;">A positive number(<code>val &gt;= 0</code>)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>Nat</code></td>
+<td style="text-align: left;">A natural number (<code>val &gt; 0</code>)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>Neg</code></td>
+<td style="text-align: left;">A negative number (<code>val &lt; 0</code>)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>Any</code></td>
+<td style="text-align: left;">Any value</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>None</code></td>
+<td style="text-align: left;">No value (not terribly useful)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>Null</code></td>
+<td style="text-align: left;">The <code>null</code> value</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>Undefined</code></td>
+<td style="text-align: left;">The <code>undefined</code> value</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>Void</code></td>
+<td style="text-align: left;">Either <code>null</code> or <code>undefined</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="regular-expressions"><span class="header-section-number">4.1.1</span> Regular Expressions</h3>
+<p>You can test that a value matches a regular expression by using a regular expression literal:</p>
+<pre class="js"><code>@ (/username:\s*[a-zA-Z]*$/) -&gt; Bool
+function checkUsername(str) {
+    // ...
+    return true;
+}
+
+checkUsername(&quot;username: bob&quot;);  // passes
+checkUsername(&quot;user: bob&quot;);      // fails</code></pre>
+<h3 id="custom-predicate-contracts"><span class="header-section-number">4.1.2</span> Custom Predicate Contracts</h3>
+<p>All of the basic contracts are built with predicates (functions that take a single value and return a boolean) and you can make your own:</p>
+<pre class="js"><code>function MyNum(val) {
+    return typeof val === &quot;number&quot;;
+}
+@ (MyNum) -&gt; MyNum
+function id(x) { return x; }</code></pre>
+<p>There is also ES6 arrow function shorthand syntax for defining predicate contracts inside of a function or object contract:</p>
+<pre class="js"><code>@ ((val) =&gt; typeof val === &quot;function&quot;) -&gt; Num
+function id(x) { return x; }</code></pre>
+<h2 id="function-contracts"><span class="header-section-number">4.2</span> Function Contracts</h2>
+<p>Function contracts take a comma delimited list of argument contracts and a single return value contract:</p>
+<pre class="js"><code>@ (Str, Num, Bool) -&gt; Bool
+function foo(s, n, b) { return b; }</code></pre>
+<h3 id="optional-arguments"><span class="header-section-number">4.2.1</span> Optional Arguments</h3>
+<p>You can make an argument optional with the <code>?</code> prefix:</p>
+<pre class="js"><code>@ (Str, ?Bool) -&gt; Str
+function foo(s, b) { return s; }
+
+foo(&quot;foo&quot;);        // fine
+foo(&quot;foo&quot;, false); // fine
+foo(&quot;foo&quot;, &quot;bar&quot;); // error</code></pre>
+<h3 id="higher-order-arguments"><span class="header-section-number">4.2.2</span> Higher-Order Arguments</h3>
+<p>You can put contracts on functions to functions. And blaming the correct party at fault even works! <a href="what-about-blaming-modules">Mostly</a>.</p>
+<pre class="js"><code>@ (Num, (Num, Num) -&gt; Num) -&gt; Num
+function (x, f) { return f(x, x); }</code></pre>
+<h3 id="contracts-on-this"><span class="header-section-number">4.2.3</span> Contracts on <code>this</code></h3>
+<p>You can put a contract on the <code>this</code> object of a function:</p>
+<pre class="js"><code>@ () -&gt; Str
+| this: {name: Str}
+function f() { return this.name; }
+
+var o = {
+    nam: &quot;Bob&quot;, // typo
+    f: f
+};
+o.f();</code></pre>
+<p>This will let you know you did something wrong:</p>
+<pre style="color: red">
+f: contract violation
+expected: Str
+given: undefined
+in: the name property of
+    the this value of
+    () -> Str
+    | this: {name: Str}
+function f guarded at line: 3
+blaming: (calling context for f)
+</pre>
+
+<h3 id="dependent-contracts"><span class="header-section-number">4.2.4</span> Dependent Contracts</h3>
+<p>You can also write a function contract who's result depends on the value of its arguments.</p>
+<pre class="js"><code>@ (x: Pos) -&gt; res: Num | res &lt;= x
+function square_root(x) { return Math.sqrt(x); }</code></pre>
+<p>Name each argument and result with the notation <code>&lt;name&gt;: &lt;contract&gt;</code> and then each name can be referred to in the dependency guard following the <code>|</code>. The guard is an expression the must evaluate to a boolean. If the guard evaluates to <code>true</code> the dependent function contract will pass otherwise it fails.</p>
+<p>If you need more than a single boolean expression you can wrap it in curlies:</p>
+<pre class="js"><code>@ (x: Pos) -&gt; res: Num | {
+    var fromlib = Math.sqrt(x);
+    return res &lt;= x &amp;&amp; fromlib === res;
+}
+function square_root(x) { return Math.sqrt(x); }</code></pre>
+<p>Note that guards in a dependent contract could potentially violate a contract on one of the arguments:</p>
+<pre class="js"><code>@ (f: (Num) -&gt; Num) -&gt; res: Num | f(&quot;foo&quot;) &gt; 10
+function foo(f) { return f(24) }</code></pre>
+<p>In a case like this, the contract itself will be blamed:</p>
+<pre style="color:red">
+expected: Num
+given: 'foo'
+in: the 1st argument of
+    the 1st argument of
+    (f: (Num) -> Num) -> res: Num | f (foo) > 10
+function foo guarded at line: 2
+blaming: the contract of foo
+</pre>
+
+<p>If you are familiar with contract research, this is the <a href="http://www.ccs.neu.edu/racket/pubs/popl11-dfff.pdf">indy</a> semantics.</p>
+<h2 id="object-contracts"><span class="header-section-number">4.3</span> Object Contracts</h2>
+<p>Object contracts are built using familiar object literal syntax:</p>
+<pre class="js"><code>@ (Str, Num) -&gt; {name: Str, age: Num}
+function makePerson(name, age) {
+    return {
+        name: name,
+        age: age
+    };
+}</code></pre>
+<p>Note that objects are checked against their contract only once when they cross the contract barrier (in the above example this is when the <code>makePerson</code> function returns). Basic contracts (like <code>Str</code> and <code>Num</code>) are checked immediately while method contracts are deferred until the method is invoked.</p>
+<p>If you want to maintain the contract invariants throughout the object's lifetime, use <a href="#proxied-objects">proxied object contracts</a>.</p>
+<h3 id="optional-properties"><span class="header-section-number">4.3.1</span> Optional Properties</h3>
+<p>The <code>?</code> prefix makes a property optional:</p>
+<pre class="js"><code>@ ({name: Str, age: ?Num}) -&gt; Str
+function get Name(o) { return o.name; }</code></pre>
+<h3 id="method-contracts"><span class="header-section-number">4.3.2</span> Method Contracts</h3>
+<p>Function contracts on an object contract will implicitly check that the <code>this</code> object bound to the function obeys the object contract:</p>
+<pre class="js"><code>@ ({name: Str, hi: () -&gt; Str}) -&gt; Str
+function foo(o) {
+  var hi = o.hi;
+  return hi();  // `this` is bound wrong
+}
+
+foo({
+  name: &quot;Bob&quot;,
+  hi: function() {
+    return this.name;
+  }
+})</code></pre>
+<p>This code will give a nice error letting us know that the <code>this</code> object was wrong:</p>
+<pre style="color: red">
+foo: contract violation
+expected: an object with at least 2 keys
+given: undefined
+in: the this value of
+    the hi property of
+    the 1st argument of
+    ({name: Str, hi: () -> Str}) -> Str
+function foo guarded at line: 2
+blaming: function foo
+</pre>
+
+<h3 id="proxied-objects"><span class="header-section-number">4.3.3</span> Proxied Objects</h3>
+<p>To maintain the object contract invariant for the entire lifetime of an object, use the <code>!</code> notation:</p>
+<pre class="js"><code>@ (Str, Num) -&gt; !{name: Str, age: Num}
+function makePerson(name, age) {
+    return {
+        name: name,
+        age: age
+    };
+}
+
+var o = makePerson(&quot;Bob&quot;, 42);
+o.age = &quot;100&quot;;  // error</code></pre>
+<p>This is more expensive than normal object contracts since the contract must be checked on every property set but this can help to maintain tricky invariants.</p>
+<h2 id="array-contracts"><span class="header-section-number">4.4</span> Array Contracts</h2>
+<p>Contracts on arrays use the familiar array literal notation:</p>
+<pre class="js"><code>@ ([Num, Str]) -&gt; Void
+function foo(arr) { /* ... */ }
+
+foo([42, &quot;foo&quot;]);  // fine
+foo([42]);         // error missing field</code></pre>
+<h3 id="repeated-fields"><span class="header-section-number">4.4.1</span> Repeated Fields</h3>
+<p>Arrays filled with homogeneous data can use the <code>...</code> notation:</p>
+<pre class="js"><code>@ ([...Num]) -&gt; Void
+function foo(arr) { /* ... */ }
+
+foo([]);                      // fine
+foo([42, 100, 10000, 99]);    // fine
+foo([42, &quot;foo&quot;, 10000, 99]);  // error wrong type</code></pre>
+<p>You can even mix <code>...</code> with a prefix of normal contracts:</p>
+<pre class="js"><code>@ ([Str, Bool, ...Num]) -&gt; Void
+function foo(arr) { /* ... */ }
+
+foo([&quot;foo&quot;, true, 100, 99]);  // fine
+foo([100, true, 100, 99]);    // error wrong type</code></pre>
+<p>The <code>...</code> contract must be the last contract in the array.</p>
+<h3 id="proxied-arrays"><span class="header-section-number">4.4.2</span> Proxied Arrays</h3>
+<p>Just like objects, arrays can be proxied with the <code>!</code> notation:</p>
+<pre class="js"><code>@ (Num, Str) -&gt; ![Num, Str]
+function foo(a, b) { return [a, b]; }
+
+var arr = foo(100, &quot;foo&quot;);
+
+arr[0] = &quot;string&quot;;          // error wrong type</code></pre>
+<h2 id="combinators"><span class="header-section-number">4.5</span> Combinators</h2>
+<h3 id="or"><span class="header-section-number">4.5.1</span> <code>or</code></h3>
+<p>You can combine two or more contracts with the <code>or</code> combinator. If the first contract fails, the combined contract will succeed if the second passes.</p>
+<pre class="js"><code>@ (Num or Str) -&gt; Str
+function foo(x) { return x.toString(); }
+
+foo(24);    // passes
+foo(&quot;24&quot;);  // passes
+foo(false); // error not a Num or Str</code></pre>
+<p>Note that <code>or</code> only makes sense for at most one higher-order contract. For example, <code>Num or (Num) -&gt; Num</code> is fine but <code>(Num) -&gt; Num or (Str) -&gt; Str</code> will not work.</p>
+<h3 id="and"><span class="header-section-number">4.5.2</span> <code>and</code></h3>
+<p>You can combine two or more contracts with the <code>and</code> combinator. Both contracts must pass for the combined contract to succeed.</p>
+<pre class="js"><code>@ (Num and (x) =&gt; x &gt; 5) -&gt; Num
+function foo(x) { return x; }
+
+foo(10);   // passes
+foo(&quot;10&quot;); // fails
+foo(1);    // fails</code></pre>
+<h2 id="naming-contracts"><span class="header-section-number">4.6</span> Naming Contracts</h2>
+<p>When you have a complicated contract that is repeated in several places it can be convenient to refer to it by a shorter name. For this, you can use <code>let</code> after the <code>@</code> symbol:</p>
+<pre class="js"><code>@ let NumId = (Num) -&gt; Num
+
+
+@ (NumId, Num) -&gt; Num
+function (f, x) { return f(x); }</code></pre>
+<h2 id="recursive-contracts"><span class="header-section-number">4.7</span> Recursive Contracts</h2>
+<p>You can define contracts that have a recursive definition naturally:</p>
+<pre class="js"><code>@ let MyObj = Null or {
+    a: Num,
+    b: MyObj
+}</code></pre>
+<p>This definition checks that the <code>b</code> property is either a <code>null</code> or an object that satisfies the <code>{a: Num, b: MyObj}</code> contract. Note that this will explore the entire object each time a value crosses the contract boundary so it could be potentially expensive if the object is deeply nested.</p>
+<h2 id="parametric-polymorphism"><span class="header-section-number">4.8</span> Parametric Polymorphism</h2>
+<p>Note: requires proxies (so use Firefox out of the box or Chrome/V8/node with the <code>--harmony</code> flag).</p>
+<p>Parametric polymorphic functions can be defined using <code>forall</code>:</p>
+<pre class="js"><code>@ forall &lt;name (,) ...&gt; &lt;contract&gt;</code></pre>
+<p>Where each <code>name</code> is a contract variable to be bound in <code>contract</code>. For example, the identity function is defined as:</p>
+<pre class="js"><code>@ forall a (a) -&gt; a
+function id(x) { return x; }</code></pre>
+<p>The contract enforces the invariant that for all types, the value applied to <code>id</code> will be returned from the function. If the function does not obey this invariant a contract violation will be triggered:</p>
+<pre class="js"><code>@ forall a (a) -&gt; a
+function const5(x) { return 5; }
+
+const5(10);</code></pre>
+<p>will throw the error:</p>
+<pre style="color:red">
+const5: contract violation
+expected: an opaque value
+given: 5
+in: in the type variable a of
+    the return of
+    (a) -> a
+function const5 guarded at line: 2
+blaming: function const5
+</pre>
+
+<p>A key idea of parametric polymorphism is that a function cannot inspect the value of a polymorphic type (otherwise it doesn't really work &quot;forall&quot;). For example, the <code>inc_if_odd</code> function behaves like the identity function unless its argument is odd, which violates the parametric invariant:</p>
+<pre class="js"><code>@ forall a (a) -&gt; a
+function inc_if_odd(x) {
+    if (x % 2 !== 0) {
+        return x + 1;
+    }
+    return x;
+}</code></pre>
+<p>So, attempting to invoke <code>inc_if_odd(100)</code> will throw the error:</p>
+<pre style="color:red">
+inc_if_odd: contract violation
+expected: value to not be manipulated
+given: 'attempted to inspect the value'
+in: in the type variable a of
+    the 1st argument of
+    (a) -> a
+function inc_if_odd guarded at line: 2
+blaming: function inc_if_odd
+</pre>
+
+<p>Note that there are a couple of operations on values that contracts.js cannot currently guard against (<code>typeof</code> in particular).</p>
+<p>Polymorphic contracts also do contract inference. So, if you have a polymorphic array, contracts.js will check that the array is homogeneous:</p>
+<pre class="js"><code>@ forall a ([...a]) -&gt; [...a]
+function arrayId(l) {
+    return l;
+}
+arrayId([1, 2, &quot;three&quot;]);</code></pre>
+<p>This infers that the <code>a</code> should be a <code>Num</code> for this application of <code>arrayId</code> and then throws and error when it discovers <code>&quot;three&quot;</code>:</p>
+<pre style="color:red">
+arrayId: contract violation
+expected: (x) => typeof x === 'number'
+given: 'three'
+in: in the type variable a of
+    the 2nd field of
+    the 1st argument of
+    ([....a]) -> [....a]
+function foo guarded at line: 2
+blaming: (calling context for arrayId)
+</pre>
+
+<p>Contract inference is currently done with simple <code>typeof</code> checks.</p>
+<h1 id="faq"><span class="header-section-number">5</span> FAQ</h1>
+<h2 id="do-i-have-to-use-macros"><span class="header-section-number">5.1</span> Do I have to use macros?</h2>
+<p>No, as a matter of fact. If you'd like to just use the library in vanilla JavaScript you can. Load contracts.js and then use the <code>guard</code> function:</p>
+<pre class="js"><code>var id = guard(fun([Num], Num),
+               function id(x) { return x; },
+               &quot;id&quot;);</code></pre>
+<h2 id="what-is-up-with-the-import"><span class="header-section-number">5.2</span> What is up with the import?</h2>
+<pre class="js"><code>import @ from &quot;contracts.js&quot;</code></pre>
+<p>The short answer is that it's a hack until sweet.js provides proper module support.</p>
+<p>This line is actually a macro that expands into contracts.js library code that each contracted function will refer to.</p>
+<h2 id="what-about-blaming-modules"><span class="header-section-number">5.3</span> What about blaming modules?</h2>
+<p>At the moment contracts.js just supports guarding the interaction of a contracted value and its context rather than tracking blame at the module level. This is because the module story in JavaScript is a bit fractured and incompatible in various ways (CommonJS, Node, AMD, ES6, rolling by hand). Earlier versions of contracts.js had hacky support that only kind of worked but this has been temporarily simplified to what we have right now.</p>
+<p>Once sweet.js has good ES6 module support we will do the right thing and track blame at the module level.</p>
+<h2 id="how-can-i-disable-contracts-in-production"><span class="header-section-number">5.4</span> How can I disable contracts in production?</h2>
+<p>Compile with the <code>disabled.js</code> module:</p>
+<pre><code>sjs --module contracts-js/macros/disabled.js -o output.js input.js</code></pre>
+    </div>
+    <div class="col-sm-4">
+      <div class="nav nav-stacked fixed docs-sidebar">
+      <ul>
+      <li><a href="#introduction"><span class="toc-section-number">1</span> Introduction</a></li>
+      <li><a href="#installation"><span class="toc-section-number">2</span> Installation</a></li>
+      <li><a href="#using"><span class="toc-section-number">3</span> Using</a></li>
+      <li><a href="#contracts"><span class="toc-section-number">4</span> Contracts</a><ul>
+      <li><a href="#basic-contracts"><span class="toc-section-number">4.1</span> Basic Contracts</a><ul>
+      <li><a href="#regular-expressions"><span class="toc-section-number">4.1.1</span> Regular Expressions</a></li>
+      <li><a href="#custom-predicate-contracts"><span class="toc-section-number">4.1.2</span> Custom Predicate Contracts</a></li>
+      </ul></li>
+      <li><a href="#function-contracts"><span class="toc-section-number">4.2</span> Function Contracts</a><ul>
+      <li><a href="#optional-arguments"><span class="toc-section-number">4.2.1</span> Optional Arguments</a></li>
+      <li><a href="#higher-order-arguments"><span class="toc-section-number">4.2.2</span> Higher-Order Arguments</a></li>
+      <li><a href="#contracts-on-this"><span class="toc-section-number">4.2.3</span> Contracts on <code>this</code></a></li>
+      <li><a href="#dependent-contracts"><span class="toc-section-number">4.2.4</span> Dependent Contracts</a></li>
+      </ul></li>
+      <li><a href="#object-contracts"><span class="toc-section-number">4.3</span> Object Contracts</a><ul>
+      <li><a href="#optional-properties"><span class="toc-section-number">4.3.1</span> Optional Properties</a></li>
+      <li><a href="#method-contracts"><span class="toc-section-number">4.3.2</span> Method Contracts</a></li>
+      <li><a href="#proxied-objects"><span class="toc-section-number">4.3.3</span> Proxied Objects</a></li>
+      </ul></li>
+      <li><a href="#array-contracts"><span class="toc-section-number">4.4</span> Array Contracts</a><ul>
+      <li><a href="#repeated-fields"><span class="toc-section-number">4.4.1</span> Repeated Fields</a></li>
+      <li><a href="#proxied-arrays"><span class="toc-section-number">4.4.2</span> Proxied Arrays</a></li>
+      </ul></li>
+      <li><a href="#combinators"><span class="toc-section-number">4.5</span> Combinators</a><ul>
+      <li><a href="#or"><span class="toc-section-number">4.5.1</span> <code>or</code></a></li>
+      <li><a href="#and"><span class="toc-section-number">4.5.2</span> <code>and</code></a></li>
+      </ul></li>
+      <li><a href="#naming-contracts"><span class="toc-section-number">4.6</span> Naming Contracts</a></li>
+      <li><a href="#recursive-contracts"><span class="toc-section-number">4.7</span> Recursive Contracts</a></li>
+      <li><a href="#parametric-polymorphism"><span class="toc-section-number">4.8</span> Parametric Polymorphism</a></li>
+      </ul></li>
+      <li><a href="#faq"><span class="toc-section-number">5</span> FAQ</a><ul>
+      <li><a href="#do-i-have-to-use-macros"><span class="toc-section-number">5.1</span> Do I have to use macros?</a></li>
+      <li><a href="#what-is-up-with-the-import"><span class="toc-section-number">5.2</span> What is up with the import?</a></li>
+      <li><a href="#what-about-blaming-modules"><span class="toc-section-number">5.3</span> What about blaming modules?</a></li>
+      <li><a href="#how-can-i-disable-contracts-in-production"><span class="toc-section-number">5.4</span> How can I disable contracts in production?</a></li>
+      </ul></li>
+      </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+        </div>
+      </div>
+    </div>
   </script>
 
   <script type="text/x-handlebars" id="examples">
@@ -143,6 +895,7 @@ calcAverageLoc(typoPerson, [{loc: 1000}, {loc: 789}, {loc: 9001}]);</textarea>
 
 
   <script src="js/libs/jquery-1.10.2.js"></script>
+  <script src="js/libs/prism.js"></script>
   <script src="js/libs/handlebars-1.1.2.js"></script>
   <script src="js/libs/ember-1.5.1.js"></script>
   <script src="js/libs/ember-data.js"></script>

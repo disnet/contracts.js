@@ -32,7 +32,8 @@ We have here a simple object that stores some basic information about our cat. W
 
 ```js
 function isVegetarian(o) {
-    return o.haz !== "cheezburger";  // apparently, only cheezburgers count as meat
+    // apparently, only cheezburgers count as meat
+    return o.haz !== "cheezburger";
 }
 isVegetarian(spot);  // true
 ```
@@ -245,10 +246,4 @@ Note that here blame correctly falls on the caller to `isVegetarian` for supplyi
 
 # Onward
 
-There's a lot more contracts you can apply to your cats (and other animals). Check out the [reference documentationn](http://disnetdev.com/contracts.js/doc/main/contracts.html) to see what else can be done.
-
-
-
-
-
-
+There's a lot more contracts you can apply to your cats (and other animals). Check out the [reference documentation](http://disnetdev.com/contracts.js/doc/main/contracts.html) to see what else can be done.
