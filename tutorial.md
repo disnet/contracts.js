@@ -35,7 +35,7 @@ function isVegetarian(o) {
     // apparently, only cheezburgers count as meat
     return o.haz !== "cheezburger";
 }
-isVegetarian(spot);  // true
+isVegetarian(spot);  // false
 ```
 
 This is great and all but what happens if we have a bad kitty?
