@@ -513,7 +513,7 @@ foo(&quot;foo&quot;);        // fine
 foo(&quot;foo&quot;, false); // fine
 foo(&quot;foo&quot;, &quot;bar&quot;); // error</code></pre>
 <h3 id="higher-order-arguments"><span class="header-section-number">4.2.2</span> Higher-Order Arguments</h3>
-<p>You can put contracts on functions to functions. And blaming the correct party at fault even works! <a href="what-about-blaming-modules">Mostly</a>.</p>
+<p>You can put contracts on functions to functions. And blaming the correct party at fault even works! <a href="#what-about-blaming-modules">Mostly</a>.</p>
 <pre class="js"><code>@ (Num, (Num, Num) -&gt; Num) -&gt; Num
 function (x, f) { return f(x, x); }</code></pre>
 <h3 id="contracts-on-this"><span class="header-section-number">4.2.3</span> Contracts on <code>this</code></h3>

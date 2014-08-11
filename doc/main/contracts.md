@@ -164,7 +164,7 @@ foo("foo", "bar"); // error
 
 You can put contracts on functions to functions. And blaming the
 correct party at fault even works!
-[Mostly](what-about-blaming-modules).
+[Mostly](#what-about-blaming-modules).
 
 ```js
 @ (Num, (Num, Num) -> Num) -> Num
