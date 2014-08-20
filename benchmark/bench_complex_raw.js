@@ -462,8 +462,36 @@ _c$600 = function () {
             });
         return c$2;
     }
-    function self() {
-        var name = 'self';
+    function reMatch(re) {
+        var contractName = re.toString();
+        return check(function (val) {
+            return re.test(val);
+        }, contractName);
+    }
+    function and(left, right) {
+        if (!(left instanceof Contract)) {
+            if (typeof left === 'function') {
+                left = toContract(left);
+            } else {
+                throw new Error(left + ' is not a contract');
+            }
+        }
+        if (!(right instanceof Contract)) {
+            if (typeof right === 'function') {
+                right = toContract(right);
+            } else {
+                throw new Error(right + ' is not a contract');
+            }
+        }
+        var contractName = left + ' and ' + right;
+        return new Contract(contractName, 'and', function (blame) {
+            return function (val) {
+                var leftProj = left.proj(blame.addExpected(contractName, true));
+                var leftResult = leftProj(val);
+                var rightProj = right.proj(blame.addExpected(contractName, true));
+                return rightProj(leftResult);
+            };
+        });
     }
     function or(left, right) {
         if (!(left instanceof Contract)) {
@@ -543,12 +571,10 @@ _c$600 = function () {
             return null == val;
         }, 'Null'),
         check: check,
+        reMatch: reMatch,
         fun: fun,
         or: or,
-        self: new Contract('self', 'self', function (b) {
-            return function () {
-            };
-        }),
+        and: and,
         repeat: repeat,
         optional: optional,
         object: object,

@@ -585,23 +585,47 @@ _c$600 = function () {
         guard: guard
     };
 }();
-function fibonacciRaw(n) {
-    return n < 2 ? n : fibonacciRaw(n - 1) + fibonacciRaw(n - 2);
+_c$600.Obj = _c$600.cyclic('Obj');
+_c$600.Obj = _c$600.Obj.closeCycle(_c$600.object({
+    a: typeof Num !== 'undefined' ? Num : _c$600.Num,
+    b: typeof Str !== 'undefined' ? Str : _c$600.Str,
+    c: _c$600.object({ d: typeof Num !== 'undefined' ? Num : _c$600.Num })
+}));
+function baseSort(obj) {
+    var arr = [];
+    for (var i = 0; i < obj.a; i++) {
+        arr.push(i);
+    }
+    arr.sort();
+    return obj;
 }
-var inner_fibonacci = _c$600.fun([typeof Num !== 'undefined' ? Num : _c$600.Num], typeof Num !== 'undefined' ? Num : _c$600.Num).proj(_c$600.Blame.create('fibonacci', 'function fibonacci', '(calling context for fibonacci)', 9))(function fibonacci$2(n) {
-        return n < 2 ? n : fibonacci$2(n - 1) + fibonacci$2(n - 2);
+var inner_sort = _c$600.fun([typeof Obj !== 'undefined' ? Obj : _c$600.Obj], typeof Obj !== 'undefined' ? Obj : _c$600.Obj).proj(_c$600.Blame.create('sort', 'function sort', '(calling context for sort)', 22))(function sort$2(obj) {
+        var arr = [];
+        for (var i = 0; i < obj.a; i++) {
+            arr.push(i);
+        }
+        arr.sort();
+        return obj;
     });
-function fibonacci(n) {
-    return inner_fibonacci.apply(this, arguments);
+function sort(obj) {
+    return inner_sort.apply(this, arguments);
 }
 module.exports = {
-    name: 'CJS vs Vanilla - Fibonacci function',
+    name: 'CJS vs Vanilla - object sorting function',
     tests: {
-        'Vanilla - fibonacci(10)': function () {
-            fibonacciRaw(10);
+        'Vanilla - sort({ ... })': function () {
+            baseSort({
+                a: 1000,
+                b: 'hello',
+                c: { d: 100 }
+            });
         },
-        'CJS - fibonacci(100)': function () {
-            fibonacci(10);
+        'CJS - sort({ ... })': function () {
+            sort({
+                a: 1000,
+                b: 'hello',
+                c: { d: 100 }
+            });
         }
     }
 };
