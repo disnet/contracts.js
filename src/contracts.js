@@ -54,13 +54,13 @@
     };
     BlameObj.prototype.addLocation = function(loc) {
         return Blame.clone(this, {
-            loc: this.loc != null ? this.loc.concat(loc) : [loc]
+            loc: this.loc !== null ? this.loc.concat(loc) : [loc]
         })
         ;
     };
     BlameObj.prototype.addParents = function(parent) {
         return Blame.clone(this, {
-            parents: this.parents != null ? this.parents.concat(parent) : [parent]
+            parents: this.parents !== null ? this.parents.concat(parent) : [parent]
         });
     };
 
@@ -117,7 +117,7 @@
     }
 
     function makeCoffer(name) {
-        return new Contract(name, "coffer", function(blame, unwrapTypeVar, projOptions) {
+        return new Contract(name, "coffer", function(blame, unwrapTypeVar) {
             return function(val) {
                 var locationMsg = "in the type variable " + name + " of";
                 if (unwrapTypeVar) {
@@ -277,14 +277,12 @@
         (x) => x + "th"
     }
 
-    function pluralize {
-        (0, str) => str + "s",
-        (1, str) => str,
-        (n, str) => str + "s"
+    function pluralize(a0, str) {
+        return a0 === 1 ? str : (str + "s");
     }
 
     function toContract(f) {
-        return check(f, if f.name then f.name else "custom contract");
+        return check(f, function () { return f.name ? f.name : "custom contract"; });
     }
 
     function fun(domRaw, rngRaw, options) {
@@ -353,9 +351,9 @@
                     checkedArgs = checkedArgs.concat(args.slice(i));
                     var checkedThis = thisVal;
                     if((options && options.thisContract) || (projOptions && projOptions.overrideThisContract)) {
-                        var thisContract = if projOptions && projOptions.overrideThisContract
-                                           then projOptions.overrideThisContract
-                                           else options.thisContract
+                        var thisContract = (projOptions && projOptions.overrideThisContract) ?
+                                           projOptions.overrideThisContract
+                                           : options.thisContract;
                         var thisProj = thisContract.proj(blame.swap()
                                                               .addLocation("the this value of"));
                         checkedThis = thisProj(thisVal);
@@ -401,7 +399,7 @@
         return c;
     }
 
-    function optional(contract, options) {
+    function optional(contract) {
         if (!(contract instanceof Contract)) {
             if (typeof contract === "function") {
                 contract = toContract(contract);
@@ -418,7 +416,7 @@
         });
     }
 
-    function repeat(contract, options) {
+    function repeat(contract) {
         if (!(contract instanceof Contract)) {
             if (typeof contract === "function") {
                 contract = toContract(contract);
@@ -671,8 +669,8 @@
         Pos: check(function(val)       { return val >= 0; }, "Pos"),
         Nat: check(function(val)       { return val > 0; }, "Nat"),
         Neg: check(function(val)       { return val < 0; }, "Neg"),
-        Any: check(function(val)       { return true; }, "Any"),
-        None: check(function(val)      { return false; }, "None"),
+        Any: check(function()       { return true; }, "Any"),
+        None: check(function()      { return false; }, "None"),
         Null: check(function(val)      { return null === val; }, "Null"),
         Undefined: check(function(val) { return void 0 === val; }, "Null"),
         Void: check(function(val)      { return null == val; }, "Null"),
