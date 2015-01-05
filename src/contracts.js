@@ -54,7 +54,7 @@
     };
     BlameObj.prototype.addLocation = function(loc) {
         return Blame.clone(this, {
-            loc: this.loc !== null ? this.loc.concat(loc) : [loc]
+            loc: this.loc !== undefined ? this.loc.concat(loc) : [loc]
         })
         ;
     };
