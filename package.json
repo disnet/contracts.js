@@ -25,7 +25,7 @@
   "homepage": "http://disnetdev.com/contracts.js/",
   "dependencies": {
     "harmony-reflect": "~0.0.13",
-    "sweet.js": "^0.7.0"
+    "sweet.js": "^0.7.3"
   },
   "devDependencies": {
     "es6-macros": "0.0.7",
