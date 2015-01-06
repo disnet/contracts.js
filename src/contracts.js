@@ -282,7 +282,7 @@
     }
 
     function toContract(f) {
-        return check(f, function () { return f.name ? f.name : "custom contract"; });
+        return check(f, if f.name then f.name else "custom contract");
     }
 
     function fun(domRaw, rngRaw, options) {
@@ -351,9 +351,9 @@
                     checkedArgs = checkedArgs.concat(args.slice(i));
                     var checkedThis = thisVal;
                     if((options && options.thisContract) || (projOptions && projOptions.overrideThisContract)) {
-                        var thisContract = (projOptions && projOptions.overrideThisContract) ?
-                                           projOptions.overrideThisContract
-                                           : options.thisContract;
+                        var thisContract = if projOptions && projOptions.overrideThisContract
+                                           then projOptions.overrideThisContract
+                                           else options.thisContract
                         var thisProj = thisContract.proj(blame.swap()
                                                               .addLocation("the this value of"));
                         checkedThis = thisProj(thisVal);
