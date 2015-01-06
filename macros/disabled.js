@@ -45,10 +45,10 @@ let import = macro {
         return Blame.clone(this, { given: given });
     };
     BlameObj.prototype.addLocation = function (loc) {
-        return Blame.clone(this, { loc: this.loc != null ? this.loc.concat(loc) : [loc] });
+        return Blame.clone(this, { loc: this.loc !== undefined ? this.loc.concat(loc) : [loc] });
     };
     BlameObj.prototype.addParents = function (parent) {
-        return Blame.clone(this, { parents: this.parents != null ? this.parents.concat(parent) : [parent] });
+        return Blame.clone(this, { parents: this.parents !== undefined ? this.parents.concat(parent) : [parent] });
     };
     BlameObj.prototype.setNeg = function (neg) {
         return Blame.clone(this, { neg: neg });
@@ -82,7 +82,7 @@ let import = macro {
         throw new Error(msg);
     }
     function makeCoffer(name) {
-        return new Contract(name, 'coffer', function (blame, unwrapTypeVar, projOptions) {
+        return new Contract(name, 'coffer', function (blame, unwrapTypeVar) {
             return function (val) {
                 var locationMsg = 'in the type variable ' + name + ' of';
                 if (unwrapTypeVar) {
@@ -192,27 +192,54 @@ let import = macro {
         var x = a0;
         return x + 'th';
     }
-    function pluralize(a0, a1) {
-        if (a0 === 0) {
-            var str = a1;
-            return str + 's';
-        }
-        if (a0 === 1) {
-            var str = a1;
-            return str;
-        }
-        var n = a0;
-        var str = a1;
-        return str + 's';
+    function pluralize(a0, str) {
+        return a0 === 1 ? str : str + 's';
     }
     function toContract(f) {
-        return check(f, function () {
-            if (f.name) {
-                return f.name;
-            } else {
-                return 'custom contract';
+        return check(f, f.name ? f.name : 'custom contract');
+    }
+    //first two params get partial eval'd
+    function applyTrap(funParams, contractParams, target, thisVal, args) {
+        var options = funParams.options;
+        var dom = funParams.dom;
+        var rng = funParams.rng;
+        var blame = contractParams.blame;
+        var unwrapTypeVar = contractParams.unwrapTypeVar;
+        var projOptions = contractParams.projOptions;
+        var checkedArgs = [];
+        var depArgs = [];
+        for (var i = 0; i < dom.length; i++) {
+            if (dom[i].type === 'optional' && args[i] === undefined) {
+                continue;
             }
-        }.bind(this)());
+            var location = 'the ' + addTh(i + 1) + ' argument of';
+            var unwrapForProj = dom[i].type === 'fun' ? !unwrapTypeVar : unwrapTypeVar;
+            var domProj = dom[i].proj(blame.swap().addLocation(location), unwrapForProj);
+            checkedArgs.push(domProj(args[i]));
+            if (options && options.dependency) {
+                var depProj = dom[i].proj(blame.swap().setNeg('the contract of ' + blame.name).addLocation(location));
+                depArgs.push(depProj(args[i]));
+            }
+        }
+        checkedArgs = checkedArgs.concat(args.slice(i));
+        var checkedThis = thisVal;
+        if (options && options.thisContract || projOptions && projOptions.overrideThisContract) {
+            var thisContract = projOptions && projOptions.overrideThisContract ? projOptions.overrideThisContract : options.thisContract;
+            var thisProj = thisContract.proj(blame.swap().addLocation('the this value of'));
+            checkedThis = thisProj(thisVal);
+        }
+        assert(rng instanceof Contract, 'The range is not a contract');
+        var rawResult = target.apply(checkedThis, checkedArgs);
+        var rngUnwrap = rng.type === 'fun' ? unwrapTypeVar : !unwrapTypeVar;
+        var rngProj = rng.proj(blame.addLocation('the return of'), rngUnwrap);
+        var rngResult = rngProj(rawResult);
+        if (options && options.dependency && typeof options.dependency === 'function') {
+            var depResult = options.dependency.apply({}, depArgs.concat(rngResult));
+            if (!depResult) {
+                raiseBlame(blame.addExpected(options.dependencyStr).addGiven(false).addLocation('the return dependency of'));
+            }
+        }
+        return rngResult;
     }
     function fun(domRaw, rngRaw, options) {
         var dom = domRaw.map(function (d) {
@@ -245,67 +272,33 @@ let import = macro {
                     if (typeof f !== 'function') {
                         raiseBlame(blame.addExpected('a function that takes ' + dom.length + pluralize(dom.length, ' argument')).addGiven(f));
                     }
-                    function applyTrap(target, thisVal, args) {
-                        var checkedArgs = [];
-                        var depArgs = [];
-                        for (var i = 0; i < dom.length; i++) {
-                            if (dom[i].type === 'optional' && args[i] === undefined) {
-                                continue;
-                            } else {
-                                var location = 'the ' + addTh(i + 1) + ' argument of';
-                                var unwrapForProj = dom[i].type === 'fun' ? !unwrapTypeVar : unwrapTypeVar;
-                                var domProj = dom[i].proj(blame.swap().addLocation(location), unwrapForProj);
-                                checkedArgs.push(domProj(args[i]));
-                                if (options && options.dependency) {
-                                    var depProj = dom[i].proj(blame.swap().setNeg('the contract of ' + blame.name).addLocation(location));
-                                    depArgs.push(depProj(args[i]));
-                                }
-                            }
-                        }
-                        checkedArgs = checkedArgs.concat(args.slice(i));
-                        var checkedThis = thisVal;
-                        if (options && options.thisContract || projOptions && projOptions.overrideThisContract) {
-                            var thisContract = function () {
-                                    if (projOptions && projOptions.overrideThisContract) {
-                                        return projOptions.overrideThisContract;
-                                    } else {
-                                        return options.thisContract;
-                                    }
-                                }.bind(this)();
-                            var thisProj = thisContract.proj(blame.swap().addLocation('the this value of'));
-                            checkedThis = thisProj(thisVal);
-                        }
-                        assert(rng instanceof Contract, 'The range is not a contract');
-                        var rawResult = target.apply(checkedThis, checkedArgs);
-                        var rngUnwrap = rng.type === 'fun' ? unwrapTypeVar : !unwrapTypeVar;
-                        var rngProj = rng.proj(blame.addLocation('the return of'), rngUnwrap);
-                        var rngResult = rngProj(rawResult);
-                        if (options && options.dependency && typeof options.dependency === 'function') {
-                            var depResult = options.dependency.apply(this, depArgs.concat(rngResult));
-                            if (!depResult) {
-                                raiseBlame(blame.addExpected(options.dependencyStr).addGiven(false).addLocation('the return dependency of'));
-                            }
-                        }
-                        return rngResult;
-                    }
+                    var applyTrapPartial = applyTrap.bind('', {
+                            options: options,
+                            dom: dom,
+                            rng: rng
+                        }, {
+                            blame: blame,
+                            unwrapTypeVar: unwrapTypeVar,
+                            projOptions: projOptions
+                        });
                     // only use expensive proxies when needed (to distinguish between apply and construct)
-                    if (options && options.needs_proxy) {
+                    if (options && options.needsProxy) {
                         var p = new Proxy(f, {
                                 apply: function (target, thisVal, args) {
-                                    return applyTrap(target, thisVal, args);
+                                    return applyTrapPartial(target, thisVal, args);
                                 }
                             });
                         return p;
                     } else {
                         return function () {
-                            return applyTrap(f, this, Array.prototype.slice.call(arguments));
+                            return applyTrapPartial(f, this, Array.prototype.slice.call(arguments));
                         };
                     }
                 };
             });
         return c;
     }
-    function optional(contract, options) {
+    function optional(contract) {
         if (!(contract instanceof Contract)) {
             if (typeof contract === 'function') {
                 contract = toContract(contract);
@@ -321,7 +314,7 @@ let import = macro {
             };
         });
     }
-    function repeat(contract, options) {
+    function repeat(contract) {
         if (!(contract instanceof Contract)) {
             if (typeof contract === 'function') {
                 contract = toContract(contract);
@@ -337,65 +330,65 @@ let import = macro {
             };
         });
     }
+    function arrayContractHandler(options, arrContract, contractName, contractNum, blame, unwrapTypeVar) {
+        return function (arr) {
+            if (typeof arr === 'number' || typeof arr === 'string' || typeof arr === 'boolean' || arr === null || arr === undefined) {
+                raiseBlame(blame.addGiven(arr).addExpected('an array with at least ' + contractNum + pluralize(contractNum, ' field')));
+            }
+            for (var ctxIdx = 0, arrIdx = 0; ctxIdx < arrContract.length; ctxIdx++) {
+                if (arrContract[ctxIdx].type === 'repeat' && arr.length <= ctxIdx) {
+                    break;
+                } else if (arrContract[ctxIdx].type === 'repeat' && ctxIdx !== arrContract.length - 1) {
+                    throw new Error('The repeated contract must come last in ' + contractName);
+                }
+                var unwrapForProj = arrContract[ctxIdx].type === 'fun' ? !unwrapTypeVar : unwrapTypeVar;
+                var fieldProj = arrContract[ctxIdx].proj(blame.addLocation('the ' + addTh(arrIdx) + ' field of'), unwrapForProj);
+                var checkedField = fieldProj(arr[arrIdx]);
+                arr[arrIdx] = checkedField;
+                arrIdx++;
+                if (arrContract[ctxIdx].type !== 'repeat') {
+                    continue;
+                }
+                for (; arrIdx < arr.length; arrIdx++) {
+                    var repeatProj = arrContract[ctxIdx].proj(blame.addLocation('the ' + addTh(arrIdx) + ' field of'), unwrapForProj);
+                    arr[arrIdx] = repeatProj(arr[arrIdx]);
+                }
+            }
+            if (options && options.proxy) {
+                return new Proxy(arr, {
+                    set: function (target, key, value) {
+                        var lastContract = arrContract[arrContract.length - 1];
+                        var fieldProj$2;
+                        if (arrContract[key] !== undefined && arrContract[key].type !== 'repeat') {
+                            fieldProj$2 = arrContract[key].proj(blame.swap().addLocation('the ' + addTh(key) + ' field of'));
+                            target[key] = fieldProj$2(value);
+                        } else if (lastContract && lastContract.type === 'repeat') {
+                            fieldProj$2 = lastContract.proj(blame.swap().addLocation('the ' + addTh(key) + ' field of'));
+                            target[key] = fieldProj$2(value);
+                        }
+                    }
+                });
+            } else {
+                return arr;
+            }
+        };
+    }
     function array(arrContractRaw, options) {
         var proxyPrefix = options && options.proxy ? '!' : '';
-        var arrContract = arrContractRaw.map(function (c$2) {
-                if (!(c$2 instanceof Contract)) {
-                    if (typeof c$2 === 'function') {
-                        return toContract(c$2);
+        var arrContract = arrContractRaw.map(function (c) {
+                if (!(c instanceof Contract)) {
+                    if (typeof c === 'function') {
+                        return toContract(c);
                     }
-                    throw new Error(c$2 + ' is not a contract');
+                    throw new Error(c + ' is not a contract');
                 }
-                return c$2;
+                return c;
             });
-        var contractName = proxyPrefix + '[' + arrContract.map(function (c$2) {
-                return c$2;
+        var contractName = proxyPrefix + '[' + arrContract.map(function (c) {
+                return c;
             }).join(', ') + ']';
         var contractNum = arrContract.length;
-        var c = new Contract(contractName, 'array', function (blame, unwrapTypeVar) {
-                return function (arr) {
-                    if (typeof arr === 'number' || typeof arr === 'string' || typeof arr === 'boolean' || arr == null) {
-                        raiseBlame(blame.addGiven(arr).addExpected('an array with at least ' + contractNum + pluralize(contractNum, ' field')));
-                    }
-                    for (var ctxIdx = 0, arrIdx = 0; ctxIdx < arrContract.length; ctxIdx++) {
-                        if (arrContract[ctxIdx].type === 'repeat' && arr.length <= ctxIdx) {
-                            break;
-                        }
-                        var unwrapForProj = arrContract[ctxIdx].type === 'fun' ? !unwrapTypeVar : unwrapTypeVar;
-                        var fieldProj = arrContract[ctxIdx].proj(blame.addLocation('the ' + addTh(arrIdx) + ' field of'), unwrapForProj);
-                        var checkedField = fieldProj(arr[arrIdx]);
-                        arr[arrIdx] = checkedField;
-                        arrIdx++;
-                        if (arrContract[ctxIdx].type === 'repeat') {
-                            if (ctxIdx !== arrContract.length - 1) {
-                                throw new Error('The repeated contract must come last in ' + contractName);
-                            }
-                            for (; arrIdx < arr.length; arrIdx++) {
-                                var repeatProj = arrContract[ctxIdx].proj(blame.addLocation('the ' + addTh(arrIdx) + ' field of'), unwrapForProj);
-                                arr[arrIdx] = repeatProj(arr[arrIdx]);
-                            }
-                        }
-                    }
-                    if (options && options.proxy) {
-                        return new Proxy(arr, {
-                            set: function (target, key, value) {
-                                var lastContract = arrContract[arrContract.length - 1];
-                                var fieldProj$2;
-                                if (arrContract[key] !== undefined && arrContract[key].type !== 'repeat') {
-                                    fieldProj$2 = arrContract[key].proj(blame.swap().addLocation('the ' + addTh(key) + ' field of'));
-                                    target[key] = fieldProj$2(value);
-                                } else if (lastContract && lastContract.type === 'repeat') {
-                                    fieldProj$2 = lastContract.proj(blame.swap().addLocation('the ' + addTh(key) + ' field of'));
-                                    target[key] = fieldProj$2(value);
-                                }
-                            }
-                        });
-                    } else {
-                        return arr;
-                    }
-                };
-            });
-        return c;
+        return new Contract(contractName, 'array', arrayContractHandler.bind('', options, arrContract, contractName, contractNum));
     }
     function object(objContract, options) {
         var contractKeys = Object.keys(objContract);
@@ -415,25 +408,13 @@ let import = macro {
         var keyNum = contractKeys.length;
         var c = new Contract(contractName, 'object', function (blame) {
                 return function (obj) {
-                    if (typeof obj === 'number' || typeof obj === 'string' || typeof obj === 'boolean' || obj == null) {
+                    if (typeof obj === 'number' || typeof obj === 'string' || typeof obj === 'boolean' || obj === null || obj === undefined) {
                         raiseBlame(blame.addGiven(obj).addExpected('an object with at least ' + keyNum + pluralize(keyNum, ' key')));
                     }
                     contractKeys.forEach(function (key) {
                         if (!(objContract[key].type === 'optional' && obj[key] === undefined)) {
-                            var propProjOptions = function () {
-                                    if (objContract[key].type === 'fun') {
-                                        return { overrideThisContract: this };
-                                    } else {
-                                        return {};
-                                    }
-                                }.bind(this)();
-                            var c$2 = function () {
-                                    if (objContract[key].type === 'cycle') {
-                                        return objContract[key].cycleContract;
-                                    } else {
-                                        return objContract[key];
-                                    }
-                                }.bind(this)();
+                            var propProjOptions = objContract[key].type === 'fun' ? { overrideThisContract: this } : {};
+                            var c$2 = objContract[key].type === 'cycle' ? objContract[key].cycleContract : objContract[key];
                             var propProj = c$2.proj(blame.addLocation('the ' + key + ' property of'), false, propProjOptions);
                             var checkedProperty = propProj(obj[key]);
                             obj[key] = checkedProperty;
@@ -443,13 +424,7 @@ let import = macro {
                         return new Proxy(obj, {
                             set: function (target, key, value) {
                                 if (objContract.hasOwnProperty(key)) {
-                                    var c$2 = function () {
-                                            if (objContract[key].type === 'cycle') {
-                                                return objContract[key].cycleContract;
-                                            } else {
-                                                return objContract[key];
-                                            }
-                                        }.bind(this)();
+                                    var c$2 = objContract[key].type === 'cycle' ? objContract[key].cycleContract : objContract[key];
                                     var propProj = c$2.proj(blame.swap().addLocation('setting the ' + key + ' property of'));
                                     var checkedProperty = propProj(value);
                                     target[key] = checkedProperty;
@@ -558,10 +533,10 @@ let import = macro {
         Neg: check(function (val) {
             return val < 0;
         }, 'Neg'),
-        Any: check(function (val) {
+        Any: check(function () {
             return true;
         }, 'Any'),
-        None: check(function (val) {
+        None: check(function () {
             return false;
         }, 'None'),
         Null: check(function (val) {
@@ -571,7 +546,7 @@ let import = macro {
             return void 0 === val;
         }, 'Null'),
         Void: check(function (val) {
-            return null == val;
+            return null === val || undefined === val;
         }, 'Null'),
         check: check,
         reMatch: reMatch,
