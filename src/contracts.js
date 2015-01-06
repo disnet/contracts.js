@@ -285,6 +285,71 @@
         return check(f, if f.name then f.name else "custom contract");
     }
 
+
+    //first two params get partial eval'd
+    function applyTrap (funParams, contractParams, target, thisVal, args) {
+
+        var options = funParams.options;
+        var dom     = funParams.dom;
+        var rng     = funParams.rng;
+
+        var blame           = contractParams.blame;
+        var unwrapTypeVar   = contractParams.unwrapTypeVar;
+        var projOptions     = contractParams.projOptions;
+
+        var checkedArgs = [];
+        var depArgs = [];
+        for (var i = 0; i < dom.length; i++) {
+            if (dom[i].type === "optional" && args[i] === undefined) {
+                continue;
+            }
+
+            var location = "the " + addTh(i+1) + " argument of";
+            var unwrapForProj = dom[i].type === "fun" ? !unwrapTypeVar : unwrapTypeVar;
+            var domProj = dom[i].proj(blame.swap()
+                                      .addLocation(location), unwrapForProj);
+
+            checkedArgs.push(domProj(args[i]));
+
+            if (options && options.dependency) {
+                var depProj = dom[i].proj(blame.swap()
+                                               .setNeg("the contract of " + blame.name)
+                                               .addLocation(location));
+                depArgs.push(depProj(args[i]));
+            }
+
+        }
+        checkedArgs = checkedArgs.concat(args.slice(i));
+        var checkedThis = thisVal;
+        if((options && options.thisContract) || (projOptions && projOptions.overrideThisContract)) {
+            var thisContract = if projOptions && projOptions.overrideThisContract
+                               then projOptions.overrideThisContract
+                               else options.thisContract
+            var thisProj = thisContract.proj(blame.swap()
+                                                  .addLocation("the this value of"));
+            checkedThis = thisProj(thisVal);
+        }
+
+        assert(rng instanceof Contract, "The range is not a contract");
+
+        var rawResult = target.apply(checkedThis, checkedArgs);
+        var rngUnwrap = rng.type === "fun" ? unwrapTypeVar : !unwrapTypeVar;
+        var rngProj = rng.proj(blame.addLocation("the return of"), rngUnwrap);
+        var rngResult = rngProj(rawResult);
+        if (options && options.dependency && typeof options.dependency === "function") {
+            var depResult = options.dependency.apply(this, depArgs.concat(rngResult));
+            if (!depResult) {
+                raiseBlame(blame.addExpected(options.dependencyStr)
+                                .addGiven(false)
+                                .addLocation("the return dependency of"));
+            }
+        }
+
+        return rngResult;
+    }
+
+
+
     function fun(domRaw, rngRaw, options) {
         var dom = domRaw.map(function(d) {
             if (!(d instanceof Contract)) {
@@ -325,62 +390,16 @@
                                     .addGiven(f));
                 }
 
-                function applyTrap(target, thisVal, args) {
-
-                    var checkedArgs = [];
-                    var depArgs = [];
-                    for (var i = 0; i < dom.length; i++) {
-                        if (dom[i].type === "optional" && args[i] === undefined) {
-                            continue;
-                        } else {
-                            var location = "the " + addTh(i+1) + " argument of";
-                            var unwrapForProj = dom[i].type === "fun" ? !unwrapTypeVar : unwrapTypeVar;
-                            var domProj = dom[i].proj(blame.swap()
-                                                      .addLocation(location), unwrapForProj);
-
-                            checkedArgs.push(domProj(args[i]));
-
-                            if (options && options.dependency) {
-                                var depProj = dom[i].proj(blame.swap()
-                                                               .setNeg("the contract of " + blame.name)
-                                                               .addLocation(location));
-                                depArgs.push(depProj(args[i]));
-                            }
-                        }
-                    }
-                    checkedArgs = checkedArgs.concat(args.slice(i));
-                    var checkedThis = thisVal;
-                    if((options && options.thisContract) || (projOptions && projOptions.overrideThisContract)) {
-                        var thisContract = if projOptions && projOptions.overrideThisContract
-                                           then projOptions.overrideThisContract
-                                           else options.thisContract
-                        var thisProj = thisContract.proj(blame.swap()
-                                                              .addLocation("the this value of"));
-                        checkedThis = thisProj(thisVal);
-                    }
-
-                    assert(rng instanceof Contract, "The range is not a contract");
-
-                    var rawResult = target.apply(checkedThis, checkedArgs);
-                    var rngUnwrap = rng.type === "fun" ? unwrapTypeVar : !unwrapTypeVar;
-                    var rngProj = rng.proj(blame.addLocation("the return of"), rngUnwrap);
-                    var rngResult = rngProj(rawResult);
-                    if (options && options.dependency && typeof options.dependency === "function") {
-                        var depResult = options.dependency.apply(this, depArgs.concat(rngResult));
-                        if (!depResult) {
-                            raiseBlame(blame.addExpected(options.dependencyStr)
-                                            .addGiven(false)
-                                            .addLocation("the return dependency of"));
-                        }
-                    }
-                    return rngResult;
-                }
+                var applyTrapPartial =
+                    applyTrap.bind('',
+                        {options: options, dom: dom, rng: rng},
+                        {blame: blame, unwrapTypeVar: unwrapTypeVar, projOptions: projOptions});
 
                 // only use expensive proxies when needed (to distinguish between apply and construct)
                 if (options && options.needsProxy) {
                     var p = new Proxy(f, {
                         apply: function(target, thisVal, args) {
-                            return applyTrap(target, thisVal, args);
+                            return applyTrapPartial(target, thisVal, args);
                         }
                     });
 
@@ -388,7 +407,7 @@
 
                 } else {
                     return function() {
-                        return applyTrap(f, this, Array.prototype.slice.call(arguments));
+                        return applyTrapPartial(f, this, Array.prototype.slice.call(arguments));
                     };
                 }
 
