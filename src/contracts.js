@@ -337,7 +337,7 @@
         var rngProj = rng.proj(blame.addLocation("the return of"), rngUnwrap);
         var rngResult = rngProj(rawResult);
         if (options && options.dependency && typeof options.dependency === "function") {
-            var depResult = options.dependency.apply(this, depArgs.concat(rngResult));
+            var depResult = options.dependency.apply({}, depArgs.concat(rngResult));
             if (!depResult) {
                 raiseBlame(blame.addExpected(options.dependencyStr)
                                 .addGiven(false)
@@ -557,7 +557,7 @@
             return function(obj) {
                 if (typeof obj === "number" ||
                     typeof obj === "string" ||
-                    typeof obj === "boolean" || obj == null) {
+                    typeof obj === "boolean" || obj === null || obj === undefined) {
                     raiseBlame(blame.addGiven(obj)
                                     .addExpected("an object with at least " +
                                                  keyNum + pluralize(keyNum, " key")));
@@ -697,7 +697,7 @@
         None: check(function()      { return false; }, "None"),
         Null: check(function(val)      { return null === val; }, "Null"),
         Undefined: check(function(val) { return void 0 === val; }, "Null"),
-        Void: check(function(val)      { return null == val; }, "Null"),
+        Void: check(function(val)      { return null === val || undefined === val; }, "Null"),
 
         check: check,
         reMatch: reMatch,

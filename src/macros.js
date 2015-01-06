@@ -230,7 +230,7 @@ let @ = macro {
         var varNameStr = #{$varName ...}.map(function(stx) {
             return makeValue(stx.token.value, #{here});
         });
-        letstx $guardedName = [makeIdent("inner_" + nameStr, #{here})];
+        letstx $guardedName = [makeIdent("inner$" + nameStr, #{here})];
         letstx $client = [makeValue("function " + nameStr, #{here})];
         letstx $server = [makeValue("(calling context for " + nameStr + ")", #{here})];
         letstx $fnName = [makeValue(nameStr, #{here})];
@@ -251,7 +251,7 @@ let @ = macro {
     } => {
         var nameStx = #{$name}[0];
         var nameStr = unwrapSyntax(nameStx);
-        letstx $guardedName = [makeIdent("inner_" + nameStr, #{here})];
+        letstx $guardedName = [makeIdent("inner$" + nameStr, #{here})];
         letstx $client = [makeValue("function " + nameStr, #{here})];
         letstx $server = [makeValue("(calling context for " + nameStr + ")", #{here})];
         letstx $fnName = [makeValue(nameStr, #{here})];
