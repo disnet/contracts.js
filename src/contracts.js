@@ -60,7 +60,7 @@
     };
     BlameObj.prototype.addParents = function(parent) {
         return Blame.clone(this, {
-            parents: this.parents !== null ? this.parents.concat(parent) : [parent]
+            parents: this.parents !== undefined ? this.parents.concat(parent) : [parent]
         });
     };
 
