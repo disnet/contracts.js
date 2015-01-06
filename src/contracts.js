@@ -453,6 +453,68 @@
         });
     }
 
+
+    function arrayContractHandler (options, arrContract, contractName, contractNum, blame, unwrapTypeVar) {
+        return function(arr) {
+            if (typeof arr === "number" ||
+                typeof arr === "string" ||
+                typeof arr === "boolean" || arr === null || arr ===  undefined) {
+                raiseBlame(blame.addGiven(arr)
+                                .addExpected("an array with at least " +
+                                             contractNum + pluralize(contractNum, " field")));
+            }
+            for (var ctxIdx = 0, arrIdx = 0; ctxIdx < arrContract.length; ctxIdx++) {
+                if (arrContract[ctxIdx].type === "repeat" && arr.length <= ctxIdx) {
+                    break;
+                } else if (arrContract[ctxIdx].type === "repeat" && ctxIdx !== arrContract.length - 1) {
+                    throw new Error("The repeated contract must come last in " + contractName);
+                }
+                var unwrapForProj = arrContract[ctxIdx].type === "fun" ? !unwrapTypeVar : unwrapTypeVar;
+                var fieldProj = arrContract[ctxIdx].proj(blame.addLocation("the " +
+                                                                           addTh(arrIdx) +
+                                                                           " field of"),
+                                                         unwrapForProj);
+                var checkedField = fieldProj(arr[arrIdx]);
+                arr[arrIdx] = checkedField;
+
+                arrIdx++;
+
+                if (arrContract[ctxIdx].type !== "repeat") {
+                    continue;
+                }
+                for (; arrIdx < arr.length; arrIdx++) {
+                    var repeatProj = arrContract[ctxIdx].proj(blame.addLocation("the " +
+                                                                                addTh(arrIdx) +
+                                                                                " field of"),
+                                                              unwrapForProj);
+                    arr[arrIdx] = repeatProj(arr[arrIdx]);
+                }
+
+            }
+            if (options && options.proxy) {
+                return new Proxy(arr, {
+                    set: function(target, key, value) {
+                        var lastContract = arrContract[arrContract.length - 1];
+                        var fieldProj;
+                        if (arrContract[key] !== undefined && arrContract[key].type !== "repeat") {
+                            fieldProj = arrContract[key].proj(blame.swap()
+                                                              .addLocation("the " + addTh(key) +
+                                                                           " field of"));
+                            target[key] = fieldProj(value);
+                        } else if (lastContract && lastContract.type === "repeat") {
+                            fieldProj = lastContract.proj(blame.swap()
+                                                               .addLocation("the " + addTh(key) +
+                                                                            " field of"));
+                            target[key] = fieldProj(value);
+                        }
+                    }
+                });
+            } else {
+                return arr;
+            }
+        };
+    }
+
     function array(arrContractRaw, options) {
         var proxyPrefix = options && options.proxy ? "!" : "";
         var arrContract = arrContractRaw.map(function(c) {
@@ -470,65 +532,8 @@
 
         var contractNum = arrContract.length;
 
-        var c = new Contract(contractName, "array", function(blame, unwrapTypeVar) {
-            return function(arr) {
-                if (typeof arr === "number" ||
-                    typeof arr === "string" ||
-                    typeof arr === "boolean" || arr == null) {
-                    raiseBlame(blame.addGiven(arr)
-                                    .addExpected("an array with at least " +
-                                                 contractNum + pluralize(contractNum, " field")));
-                }
-                for (var ctxIdx = 0, arrIdx = 0; ctxIdx < arrContract.length; ctxIdx++) {
-                    if (arrContract[ctxIdx].type === "repeat" && arr.length <= ctxIdx) {
-                        break;
-                    }
-                    var unwrapForProj = arrContract[ctxIdx].type === "fun" ? !unwrapTypeVar : unwrapTypeVar;
-                    var fieldProj = arrContract[ctxIdx].proj(blame.addLocation("the " +
-                                                                               addTh(arrIdx) +
-                                                                               " field of"),
-                                                             unwrapForProj);
-                    var checkedField = fieldProj(arr[arrIdx]);
-                    arr[arrIdx] = checkedField;
-
-                    arrIdx++;
-                    if (arrContract[ctxIdx].type === "repeat") {
-                        if (ctxIdx !== arrContract.length - 1) {
-                            throw new Error("The repeated contract must come last in " + contractName);
-                        }
-                        for (; arrIdx < arr.length; arrIdx++) {
-                            var repeatProj = arrContract[ctxIdx].proj(blame.addLocation("the " +
-                                                                                        addTh(arrIdx) +
-                                                                                        " field of"),
-                                                                      unwrapForProj);
-                            arr[arrIdx] = repeatProj(arr[arrIdx]);
-                        }
-                    }
-                }
-                if (options && options.proxy) {
-                    return new Proxy(arr, {
-                        set: function(target, key, value) {
-                            var lastContract = arrContract[arrContract.length - 1];
-                            var fieldProj;
-                            if (arrContract[key] !== undefined && arrContract[key].type !== "repeat") {
-                                fieldProj = arrContract[key].proj(blame.swap()
-                                                                  .addLocation("the " + addTh(key) +
-                                                                               " field of"));
-                                target[key] = fieldProj(value);
-                            } else if (lastContract && lastContract.type === "repeat") {
-                                fieldProj = lastContract.proj(blame.swap()
-                                                                   .addLocation("the " + addTh(key) +
-                                                                                " field of"));
-                                target[key] = fieldProj(value);
-                            }
-                        }
-                    });
-                } else {
-                    return arr;
-                }
-            };
-        });
-        return c;
+        return new Contract(contractName, "array",
+            arrayContractHandler.bind('', options, arrContract, contractName, contractNum));
     }
 
     function object(objContract, options) {
