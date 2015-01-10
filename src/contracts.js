@@ -54,13 +54,13 @@
     };
     BlameObj.prototype.addLocation = function(loc) {
         return Blame.clone(this, {
-            loc: this.loc != null ? this.loc.concat(loc) : [loc]
+            loc: this.loc !== undefined ? this.loc.concat(loc) : [loc]
         })
         ;
     };
     BlameObj.prototype.addParents = function(parent) {
         return Blame.clone(this, {
-            parents: this.parents != null ? this.parents.concat(parent) : [parent]
+            parents: this.parents !== undefined ? this.parents.concat(parent) : [parent]
         });
     };
 
@@ -117,7 +117,7 @@
     }
 
     function makeCoffer(name) {
-        return new Contract(name, "coffer", function(blame, unwrapTypeVar, projOptions) {
+        return new Contract(name, "coffer", function(blame, unwrapTypeVar) {
             return function(val) {
                 var locationMsg = "in the type variable " + name + " of";
                 if (unwrapTypeVar) {
@@ -277,15 +277,78 @@
         (x) => x + "th"
     }
 
-    function pluralize {
-        (0, str) => str + "s",
-        (1, str) => str,
-        (n, str) => str + "s"
+    function pluralize(a0, str) {
+        return a0 === 1 ? str : (str + "s");
     }
 
     function toContract(f) {
         return check(f, if f.name then f.name else "custom contract");
     }
+
+
+    //first two params get partial eval'd
+    function applyTrap (funParams, contractParams, target, thisVal, args) {
+
+        var options = funParams.options;
+        var dom     = funParams.dom;
+        var rng     = funParams.rng;
+
+        var blame           = contractParams.blame;
+        var unwrapTypeVar   = contractParams.unwrapTypeVar;
+        var projOptions     = contractParams.projOptions;
+
+        var checkedArgs = [];
+        var depArgs = [];
+        for (var i = 0; i < dom.length; i++) {
+            if (dom[i].type === "optional" && args[i] === undefined) {
+                continue;
+            }
+
+            var location = "the " + addTh(i+1) + " argument of";
+            var unwrapForProj = dom[i].type === "fun" ? !unwrapTypeVar : unwrapTypeVar;
+            var domProj = dom[i].proj(blame.swap()
+                                      .addLocation(location), unwrapForProj);
+
+            checkedArgs.push(domProj(args[i]));
+
+            if (options && options.dependency) {
+                var depProj = dom[i].proj(blame.swap()
+                                               .setNeg("the contract of " + blame.name)
+                                               .addLocation(location));
+                depArgs.push(depProj(args[i]));
+            }
+
+        }
+        checkedArgs = checkedArgs.concat(args.slice(i));
+        var checkedThis = thisVal;
+        if((options && options.thisContract) || (projOptions && projOptions.overrideThisContract)) {
+            var thisContract = if projOptions && projOptions.overrideThisContract
+                               then projOptions.overrideThisContract
+                               else options.thisContract
+            var thisProj = thisContract.proj(blame.swap()
+                                                  .addLocation("the this value of"));
+            checkedThis = thisProj(thisVal);
+        }
+
+        assert(rng instanceof Contract, "The range is not a contract");
+
+        var rawResult = target.apply(checkedThis, checkedArgs);
+        var rngUnwrap = rng.type === "fun" ? unwrapTypeVar : !unwrapTypeVar;
+        var rngProj = rng.proj(blame.addLocation("the return of"), rngUnwrap);
+        var rngResult = rngProj(rawResult);
+        if (options && options.dependency && typeof options.dependency === "function") {
+            var depResult = options.dependency.apply({}, depArgs.concat(rngResult));
+            if (!depResult) {
+                raiseBlame(blame.addExpected(options.dependencyStr)
+                                .addGiven(false)
+                                .addLocation("the return dependency of"));
+            }
+        }
+
+        return rngResult;
+    }
+
+
 
     function fun(domRaw, rngRaw, options) {
         var dom = domRaw.map(function(d) {
@@ -327,62 +390,16 @@
                                     .addGiven(f));
                 }
 
-                function applyTrap(target, thisVal, args) {
-
-                    var checkedArgs = [];
-                    var depArgs = [];
-                    for (var i = 0; i < dom.length; i++) {
-                        if (dom[i].type === "optional" && args[i] === undefined) {
-                            continue;
-                        } else {
-                            var location = "the " + addTh(i+1) + " argument of";
-                            var unwrapForProj = dom[i].type === "fun" ? !unwrapTypeVar : unwrapTypeVar;
-                            var domProj = dom[i].proj(blame.swap()
-                                                      .addLocation(location), unwrapForProj);
-
-                            checkedArgs.push(domProj(args[i]));
-
-                            if (options && options.dependency) {
-                                var depProj = dom[i].proj(blame.swap()
-                                                               .setNeg("the contract of " + blame.name)
-                                                               .addLocation(location));
-                                depArgs.push(depProj(args[i]));
-                            }
-                        }
-                    }
-                    checkedArgs = checkedArgs.concat(args.slice(i));
-                    var checkedThis = thisVal;
-                    if((options && options.thisContract) || (projOptions && projOptions.overrideThisContract)) {
-                        var thisContract = if projOptions && projOptions.overrideThisContract
-                                           then projOptions.overrideThisContract
-                                           else options.thisContract
-                        var thisProj = thisContract.proj(blame.swap()
-                                                              .addLocation("the this value of"));
-                        checkedThis = thisProj(thisVal);
-                    }
-
-                    assert(rng instanceof Contract, "The range is not a contract");
-
-                    var rawResult = target.apply(checkedThis, checkedArgs);
-                    var rngUnwrap = rng.type === "fun" ? unwrapTypeVar : !unwrapTypeVar;
-                    var rngProj = rng.proj(blame.addLocation("the return of"), rngUnwrap);
-                    var rngResult = rngProj(rawResult);
-                    if (options && options.dependency && typeof options.dependency === "function") {
-                        var depResult = options.dependency.apply(this, depArgs.concat(rngResult));
-                        if (!depResult) {
-                            raiseBlame(blame.addExpected(options.dependencyStr)
-                                            .addGiven(false)
-                                            .addLocation("the return dependency of"));
-                        }
-                    }
-                    return rngResult;
-                }
+                var applyTrapPartial =
+                    applyTrap.bind('',
+                        {options: options, dom: dom, rng: rng},
+                        {blame: blame, unwrapTypeVar: unwrapTypeVar, projOptions: projOptions});
 
                 // only use expensive proxies when needed (to distinguish between apply and construct)
-                if (options && options.needs_proxy) {
+                if (options && options.needsProxy) {
                     var p = new Proxy(f, {
                         apply: function(target, thisVal, args) {
-                            return applyTrap(target, thisVal, args);
+                            return applyTrapPartial(target, thisVal, args);
                         }
                     });
 
@@ -390,7 +407,7 @@
 
                 } else {
                     return function() {
-                        return applyTrap(f, this, Array.prototype.slice.call(arguments));
+                        return applyTrapPartial(f, this, Array.prototype.slice.call(arguments));
                     };
                 }
 
@@ -401,7 +418,7 @@
         return c;
     }
 
-    function optional(contract, options) {
+    function optional(contract) {
         if (!(contract instanceof Contract)) {
             if (typeof contract === "function") {
                 contract = toContract(contract);
@@ -418,7 +435,7 @@
         });
     }
 
-    function repeat(contract, options) {
+    function repeat(contract) {
         if (!(contract instanceof Contract)) {
             if (typeof contract === "function") {
                 contract = toContract(contract);
@@ -434,6 +451,68 @@
                 return proj(val);
             };
         });
+    }
+
+
+    function arrayContractHandler (options, arrContract, contractName, contractNum, blame, unwrapTypeVar) {
+        return function(arr) {
+            if (typeof arr === "number" ||
+                typeof arr === "string" ||
+                typeof arr === "boolean" || arr === null || arr ===  undefined) {
+                raiseBlame(blame.addGiven(arr)
+                                .addExpected("an array with at least " +
+                                             contractNum + pluralize(contractNum, " field")));
+            }
+            for (var ctxIdx = 0, arrIdx = 0; ctxIdx < arrContract.length; ctxIdx++) {
+                if (arrContract[ctxIdx].type === "repeat" && arr.length <= ctxIdx) {
+                    break;
+                } else if (arrContract[ctxIdx].type === "repeat" && ctxIdx !== arrContract.length - 1) {
+                    throw new Error("The repeated contract must come last in " + contractName);
+                }
+                var unwrapForProj = arrContract[ctxIdx].type === "fun" ? !unwrapTypeVar : unwrapTypeVar;
+                var fieldProj = arrContract[ctxIdx].proj(blame.addLocation("the " +
+                                                                           addTh(arrIdx) +
+                                                                           " field of"),
+                                                         unwrapForProj);
+                var checkedField = fieldProj(arr[arrIdx]);
+                arr[arrIdx] = checkedField;
+
+                arrIdx++;
+
+                if (arrContract[ctxIdx].type !== "repeat") {
+                    continue;
+                }
+                for (; arrIdx < arr.length; arrIdx++) {
+                    var repeatProj = arrContract[ctxIdx].proj(blame.addLocation("the " +
+                                                                                addTh(arrIdx) +
+                                                                                " field of"),
+                                                              unwrapForProj);
+                    arr[arrIdx] = repeatProj(arr[arrIdx]);
+                }
+
+            }
+            if (options && options.proxy) {
+                return new Proxy(arr, {
+                    set: function(target, key, value) {
+                        var lastContract = arrContract[arrContract.length - 1];
+                        var fieldProj;
+                        if (arrContract[key] !== undefined && arrContract[key].type !== "repeat") {
+                            fieldProj = arrContract[key].proj(blame.swap()
+                                                              .addLocation("the " + addTh(key) +
+                                                                           " field of"));
+                            target[key] = fieldProj(value);
+                        } else if (lastContract && lastContract.type === "repeat") {
+                            fieldProj = lastContract.proj(blame.swap()
+                                                               .addLocation("the " + addTh(key) +
+                                                                            " field of"));
+                            target[key] = fieldProj(value);
+                        }
+                    }
+                });
+            } else {
+                return arr;
+            }
+        };
     }
 
     function array(arrContractRaw, options) {
@@ -453,65 +532,8 @@
 
         var contractNum = arrContract.length;
 
-        var c = new Contract(contractName, "array", function(blame, unwrapTypeVar) {
-            return function(arr) {
-                if (typeof arr === "number" ||
-                    typeof arr === "string" ||
-                    typeof arr === "boolean" || arr == null) {
-                    raiseBlame(blame.addGiven(arr)
-                                    .addExpected("an array with at least " +
-                                                 contractNum + pluralize(contractNum, " field")));
-                }
-                for (var ctxIdx = 0, arrIdx = 0; ctxIdx < arrContract.length; ctxIdx++) {
-                    if (arrContract[ctxIdx].type === "repeat" && arr.length <= ctxIdx) {
-                        break;
-                    }
-                    var unwrapForProj = arrContract[ctxIdx].type === "fun" ? !unwrapTypeVar : unwrapTypeVar;
-                    var fieldProj = arrContract[ctxIdx].proj(blame.addLocation("the " +
-                                                                               addTh(arrIdx) +
-                                                                               " field of"),
-                                                             unwrapForProj);
-                    var checkedField = fieldProj(arr[arrIdx]);
-                    arr[arrIdx] = checkedField;
-
-                    arrIdx++;
-                    if (arrContract[ctxIdx].type === "repeat") {
-                        if (ctxIdx !== arrContract.length - 1) {
-                            throw new Error("The repeated contract must come last in " + contractName);
-                        }
-                        for (; arrIdx < arr.length; arrIdx++) {
-                            var repeatProj = arrContract[ctxIdx].proj(blame.addLocation("the " +
-                                                                                        addTh(arrIdx) +
-                                                                                        " field of"),
-                                                                      unwrapForProj);
-                            arr[arrIdx] = repeatProj(arr[arrIdx]);
-                        }
-                    }
-                }
-                if (options && options.proxy) {
-                    return new Proxy(arr, {
-                        set: function(target, key, value) {
-                            var lastContract = arrContract[arrContract.length - 1];
-                            var fieldProj;
-                            if (arrContract[key] !== undefined && arrContract[key].type !== "repeat") {
-                                fieldProj = arrContract[key].proj(blame.swap()
-                                                                  .addLocation("the " + addTh(key) +
-                                                                               " field of"));
-                                target[key] = fieldProj(value);
-                            } else if (lastContract && lastContract.type === "repeat") {
-                                fieldProj = lastContract.proj(blame.swap()
-                                                                   .addLocation("the " + addTh(key) +
-                                                                                " field of"));
-                                target[key] = fieldProj(value);
-                            }
-                        }
-                    });
-                } else {
-                    return arr;
-                }
-            };
-        });
-        return c;
+        return new Contract(contractName, "array",
+            arrayContractHandler.bind('', options, arrContract, contractName, contractNum));
     }
 
     function object(objContract, options) {
@@ -535,7 +557,7 @@
             return function(obj) {
                 if (typeof obj === "number" ||
                     typeof obj === "string" ||
-                    typeof obj === "boolean" || obj == null) {
+                    typeof obj === "boolean" || obj === null || obj === undefined) {
                     raiseBlame(blame.addGiven(obj)
                                     .addExpected("an object with at least " +
                                                  keyNum + pluralize(keyNum, " key")));
@@ -671,11 +693,11 @@
         Pos: check(function(val)       { return val >= 0; }, "Pos"),
         Nat: check(function(val)       { return val > 0; }, "Nat"),
         Neg: check(function(val)       { return val < 0; }, "Neg"),
-        Any: check(function(val)       { return true; }, "Any"),
-        None: check(function(val)      { return false; }, "None"),
+        Any: check(function()       { return true; }, "Any"),
+        None: check(function()      { return false; }, "None"),
         Null: check(function(val)      { return null === val; }, "Null"),
         Undefined: check(function(val) { return void 0 === val; }, "Null"),
-        Void: check(function(val)      { return null == val; }, "Null"),
+        Void: check(function(val)      { return null === val || undefined === val; }, "Null"),
 
         check: check,
         reMatch: reMatch,

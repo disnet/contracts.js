@@ -286,7 +286,7 @@ _c$600 = function () {
                         return rngResult;
                     }
                     // only use expensive proxies when needed (to distinguish between apply and construct)
-                    if (options && options.needs_proxy) {
+                    if (options && options.needsProxy) {
                         var p = new Proxy(f, {
                                 apply: function (target, thisVal, args) {
                                     return applyTrap(target, thisVal, args);
