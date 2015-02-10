@@ -8,6 +8,7 @@
 
     var unproxy = new WeakMap();
     var typeVarMap = new WeakMap();
+    var callEvents = [];
 
     var Blame = {
         create: function(name, pos, neg, lineNumber) {
@@ -349,6 +350,31 @@
     }
 
 
+    function async(domRaw, rngRaw, options) {
+        return new Contract("async", "async", function(blame, unwrapTypeVar, projOptions) {
+            var c = fun(domRaw, rngRaw, options);
+            var fproj = c.proj(blame, unwrapTypeVar, projOptions)
+            var parentEvent;
+            if (callEvents[0]) {
+                parentEvent = callEvents[0];
+            }
+            return function (f) {
+                var count = {
+                    call: 0,
+                    ret: 0
+                };
+                for (var i = 0; i < callEvents.length; i++) {
+                    if (callEvents[i].from === parentEvent.from) {
+                        count[callEvents[i].type]++;
+                    }
+                }
+                if (count.call !== count.ret) {
+                    raiseBlame(blame.swap().addExpected("call on the next turn of the event loop"))
+                }
+                return fproj(f);
+            };
+        });
+    }
 
     function fun(domRaw, rngRaw, options) {
         var dom = domRaw.map(function(d) {
@@ -669,6 +695,9 @@
         });
     }
 
+    function registerEvent(type, from) {
+        callEvents.push({type: type, from: from});
+    }
 
     function cyclic(name) {
         return new Contract(name, "cycle", function() {
@@ -702,6 +731,7 @@
         check: check,
         reMatch: reMatch,
         fun: fun,
+        async: async,
         or: or,
         and: and,
         repeat: repeat,
@@ -711,6 +741,7 @@
         cyclic: cyclic,
         Blame: Blame,
         makeCoffer: makeCoffer,
+        registerEvent: registerEvent,
         guard: guard
     };
 })();

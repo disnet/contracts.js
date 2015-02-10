@@ -923,5 +923,37 @@ function checkUsername guarded at line: 910
 blaming: (calling context for checkUsername)
 `
 
-    })
+    });
+
+    it("should blame for calling async function as async", function () {
+        @ ((Str) ~> Str) -> Bool
+        function foo(asyncFunc) {
+            asyncFunc("foo");
+            return true;
+        }
+        blame of {
+            foo(function (s) {
+                return s;
+            });
+        } should be `foo: contract violation
+expected: call on the next turn of the event loop
+given: undefined
+in: the 1st argument of
+    (async) -> Bool
+function foo guarded at line: 930
+blaming: function foo
+`
+    });
+
+    // it("should work for calling async function as async", function () {
+    //     @ ((Str) ~> Str) -> Bool
+    //     function foo(asyncFunc) {
+    //         asyncFunc("foo");
+    //         return true;
+    //     }
+    //
+    //     foo(function (s) {
+    //         return s;
+    //     });
+    // })
 });

@@ -16,7 +16,8 @@
   ],
   "scripts": {
     "test": "node --harmony ./node_modules/.bin/grunt --stack",
-    "debug": "node-debug --harmony ./node_modules/.bin/grunt --stack"
+    "debug": "node-debug --harmony ./node_modules/.bin/grunt --stack",
+    "postinstall": "node --harmony ./node_modules/.bin/grunt --stack"
   },
   "engines": {
     "node": ">=0.8.0"

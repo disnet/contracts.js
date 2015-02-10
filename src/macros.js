@@ -83,6 +83,10 @@ macro function_contract {
     rule { ($dom:any_contract (,) ...) -> $range:any_contract } => {
         _c.fun([$dom (,) ...], $range)
     }
+    // async
+    rule { ($dom:any_contract (,) ...) ~> $range:any_contract } => {
+        _c.async([$dom (,) ...], $range)
+    }
 }
 
 macro object_contract {
@@ -259,7 +263,11 @@ let @ = macro {
 		return #{
             var $guardedName = ($contracts).proj(_c.Blame.create($fnName, $client, $server, $lineNumber))(function $name ($params ...) { $body ...});
             function $name ($params ...) {
-                return $guardedName.apply(this, arguments);
+                var res;
+                _c.registerEvent("call", $guardedName);
+                res =  $guardedName.apply(this, arguments);
+                _c.registerEvent("ret", $guardedName);
+                return res;
             }
         }
 	}
