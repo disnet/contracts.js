@@ -15,9 +15,9 @@
     }
   ],
   "scripts": {
-    "test": "node --harmony ./node_modules/.bin/grunt --stack",
-    "debug": "node-debug --harmony ./node_modules/.bin/grunt --stack",
-    "postinstall": "node --harmony ./node_modules/.bin/grunt --stack"
+    "test": "node --harmony_proxies ./node_modules/.bin/grunt --stack",
+    "debug": "node-debug --harmony_proxies ./node_modules/.bin/grunt --stack",
+    "postinstall": "node --harmony_proxies ./node_modules/.bin/grunt --stack"
   },
   "engines": {
     "node": ">=0.8.0"

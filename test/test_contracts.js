@@ -945,15 +945,15 @@ blaming: function foo
 `
     });
 
-    // it("should work for calling async function as async", function () {
-    //     @ ((Str) ~> Str) -> Bool
-    //     function foo(asyncFunc) {
-    //         asyncFunc("foo");
-    //         return true;
-    //     }
-    //
-    //     foo(function (s) {
-    //         return s;
-    //     });
-    // })
+    it("should work for calling async function as async", function () {
+        @ ((Str) ~> Str) -> Any
+        function foo(asyncFunc) {
+            return function() { asyncFunc("foo"); };
+        }
+
+        var f = foo(function (s) {
+            return s;
+        });
+        f();
+    })
 });

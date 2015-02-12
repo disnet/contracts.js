@@ -260,13 +260,19 @@ let @ = macro {
         letstx $server = [makeValue("(calling context for " + nameStr + ")", #{here})];
         letstx $fnName = [makeValue(nameStr, #{here})];
         letstx $lineNumber = [makeValue(nameStx.token.sm_lineNumber, #{here})];
+        letstx $fresh = [makeValue(__fresh(), #{here})];
 		return #{
             var $guardedName = ($contracts).proj(_c.Blame.create($fnName, $client, $server, $lineNumber))(function $name ($params ...) { $body ...});
             function $name ($params ...) {
                 var res;
-                _c.registerEvent("call", $guardedName);
-                res =  $guardedName.apply(this, arguments);
-                _c.registerEvent("ret", $guardedName);
+                _c.registerEvent("call", $fresh);
+                try {
+                    res =  $guardedName.apply(this, arguments);
+                } catch (e) {
+                    throw e
+                } finally {
+                    _c.registerEvent("ret", $fresh);
+                }
                 return res;
             }
         }

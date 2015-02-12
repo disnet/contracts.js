@@ -9,6 +9,7 @@ let import = macro {
     }
     var unproxy = new WeakMap();
     var typeVarMap = new WeakMap();
+    var callEvents = [];
     var Blame = {
             create: function (name, pos, neg, lineNumber) {
                 var o = new BlameObj(name, pos, neg, lineNumber);
@@ -240,6 +241,22 @@ let import = macro {
             }
         }
         return rngResult;
+    }
+    function async(domRaw, rngRaw, options) {
+        return new Contract('async', 'async', function (blame, unwrapTypeVar, projOptions) {
+            var c = fun(domRaw, rngRaw, options);
+            var fproj = c.proj(blame, unwrapTypeVar, projOptions);
+            return function (f) {
+                var trap = fproj(f);
+                var appliedLoopId = loopId;
+                return function () {
+                    if (loopId === appliedLoopId) {
+                        raiseBlame(blame.swap().addExpected('call on the next turn of the event loop'));
+                    }
+                    trap.apply(this, arguments);
+                };
+            };
+        });
     }
     function fun(domRaw, rngRaw, options) {
         var dom = domRaw.map(function (d) {
@@ -499,6 +516,18 @@ let import = macro {
             };
         });
     }
+    var loopId = 0;
+    var threadStack = [];
+    function registerEvent(type, funId) {
+        if (type === 'call') {
+            threadStack.push(funId);
+        } else if (type === 'ret') {
+            threadStack.pop();
+            if (threadStack.length === 0) {
+                loopId++;
+            }
+        }
+    }
     function cyclic(name) {
         return new Contract(name, 'cycle', function () {
             throw new Error('Stub, should never be called');
@@ -551,6 +580,7 @@ let import = macro {
         check: check,
         reMatch: reMatch,
         fun: fun,
+        async: async,
         or: or,
         and: and,
         repeat: repeat,
@@ -560,6 +590,7 @@ let import = macro {
         cyclic: cyclic,
         Blame: Blame,
         makeCoffer: makeCoffer,
+        registerEvent: registerEvent,
         guard: guard
     };
 }());

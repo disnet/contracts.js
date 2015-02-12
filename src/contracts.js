@@ -354,24 +354,15 @@
         return new Contract("async", "async", function(blame, unwrapTypeVar, projOptions) {
             var c = fun(domRaw, rngRaw, options);
             var fproj = c.proj(blame, unwrapTypeVar, projOptions)
-            var parentEvent;
-            if (callEvents[0]) {
-                parentEvent = callEvents[0];
-            }
             return function (f) {
-                var count = {
-                    call: 0,
-                    ret: 0
-                };
-                for (var i = 0; i < callEvents.length; i++) {
-                    if (callEvents[i].from === parentEvent.from) {
-                        count[callEvents[i].type]++;
+                var trap = fproj(f);
+                var appliedLoopId = loopId;
+                return function () {
+                    if (loopId === appliedLoopId) {
+                        raiseBlame(blame.swap().addExpected("call on the next turn of the event loop"))
                     }
+                    trap.apply(this, arguments);
                 }
-                if (count.call !== count.ret) {
-                    raiseBlame(blame.swap().addExpected("call on the next turn of the event loop"))
-                }
-                return fproj(f);
             };
         });
     }
@@ -695,8 +686,19 @@
         });
     }
 
-    function registerEvent(type, from) {
-        callEvents.push({type: type, from: from});
+
+    var loopId = 0;
+    var threadStack = [];
+    function registerEvent(type, funId) {
+        if (type === "call") {
+            threadStack.push(funId);
+        } else if (type === "ret") {
+            threadStack.pop();
+            if (threadStack.length === 0) {
+                loopId++;
+            }
+        }
+
     }
 
     function cyclic(name) {
