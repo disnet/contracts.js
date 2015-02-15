@@ -268,16 +268,7 @@ let @ = macro {
 		return #{
             var $guardedName = ($contracts).proj(_c.Blame.create($fnName, $client, $server, $lineNumber))(function $name ($params ...) { $body ...});
             function $name ($params ...) {
-                var res;
-                _c.registerEvent("call", $fresh);
-                try {
-                    res =  $guardedName.apply(this, arguments);
-                } catch (e) {
-                    throw e
-                } finally {
-                    _c.registerEvent("ret", $fresh);
-                }
-                return res;
+                return $guardedName.apply(this, arguments);
             }
         }
 	}

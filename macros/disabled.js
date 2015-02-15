@@ -265,9 +265,10 @@ let import = macro {
             var fproj = c.proj(blame, unwrapTypeVar, projOptions);
             return function (f) {
                 var trap = fproj(f);
-                var appliedLoopId = loopId;
+                var appliedThreadId = threadId;
+                process.nextTick(incThreadId);
                 return function () {
-                    if (loopId === appliedLoopId) {
+                    if (appliedThreadId === threadId) {
                         raiseBlame(blame.swap().addExpected('call on the next turn of the event loop'));
                     }
                     trap.apply(this, arguments);
@@ -533,17 +534,9 @@ let import = macro {
             };
         });
     }
-    var loopId = 0;
-    var threadStack = [];
-    function registerEvent(type, funId) {
-        if (type === 'call') {
-            threadStack.push(funId);
-        } else if (type === 'ret') {
-            threadStack.pop();
-            if (threadStack.length === 0) {
-                loopId++;
-            }
-        }
+    var threadId = 0;
+    function incThreadId() {
+        threadId++;
     }
     function cyclic(name) {
         return new Contract(name, 'cycle', function () {
@@ -608,7 +601,6 @@ let import = macro {
         cyclic: cyclic,
         Blame: Blame,
         makeCoffer: makeCoffer,
-        registerEvent: registerEvent,
         guard: guard
     };
 }());

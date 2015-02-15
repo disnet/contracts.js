@@ -945,17 +945,19 @@ blaming: function foo
 `
     });
 
-    it("should work for calling async function as async", function () {
+    it("should work for calling async function as async", function (done) {
         @ (async (Str) -> Str) -> Any
         function foo(asyncFunc) {
-            return function() { asyncFunc("foo"); };
+            setTimeout(function() {
+                asyncFunc("foo");
+                done();
+            }, 0);
         }
 
-        var f = foo(function (s) {
+        foo(function (s) {
             return s;
         });
-        f();
-    })
+    });
 
     it("should work for once function", function () {
         @ (once (Str) -> Str) -> Any
@@ -970,7 +972,7 @@ expected: called more than once
 given: undefined
 in: the 1st argument of
     (once) -> Any
-function foo guarded at line: 962
+function foo guarded at line: 964
 blaming: function foo
 `
     })
