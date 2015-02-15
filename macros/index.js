@@ -242,6 +242,23 @@ let import = macro {
         }
         return rngResult;
     }
+    function once(domRaw, rngRaw, options) {
+        return new Contract('once', 'one', function (blame, unwrapTypeVar, projOptions) {
+            var c = fun(domRaw, rngRaw, options);
+            var fproj = c.proj(blame, unwrapTypeVar, projOptions);
+            return function (f) {
+                var trap = fproj(f);
+                var called = false;
+                return function () {
+                    if (called) {
+                        raiseBlame(blame.swap().addExpected('called more than once'));
+                    }
+                    called = true;
+                    trap.apply(this, arguments);
+                };
+            };
+        });
+    }
     function async(domRaw, rngRaw, options) {
         return new Contract('async', 'async', function (blame, unwrapTypeVar, projOptions) {
             var c = fun(domRaw, rngRaw, options);
@@ -581,6 +598,7 @@ let import = macro {
         reMatch: reMatch,
         fun: fun,
         async: async,
+        once: once,
         or: or,
         and: and,
         repeat: repeat,
@@ -676,8 +694,12 @@ macro function_contract {
         _c.fun([$dom (,) ...], $range)
     }
     // async
-    rule { ($dom:any_contract (,) ...) ~> $range:any_contract } => {
+    rule { async ($dom:any_contract (,) ...) -> $range:any_contract } => {
         _c.async([$dom (,) ...], $range)
+    }
+    // once
+    rule { once ($dom:any_contract (,) ...) -> $range:any_contract } => {
+        _c.once([$dom (,) ...], $range)
     }
 }
 

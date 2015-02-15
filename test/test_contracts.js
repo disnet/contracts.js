@@ -926,7 +926,7 @@ blaming: (calling context for checkUsername)
     });
 
     it("should blame for calling async function as async", function () {
-        @ ((Str) ~> Str) -> Bool
+        @ (async (Str) -> Str) -> Bool
         function foo(asyncFunc) {
             asyncFunc("foo");
             return true;
@@ -946,7 +946,7 @@ blaming: function foo
     });
 
     it("should work for calling async function as async", function () {
-        @ ((Str) ~> Str) -> Any
+        @ (async (Str) -> Str) -> Any
         function foo(asyncFunc) {
             return function() { asyncFunc("foo"); };
         }
@@ -956,4 +956,31 @@ blaming: function foo
         });
         f();
     })
+
+    it("should work for once function", function () {
+        @ (once (Str) -> Str) -> Any
+        function foo(onceFunc) {
+            onceFunc("foo");
+            onceFunc("foo");
+        }
+        blame of {
+            foo(function(x) { return x; });
+        } should be `foo: contract violation
+expected: called more than once
+given: undefined
+in: the 1st argument of
+    (once) -> Any
+function foo guarded at line: 962
+blaming: function foo
+`
+    })
+
+    // it("should work for once! function", function () {
+    //     @ (once! (Str) -> Str) -> Any
+    //     function foo(onceFunc) {
+    //         // never called! should blame
+    //         return
+    //     }
+    //     foo(function(x) { return x; });
+    // })
 });
