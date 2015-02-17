@@ -995,6 +995,29 @@ blaming: function foo
 `
     })
 
+    it("should blame for calling sync function as async", function (done) {
+        @ (sync (Str) -> Str) -> Bool
+        function foo(syncFunc) {
+            setTimeout(function() {
+                blame of {
+                    syncFunc("foo");
+                } should be `foo: contract violation
+expected: call on this turn of the event loop
+given: undefined
+in: the 1st argument of
+    (sync) -> Bool
+function foo guarded at line: 1000
+blaming: function foo
+`
+                done();
+            })
+            return true;
+        }
+        foo(function (s) {
+            return s;
+        });
+    });
+
     // it("should work for once! function", function () {
     //     @ (once! (Str) -> Str) -> Any
     //     function foo(onceFunc) {

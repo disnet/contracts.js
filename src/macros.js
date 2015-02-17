@@ -87,6 +87,9 @@ macro function_contract {
     rule { async ($dom:any_contract (,) ...) -> $range:any_contract } => {
         _c.async([$dom (,) ...], $range)
     }
+    rule { sync ($dom:any_contract (,) ...) -> $range:any_contract } => {
+        _c.sync([$dom (,) ...], $range)
+    }
     // once
     rule { once ($dom:any_contract (,) ...) -> $range:any_contract } => {
         _c.once([$dom (,) ...], $range)

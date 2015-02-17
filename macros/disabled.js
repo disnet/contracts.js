@@ -291,6 +291,22 @@ let import = macro {
             };
         });
     }
+    function sync(domRaw, rngRaw, options) {
+        return new Contract('sync', 'sync', function (blame, unwrapTypeVar, projOptions) {
+            var c = fun(domRaw, rngRaw, options);
+            var fproj = c.proj(blame, unwrapTypeVar, projOptions);
+            return function (f) {
+                var trap = fproj(f);
+                var appliedThreadId = getThreadId();
+                return function () {
+                    if (appliedThreadId !== getThreadId()) {
+                        raiseBlame(blame.swap().addExpected('call on this turn of the event loop'));
+                    }
+                    trap.apply(this, arguments);
+                };
+            };
+        });
+    }
     function fun(domRaw, rngRaw, options) {
         var dom = domRaw.map(function (d) {
             if (!(d instanceof Contract)) {
@@ -610,6 +626,7 @@ let import = macro {
         reMatch: reMatch,
         fun: fun,
         async: async,
+        sync: sync,
         once: once,
         xor: xor,
         or: or,
