@@ -975,6 +975,24 @@ in: the 1st argument of
 function foo guarded at line: 964
 blaming: function foo
 `
+    });
+
+    it("should work for the xor function", function () {
+        @ (XOR (Str) -> Str, XOR (Str) -> Str) -> Any
+        function foo(a, b) {
+            a("foo");
+            b("foo");
+        }
+        blame of {
+            foo(function(x) { return x; }, function(x) { return x; });
+        } should be `foo: contract violation
+expected: other function already called
+given: undefined
+in: the 2nd argument of
+    (xor, xor) -> Any
+function foo guarded at line: 982
+blaming: function foo
+`
     })
 
     // it("should work for once! function", function () {

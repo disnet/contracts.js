@@ -11,19 +11,19 @@ let import = macro {
     var typeVarMap = new WeakMap();
     var callEvents = [];
     var Blame = {
-            create: function (name, pos, neg, lineNumber) {
-                var o = new BlameObj(name, pos, neg, lineNumber);
-                return o;
-            },
-            clone: function (old, props) {
-                var o = new BlameObj(typeof props.name !== 'undefined' ? props.name : old.name, typeof props.pos !== 'undefined' ? props.pos : old.pos, typeof props.neg !== 'undefined' ? props.neg : old.neg, typeof props.lineNuber !== 'undefined' ? props.lineNuber : old.lineNumber);
-                o.expected = typeof props.expected !== 'undefined' ? props.expected : old.expected;
-                o.given = typeof props.given !== 'undefined' ? props.given : old.given;
-                o.loc = typeof props.loc !== 'undefined' ? props.loc : old.loc;
-                o.parents = typeof props.parents !== 'undefined' ? props.parents : old.parents;
-                return o;
-            }
-        };
+        create: function (name, pos, neg, lineNumber) {
+            var o = new BlameObj(name, pos, neg, lineNumber);
+            return o;
+        },
+        clone: function (old, props) {
+            var o = new BlameObj(typeof props.name !== 'undefined' ? props.name : old.name, typeof props.pos !== 'undefined' ? props.pos : old.pos, typeof props.neg !== 'undefined' ? props.neg : old.neg, typeof props.lineNuber !== 'undefined' ? props.lineNuber : old.lineNumber);
+            o.expected = typeof props.expected !== 'undefined' ? props.expected : old.expected;
+            o.given = typeof props.given !== 'undefined' ? props.given : old.given;
+            o.loc = typeof props.loc !== 'undefined' ? props.loc : old.loc;
+            o.parents = typeof props.parents !== 'undefined' ? props.parents : old.parents;
+            return o;
+        }
+    };
     function BlameObj(name, pos, neg, lineNumber) {
         this.name = name;
         this.pos = pos;
@@ -96,64 +96,64 @@ let import = macro {
                 } else {
                     var towrap = val && typeof val === 'object' ? val : {};
                     var p = new Proxy(towrap, {
-                            getOwnPropertyDescriptor: function () {
-                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.getOwnPropertyDescriptor').addLocation(locationMsg));
-                            },
-                            getOwnPropertyName: function () {
-                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.getOwnPropertyName').addLocation(locationMsg));
-                            },
-                            defineProperty: function () {
-                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.defineProperty').addLocation(locationMsg));
-                            },
-                            deleteProperty: function (target, propName) {
-                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called delete on property' + propName).addLocation(locationMsg));
-                            },
-                            freeze: function () {
-                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.freeze').addLocation(locationMsg));
-                            },
-                            seal: function () {
-                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.seal').addLocation(locationMsg));
-                            },
-                            preventExtensions: function () {
-                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.preventExtensions').addLocation(locationMsg));
-                            },
-                            has: function (target, propName) {
-                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called `in` for property ' + propName).addLocation(locationMsg));
-                            },
-                            hasOwn: function (target, propName) {
-                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.hasOwnProperty on property ' + propName).addLocation(locationMsg));
-                            },
-                            get: function (target, propName) {
-                                var givenMsg = 'performed obj.' + propName;
-                                if (propName === 'valueOf') {
-                                    givenMsg = 'attempted to inspect the value';
-                                }
-                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven(givenMsg).addLocation(locationMsg));
-                            },
-                            set: function (target, propName, val$2) {
-                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('performed obj.' + propName + ' = ' + val$2).addLocation(locationMsg));
-                            },
-                            enumerate: function () {
-                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('value used in a `for in` loop').addLocation(locationMsg));
-                            },
-                            iterate: function () {
-                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('value used in a `for of` loop').addLocation(locationMsg));
-                            },
-                            keys: function () {
-                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.keys').addLocation(locationMsg));
-                            },
-                            apply: function () {
-                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('attempted to invoke the value').addLocation(locationMsg));
-                            },
-                            construct: function () {
-                                raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('attempted to invoke the value with new').addLocation(locationMsg));
+                        getOwnPropertyDescriptor: function () {
+                            raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.getOwnPropertyDescriptor').addLocation(locationMsg));
+                        },
+                        getOwnPropertyName: function () {
+                            raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.getOwnPropertyName').addLocation(locationMsg));
+                        },
+                        defineProperty: function () {
+                            raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.defineProperty').addLocation(locationMsg));
+                        },
+                        deleteProperty: function (target, propName) {
+                            raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called delete on property' + propName).addLocation(locationMsg));
+                        },
+                        freeze: function () {
+                            raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.freeze').addLocation(locationMsg));
+                        },
+                        seal: function () {
+                            raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.seal').addLocation(locationMsg));
+                        },
+                        preventExtensions: function () {
+                            raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.preventExtensions').addLocation(locationMsg));
+                        },
+                        has: function (target, propName) {
+                            raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called `in` for property ' + propName).addLocation(locationMsg));
+                        },
+                        hasOwn: function (target, propName) {
+                            raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.hasOwnProperty on property ' + propName).addLocation(locationMsg));
+                        },
+                        get: function (target, propName) {
+                            var givenMsg = 'performed obj.' + propName;
+                            if (propName === 'valueOf') {
+                                givenMsg = 'attempted to inspect the value';
                             }
-                        });
+                            raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven(givenMsg).addLocation(locationMsg));
+                        },
+                        set: function (target, propName, val$2) {
+                            raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('performed obj.' + propName + ' = ' + val$2).addLocation(locationMsg));
+                        },
+                        enumerate: function () {
+                            raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('value used in a `for in` loop').addLocation(locationMsg));
+                        },
+                        iterate: function () {
+                            raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('value used in a `for of` loop').addLocation(locationMsg));
+                        },
+                        keys: function () {
+                            raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('called Object.keys').addLocation(locationMsg));
+                        },
+                        apply: function () {
+                            raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('attempted to invoke the value').addLocation(locationMsg));
+                        },
+                        construct: function () {
+                            raiseBlame(blame.swap().addExpected('value to not be manipulated').addGiven('attempted to invoke the value with new').addLocation(locationMsg));
+                        }
+                    });
                     if (!typeVarMap.has(this)) {
                         var valType = typeof val;
                         var inferedContract = check(function (checkVal) {
-                                return typeof checkVal === valType;
-                            }, '(x) => typeof x === \'' + valType + '\'');
+                            return typeof checkVal === valType;
+                        }, '(x) => typeof x === \'' + valType + '\'');
                         typeVarMap.set(this, { contract: inferedContract });
                     } else {
                         var inferedProj = typeVarMap.get(this).contract.proj(blame.addLocation(locationMsg));
@@ -167,14 +167,14 @@ let import = macro {
     }
     function check(predicate, name) {
         var c = new Contract(name, 'check', function (blame) {
-                return function (val) {
-                    if (predicate(val)) {
-                        return val;
-                    } else {
-                        raiseBlame(blame.addExpected(name).addGiven(val));
-                    }
-                };
-            });
+            return function (val) {
+                if (predicate(val)) {
+                    return val;
+                } else {
+                    raiseBlame(blame.addExpected(name).addGiven(val));
+                }
+            };
+        });
         return c;
     }
     function addTh(a0) {
@@ -199,7 +199,6 @@ let import = macro {
     function toContract(f) {
         return check(f, f.name ? f.name : 'custom contract');
     }
-    //first two params get partial eval'd
     function applyTrap(funParams, contractParams, target, thisVal, args) {
         var options = funParams.options;
         var dom = funParams.dom;
@@ -209,13 +208,14 @@ let import = macro {
         var projOptions = contractParams.projOptions;
         var checkedArgs = [];
         var depArgs = [];
+        var isCalled = { isCalled: false };
         for (var i = 0; i < dom.length; i++) {
             if (dom[i].type === 'optional' && args[i] === undefined) {
                 continue;
             }
             var location = 'the ' + addTh(i + 1) + ' argument of';
             var unwrapForProj = dom[i].type === 'fun' ? !unwrapTypeVar : unwrapTypeVar;
-            var domProj = dom[i].proj(blame.swap().addLocation(location), unwrapForProj);
+            var domProj = dom[i].proj(blame.swap().addLocation(location), unwrapForProj, undefined, isCalled);
             checkedArgs.push(domProj(args[i]));
             if (options && options.dependency) {
                 var depProj = dom[i].proj(blame.swap().setNeg('the contract of ' + blame.name).addLocation(location));
@@ -242,6 +242,22 @@ let import = macro {
         }
         return rngResult;
     }
+    function xor(domRaw, rngRaw, options) {
+        return new Contract('xor', 'xor', function (blame, unwrapTypeVar, projOptions, isCalled) {
+            var c = fun(domRaw, rngRaw, options);
+            var fproj = c.proj(blame, unwrapTypeVar, projOptions);
+            return function (f) {
+                var trap = fproj(f);
+                return function () {
+                    if (isCalled.isCalled) {
+                        raiseBlame(blame.swap().addExpected('other function already called'));
+                    }
+                    isCalled.isCalled = true;
+                    trap.apply(this, arguments);
+                };
+            };
+        });
+    }
     function once(domRaw, rngRaw, options) {
         return new Contract('once', 'one', function (blame, unwrapTypeVar, projOptions) {
             var c = fun(domRaw, rngRaw, options);
@@ -265,10 +281,9 @@ let import = macro {
             var fproj = c.proj(blame, unwrapTypeVar, projOptions);
             return function (f) {
                 var trap = fproj(f);
-                var appliedThreadId = threadId;
-                process.nextTick(incThreadId);
+                var appliedThreadId = getThreadId();
                 return function () {
-                    if (appliedThreadId === threadId) {
+                    if (appliedThreadId === getThreadId()) {
                         raiseBlame(blame.swap().addExpected('call on the next turn of the event loop'));
                     }
                     trap.apply(this, arguments);
@@ -278,17 +293,17 @@ let import = macro {
     }
     function fun(domRaw, rngRaw, options) {
         var dom = domRaw.map(function (d) {
-                if (!(d instanceof Contract)) {
-                    if (typeof d === 'function') {
-                        return toContract(d);
-                    }
-                    throw new Error(d + ' is not a contract');
+            if (!(d instanceof Contract)) {
+                if (typeof d === 'function') {
+                    return toContract(d);
                 }
-                return d;
-            });
+                throw new Error(d + ' is not a contract');
+            }
+            return d;
+        });
         var domStr = dom.map(function (d, idx) {
-                return options && options.namesStr ? options.namesStr[idx] + ': ' + d : d;
-            }).join(', ');
+            return options && options.namesStr ? options.namesStr[idx] + ': ' + d : d;
+        }).join(', ');
         var domName = '(' + domStr + ')';
         var rng = rngRaw;
         if (!(rngRaw instanceof Contract)) {
@@ -302,35 +317,35 @@ let import = macro {
         var thisName = options && options.thisContract ? '\n    | this: ' + options.thisContract : '';
         var contractName = domName + ' -> ' + rngStr + thisName + (options && options.dependencyStr ? ' | ' + options.dependencyStr : '');
         var c = new Contract(contractName, 'fun', function (blame, unwrapTypeVar, projOptions) {
-                return function (f) {
-                    blame = blame.addParents(contractName);
-                    if (typeof f !== 'function') {
-                        raiseBlame(blame.addExpected('a function that takes ' + dom.length + pluralize(dom.length, ' argument')).addGiven(f));
-                    }
-                    var applyTrapPartial = applyTrap.bind('', {
-                            options: options,
-                            dom: dom,
-                            rng: rng
-                        }, {
-                            blame: blame,
-                            unwrapTypeVar: unwrapTypeVar,
-                            projOptions: projOptions
-                        });
-                    // only use expensive proxies when needed (to distinguish between apply and construct)
-                    if (options && options.needsProxy) {
-                        var p = new Proxy(f, {
-                                apply: function (target, thisVal, args) {
-                                    return applyTrapPartial(target, thisVal, args);
-                                }
-                            });
-                        return p;
-                    } else {
-                        return function () {
-                            return applyTrapPartial(f, this, Array.prototype.slice.call(arguments));
-                        };
-                    }
-                };
-            });
+            return function (f) {
+                blame = blame.addParents(contractName);
+                if (typeof f !== 'function') {
+                    raiseBlame(blame.addExpected('a function that takes ' + dom.length + pluralize(dom.length, ' argument')).addGiven(f));
+                }
+                var applyTrapPartial = applyTrap.bind('', {
+                    options: options,
+                    dom: dom,
+                    rng: rng
+                }, {
+                    blame: blame,
+                    unwrapTypeVar: unwrapTypeVar,
+                    projOptions: projOptions
+                });
+                if (// only use expensive proxies when needed (to distinguish between apply and construct)
+                    options && options.needsProxy) {
+                    var p = new Proxy(f, {
+                        apply: function (target, thisVal, args) {
+                            return applyTrapPartial(target, thisVal, args);
+                        }
+                    });
+                    return p;
+                } else {
+                    return function () {
+                        return applyTrapPartial(f, this, Array.prototype.slice.call(arguments));
+                    };
+                }
+            };
+        });
         return c;
     }
     function optional(contract) {
@@ -411,17 +426,17 @@ let import = macro {
     function array(arrContractRaw, options) {
         var proxyPrefix = options && options.proxy ? '!' : '';
         var arrContract = arrContractRaw.map(function (c) {
-                if (!(c instanceof Contract)) {
-                    if (typeof c === 'function') {
-                        return toContract(c);
-                    }
-                    throw new Error(c + ' is not a contract');
+            if (!(c instanceof Contract)) {
+                if (typeof c === 'function') {
+                    return toContract(c);
                 }
-                return c;
-            });
+                throw new Error(c + ' is not a contract');
+            }
+            return c;
+        });
         var contractName = proxyPrefix + '[' + arrContract.map(function (c) {
-                return c;
-            }).join(', ') + ']';
+            return c;
+        }).join(', ') + ']';
         var contractNum = arrContract.length;
         return new Contract(contractName, 'array', arrayContractHandler.bind('', options, arrContract, contractName, contractNum));
     }
@@ -438,41 +453,41 @@ let import = macro {
         });
         var proxyPrefix = options && options.proxy ? '!' : '';
         var contractName = proxyPrefix + '{' + contractKeys.map(function (prop) {
-                return prop + ': ' + objContract[prop];
-            }).join(', ') + '}';
+            return prop + ': ' + objContract[prop];
+        }).join(', ') + '}';
         var keyNum = contractKeys.length;
         var c = new Contract(contractName, 'object', function (blame) {
-                return function (obj) {
-                    if (typeof obj === 'number' || typeof obj === 'string' || typeof obj === 'boolean' || obj === null || obj === undefined) {
-                        raiseBlame(blame.addGiven(obj).addExpected('an object with at least ' + keyNum + pluralize(keyNum, ' key')));
+            return function (obj) {
+                if (typeof obj === 'number' || typeof obj === 'string' || typeof obj === 'boolean' || obj === null || obj === undefined) {
+                    raiseBlame(blame.addGiven(obj).addExpected('an object with at least ' + keyNum + pluralize(keyNum, ' key')));
+                }
+                contractKeys.forEach(function (key) {
+                    if (!(objContract[key].type === 'optional' && obj[key] === undefined)) {
+                        var propProjOptions = objContract[key].type === 'fun' ? { overrideThisContract: this } : {};
+                        var c$2 = objContract[key].type === 'cycle' ? objContract[key].cycleContract : objContract[key];
+                        var propProj = c$2.proj(blame.addLocation('the ' + key + ' property of'), false, propProjOptions);
+                        var checkedProperty = propProj(obj[key]);
+                        obj[key] = checkedProperty;
                     }
-                    contractKeys.forEach(function (key) {
-                        if (!(objContract[key].type === 'optional' && obj[key] === undefined)) {
-                            var propProjOptions = objContract[key].type === 'fun' ? { overrideThisContract: this } : {};
-                            var c$2 = objContract[key].type === 'cycle' ? objContract[key].cycleContract : objContract[key];
-                            var propProj = c$2.proj(blame.addLocation('the ' + key + ' property of'), false, propProjOptions);
-                            var checkedProperty = propProj(obj[key]);
-                            obj[key] = checkedProperty;
-                        }
-                    }.bind(this));
-                    if (options && options.proxy) {
-                        return new Proxy(obj, {
-                            set: function (target, key, value) {
-                                if (objContract.hasOwnProperty(key)) {
-                                    var c$2 = objContract[key].type === 'cycle' ? objContract[key].cycleContract : objContract[key];
-                                    var propProj = c$2.proj(blame.swap().addLocation('setting the ' + key + ' property of'));
-                                    var checkedProperty = propProj(value);
-                                    target[key] = checkedProperty;
-                                } else {
-                                    target[key] = value;
-                                }
+                }.bind(this));
+                if (options && options.proxy) {
+                    return new Proxy(obj, {
+                        set: function (target, key, value) {
+                            if (objContract.hasOwnProperty(key)) {
+                                var c$2 = objContract[key].type === 'cycle' ? objContract[key].cycleContract : objContract[key];
+                                var propProj = c$2.proj(blame.swap().addLocation('setting the ' + key + ' property of'));
+                                var checkedProperty = propProj(value);
+                                target[key] = checkedProperty;
+                            } else {
+                                target[key] = value;
                             }
-                        });
-                    } else {
-                        return obj;
-                    }
-                }.bind(this);
-            });
+                        }
+                    });
+                } else {
+                    return obj;
+                }
+            }.bind(this);
+        });
         return c;
     }
     function reMatch(re) {
@@ -538,6 +553,10 @@ let import = macro {
     function incThreadId() {
         threadId++;
     }
+    function getThreadId() {
+        process.nextTick(incThreadId);
+        return threadId;
+    }
     function cyclic(name) {
         return new Contract(name, 'cycle', function () {
             throw new Error('Stub, should never be called');
@@ -592,6 +611,7 @@ let import = macro {
         fun: fun,
         async: async,
         once: once,
+        xor: xor,
         or: or,
         and: and,
         repeat: repeat,

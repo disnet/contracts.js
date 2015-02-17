@@ -300,6 +300,7 @@
 
         var checkedArgs = [];
         var depArgs = [];
+        var isCalled = { isCalled: false };
         for (var i = 0; i < dom.length; i++) {
             if (dom[i].type === "optional" && args[i] === undefined) {
                 continue;
@@ -308,7 +309,7 @@
             var location = "the " + addTh(i+1) + " argument of";
             var unwrapForProj = dom[i].type === "fun" ? !unwrapTypeVar : unwrapTypeVar;
             var domProj = dom[i].proj(blame.swap()
-                                      .addLocation(location), unwrapForProj);
+                                      .addLocation(location), unwrapForProj, undefined, isCalled);
 
             checkedArgs.push(domProj(args[i]));
 
@@ -349,6 +350,25 @@
         return rngResult;
     }
 
+    function xor(domRaw, rngRaw, options) {
+        return new Contract("xor", "xor", function(blame, unwrapTypeVar, projOptions, isCalled) {
+            var c = fun(domRaw, rngRaw, options);
+            var fproj = c.proj(blame, unwrapTypeVar, projOptions)
+            return function (f) {
+                var trap = fproj(f);
+                return function () {
+                    if (isCalled.isCalled) {
+                        raiseBlame(blame.swap()
+                                        .addExpected("other function already called"))
+                    }
+                    isCalled.isCalled = true;
+                    trap.apply(this, arguments);
+                }
+            };
+        });
+    }
+
+
     function once(domRaw, rngRaw, options) {
         return new Contract("once", "one", function(blame, unwrapTypeVar, projOptions) {
             var c = fun(domRaw, rngRaw, options);
@@ -373,10 +393,9 @@
             var fproj = c.proj(blame, unwrapTypeVar, projOptions)
             return function (f) {
                 var trap = fproj(f);
-                var appliedThreadId = threadId;
-                process.nextTick(incThreadId);
+                var appliedThreadId = getThreadId();
                 return function () {
-                    if (appliedThreadId === threadId) {
+                    if (appliedThreadId === getThreadId()) {
                         raiseBlame(blame.swap().addExpected("call on the next turn of the event loop"))
                     }
                     trap.apply(this, arguments);
@@ -707,6 +726,10 @@
 
     var threadId = 0;
     function incThreadId() { threadId++; }
+    function getThreadId() {
+        process.nextTick(incThreadId);
+        return threadId;
+    }
 
     function cyclic(name) {
         return new Contract(name, "cycle", function() {
@@ -742,6 +765,7 @@
         fun: fun,
         async: async,
         once: once,
+        xor: xor,
         or: or,
         and: and,
         repeat: repeat,

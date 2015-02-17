@@ -91,6 +91,9 @@ macro function_contract {
     rule { once ($dom:any_contract (,) ...) -> $range:any_contract } => {
         _c.once([$dom (,) ...], $range)
     }
+    rule { XOR ($dom:any_contract (,) ...) -> $range:any_contract } => {
+        _c.xor([$dom (,) ...], $range)
+    }
 }
 
 macro object_contract {
